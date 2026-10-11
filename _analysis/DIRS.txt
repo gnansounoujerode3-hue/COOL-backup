@@ -1,0 +1,145 @@
+
+===== PROFONDEUR 1 — top 60 par taille =====
+   153,867,257        8 fichiers  Videos
+    27,994,218       84 fichiers  repro
+    27,504,840       12 fichiers  uploads
+    11,067,608       51 fichiers  glam
+     8,962,185       24 fichiers  cobalt
+     7,594,288      336 fichiers  pl
+     6,560,613       31 fichiers  leger-video
+     6,493,355        4 fichiers  raw5
+     4,955,565        5 fichiers  raw1
+     4,834,695      385 fichiers  .agents
+     4,829,968      384 fichiers  .claude
+     4,036,823       27 fichiers  rockwood-edit
+     2,732,682        4 fichiers  raw4
+     2,523,166       16 fichiers  felix
+     1,175,693       14 fichiers  peak
+       968,939       14 fichiers  priorities
+         2,016        3 fichiers  .hyperframes
+           771        1 fichiers  setup_env.sh
+             0        1 fichiers  .sudo_as_admin_successful
+
+===== PROFONDEUR 2 — top 60 par taille =====
+    34,193,472        1 fichiers  Videos/leger-funnel-builder-16x9.mp4
+    33,590,699        1 fichiers  Videos/leger-funnel-builder-9x16.mp4
+    23,981,538        1 fichiers  Videos/peak-architects-blueprint-9x16.mp4
+    18,965,505        1 fichiers  Videos/priorities-studio-paper-9x16.mp4
+    14,680,400        1 fichiers  Videos/rockwood-method-montage-v2-9x16.mp4
+    11,431,102        1 fichiers  Videos/miss-lumiere-littoral-teaser-9x16.mp4
+    10,201,805        1 fichiers  Videos/miss-lumiere-littoral-teaser-4x5.mp4
+     8,620,127        5 fichiers  cobalt/audio
+     7,594,288      336 fichiers  pl/pl-arena-01a0e7b8-pl
+     6,822,736        1 fichiers  Videos/motivation-discipline-fr-9x16.mp4
+     6,624,113        5 fichiers  repro/plates
+     6,305,084        1 fichiers  raw5/in.mp4
+     6,305,084        1 fichiers  uploads/video brut 5.js
+     6,022,409        9 fichiers  glam/src
+     4,952,006        1 fichiers  uploads/video brut.js
+     4,829,968      384 fichiers  .agents/skills
+     4,829,968      384 fichiers  .claude/skills
+     4,796,641        7 fichiers  repro/src
+     3,678,076        1 fichiers  raw1/in.mp4
+     3,678,076        1 fichiers  uploads/video brut 1l.js
+     3,523,078        1 fichiers  uploads/reference.js
+     3,454,454       20 fichiers  glam/app_v
+     3,412,802        1 fichiers  repro/cut_in5.png
+     2,832,452        1 fichiers  repro/c1raw.png
+     2,623,490        1 fichiers  raw4/in.mp4
+     2,623,490        1 fichiers  uploads/video brut4.js
+     2,566,306       16 fichiers  rockwood-edit/app
+     2,449,749        1 fichiers  repro/cut_in1.png
+     2,359,790        6 fichiers  felix/audio
+     2,182,173       12 fichiers  leger-video/app-v
+     2,182,173       12 fichiers  leger-video/app
+     2,048,546        2 fichiers  repro/audio
+     2,035,401        1 fichiers  uploads/reference1.js
+     1,990,610        3 fichiers  leger-video/music
+     1,658,942        1 fichiers  repro/in.mp4
+     1,658,942        1 fichiers  uploads/video reproductive.js
+     1,451,237        4 fichiers  glam/audio
+     1,435,947        8 fichiers  rockwood-edit/audio
+     1,188,242        1 fichiers  raw1/a.wav
+     1,174,966        1 fichiers  uploads/Grande soiree couronnement.jpg
+     1,108,521        5 fichiers  peak/audio
+       901,758        5 fichiers  priorities/audio
+       565,429        1 fichiers  repro/chess_full.png
+       552,200        1 fichiers  repro/a.wav
+       424,926        1 fichiers  repro/p1.png
+       421,733        1 fichiers  uploads/Capture d'écran 2026-10-06 210637.png
+       417,315        1 fichiers  uploads/Capture d'écran 2026-10-06 210713.png
+       401,068        1 fichiers  uploads/Capture d'écran 2026-10-06 211203.png
+       313,681        1 fichiers  uploads/Capture d'écran 2026-10-06 214651.png
+       193,628        1 fichiers  repro/g_1.png
+       179,901        1 fichiers  raw5/sheet.jpg
+       167,142        1 fichiers  repro/g_7.png
+       150,217        1 fichiers  repro/g_0.png
+       149,673        1 fichiers  repro/d_3.png
+       147,885        1 fichiers  leger-video/src
+       140,366        8 fichiers  repro/vo
+       138,058        1 fichiers  repro/g_2.png
+       123,437        1 fichiers  repro/d_1.png
+       123,017        1 fichiers  repro/bigg.jpg
+       110,088        1 fichiers  repro/g_5.png
+
+===== PROFONDEUR 3 — top 60 par taille =====
+    34,193,472        1 fichiers  Videos/leger-funnel-builder-16x9.mp4
+    33,590,699        1 fichiers  Videos/leger-funnel-builder-9x16.mp4
+    23,981,538        1 fichiers  Videos/peak-architects-blueprint-9x16.mp4
+    18,965,505        1 fichiers  Videos/priorities-studio-paper-9x16.mp4
+    14,680,400        1 fichiers  Videos/rockwood-method-montage-v2-9x16.mp4
+    11,431,102        1 fichiers  Videos/miss-lumiere-littoral-teaser-9x16.mp4
+    10,201,805        1 fichiers  Videos/miss-lumiere-littoral-teaser-4x5.mp4
+     7,537,443      330 fichiers  pl/pl-arena-01a0e7b8-pl/.claude
+     6,822,736        1 fichiers  Videos/motivation-discipline-fr-9x16.mp4
+     6,305,084        1 fichiers  raw5/in.mp4
+     6,305,084        1 fichiers  uploads/video brut 5.js
+     4,952,006        1 fichiers  uploads/video brut.js
+     4,304,204        1 fichiers  cobalt/audio/bed.wav
+     4,304,204        1 fichiers  cobalt/audio/sfx.wav
+     3,678,076        1 fichiers  raw1/in.mp4
+     3,678,076        1 fichiers  uploads/video brut 1l.js
+     3,523,078        1 fichiers  uploads/reference.js
+     3,412,802        1 fichiers  repro/cut_in5.png
+     3,411,282       16 fichiers  glam/app_v/assets
+     2,832,452        1 fichiers  repro/c1raw.png
+     2,623,490        1 fichiers  raw4/in.mp4
+     2,623,490        1 fichiers  uploads/video brut4.js
+     2,449,749        1 fichiers  repro/cut_in1.png
+     2,388,781        9 fichiers  rockwood-edit/app/assets
+     2,108,302        6 fichiers  leger-video/app-v/assets
+     2,108,302        6 fichiers  leger-video/app/assets
+     2,046,284        1 fichiers  repro/audio/bed.wav
+     2,035,401        1 fichiers  uploads/reference1.js
+     1,921,819        1 fichiers  leger-video/music/music.mp3
+     1,794,811        1 fichiers  repro/plates/p5.png
+     1,775,986      104 fichiers  .agents/skills/media-use
+     1,775,986      104 fichiers  .claude/skills/media-use
+     1,658,942        1 fichiers  repro/in.mp4
+     1,658,942        1 fichiers  uploads/video reproductive.js
+     1,649,652        1 fichiers  repro/plates/p2.png
+     1,638,492        1 fichiers  glam/src/queen_cut.png
+     1,348,618        1 fichiers  repro/plates/p1.png
+     1,231,035      122 fichiers  .agents/skills/hyperframes-animation
+     1,231,035      122 fichiers  .claude/skills/hyperframes-animation
+     1,222,210        1 fichiers  repro/plates/p3.png
+     1,207,344       79 fichiers  .agents/skills/hyperframes-creative
+     1,207,344       79 fichiers  .claude/skills/hyperframes-creative
+     1,188,242        1 fichiers  raw1/a.wav
+     1,179,211        1 fichiers  glam/src/queen_crop.png
+     1,174,966        1 fichiers  glam/src/flyer.jpg
+     1,174,966        1 fichiers  uploads/Grande soiree couronnement.jpg
+     1,173,045        1 fichiers  felix/audio/music.mp3
+     1,173,045        1 fichiers  felix/audio/sfx.mp3
+     1,055,020        1 fichiers  repro/src/s5.png
+       938,013        1 fichiers  glam/src/cut_check.png
+       925,490        1 fichiers  repro/src/s2.png
+       892,176        1 fichiers  priorities/audio/sfx.mp3
+       842,862        1 fichiers  repro/src/s3.png
+       793,148        1 fichiers  repro/src/s1.png
+       721,649        1 fichiers  glam/audio/music.mp3
+       721,649        1 fichiers  glam/audio/sfx.mp3
+       663,971        1 fichiers  rockwood-edit/audio/music.mp3
+       663,971        1 fichiers  rockwood-edit/audio/sfx.mp3
+       608,822        1 fichiers  repro/plates/p4.png
+       588,377        1 fichiers  repro/src/s4b.png

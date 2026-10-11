@@ -1,0 +1,116 @@
+==============================================================================
+ANALYSE DE L'ARCHIVE : COOL.zip
+==============================================================================
+Taille du fichier zip          : 276,373,308 octets (263.6 MiB)
+Entrées dans l'index          : 1404
+  - fichiers                  : 1404
+  - dossiers                  : 0
+Taille compressée (somme)     : 276,104,682 octets (263.3 MiB)
+Taille décompressée (somme)   : 276,104,682 octets (263.3 MiB)
+Ratio de compression          : 1.00x
+
+--- Racine: nombre d'entrées par premier niveau (top 40) ---
+       385  .agents
+       384  .claude
+       336  pl
+        84  repro
+        51  glam
+        31  leger-video
+        27  rockwood-edit
+        24  cobalt
+        16  felix
+        14  peak
+        14  priorities
+        12  uploads
+         8  Videos
+         5  raw1
+         4  raw4
+         4  raw5
+         3  .hyperframes
+         1  .sudo_as_admin_successful
+         1  setup_env.sh
+
+Profondeur maximale des chemins : 8
+Entrées .git (dépôt git inclus) : 0
+Entrées node_modules           : 0
+Entrées venv/.venv             : 0
+Entrées .next (build Next.js)  : 0
+Entrées dist/build             : 0
+Entrées parasites macOS/Windows: 0
+
+--- Extensions (top 45 par nombre) ---
+  ext                      nb    taille décompressée
+  .md                     656              5,220,020
+  .mjs                    149                909,793
+  .html                   104              2,989,178
+  .py                      72                475,530
+  .json                    62                166,144
+  .mp3                     62             18,389,787
+  .ttf                     54              5,412,104
+  .png                     50             30,800,551
+  .jpg                     47              4,065,401
+  .txt                     45                258,125
+  .woff2                   37                745,832
+  .sh                      15                 31,700
+  .js                      13             25,077,776
+  .mp4                     12            168,132,849
+  .wav                      5             12,395,134
+  (sans extension)          5                  9,249
+  .gitignore                3                     41
+  .yaml                     2                    440
+  .css                      2                  7,222
+  .sudo_as_admin_successful        1                      0
+  .gz                       1                 19,967
+  .cjs                      1                 25,693
+  .xml                      1                  1,194
+  .ts                       1                  5,054
+  .pdf                      1                124,310
+  .dot                      1                  5,970
+  .gitattributes            1                     66
+  .m4a                      1                835,552
+
+--- 30 plus gros fichiers ---
+    34,193,472  Videos/leger-funnel-builder-16x9.mp4
+    33,590,699  Videos/leger-funnel-builder-9x16.mp4
+    23,981,538  Videos/peak-architects-blueprint-9x16.mp4
+    18,965,505  Videos/priorities-studio-paper-9x16.mp4
+    14,680,400  Videos/rockwood-method-montage-v2-9x16.mp4
+    11,431,102  Videos/miss-lumiere-littoral-teaser-9x16.mp4
+    10,201,805  Videos/miss-lumiere-littoral-teaser-4x5.mp4
+     6,822,736  Videos/motivation-discipline-fr-9x16.mp4
+     6,305,084  raw5/in.mp4
+     6,305,084  uploads/video brut 5.js
+     4,952,006  uploads/video brut.js
+     4,304,204  cobalt/audio/bed.wav
+     4,304,204  cobalt/audio/sfx.wav
+     3,678,076  raw1/in.mp4
+     3,678,076  uploads/video brut 1l.js
+     3,523,078  uploads/reference.js
+     3,412,802  repro/cut_in5.png
+     2,832,452  repro/c1raw.png
+     2,623,490  raw4/in.mp4
+     2,623,490  uploads/video brut4.js
+     2,449,749  repro/cut_in1.png
+     2,046,284  repro/audio/bed.wav
+     2,035,401  uploads/reference1.js
+     1,921,819  leger-video/app-v/assets/music.mp3
+     1,921,819  leger-video/app/assets/music.mp3
+     1,921,819  leger-video/music/music.mp3
+     1,794,811  repro/plates/p5.png
+     1,658,942  repro/in.mp4
+     1,658,942  uploads/video reproductive.js
+     1,649,652  repro/plates/p2.png
+
+--- Fichiers marqueurs détectés (chemin dans l'archive) ---
+  package.json             -> glam/app/package.json, peak/app/package.json, felix/app/package.json, repro/app/package.json, cobalt/app/package.json
+  package-lock.json        -> rockwood-edit/app/package-lock.json
+  requirements.txt         -> pl/pl-arena-01a0e7b8-pl/.claude/skills/slack-gif-creator/requirements.txt, pl/pl-arena-01a0e7b8-pl/.claude/skills/mcp-builder/scripts/requirements.txt
+  README.md                -> leger-video/README.md, .agents/skills/media-use/luts/README.md, .claude/skills/media-use/luts/README.md
+  .gitignore               -> pl/pl-arena-01a0e7b8-pl/.gitignore, .agents/skills/media-use/.gitignore, .claude/skills/media-use/.gitignore
+  index.html               -> peak/app/index.html, felix/app/index.html, repro/app/index.html, cobalt/app/index.html, glam/app_f/index.html
+
+--- Interprétation rapide ---
+  - Projet JavaScript/TypeScript (web / Node)
+  - Présence de Python
+  - Contient des vidéos
+  - Contient des PDF
