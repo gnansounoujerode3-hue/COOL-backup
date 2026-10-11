@@ -1,0 +1,47 @@
+name: Inspect COOL.zip
+
+on:
+  push:
+    branches: [arena/0f2bbaef-cool-backup]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - name: Checkout (avec contenu LFS)
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 1
+
+      - name: Infos sur le fichier
+        run: |
+          set -x
+          ls -la
+          file COOL.zip
+          du -h COOL.zip
+          sha256sum COOL.zip
+
+      - name: Analyse de l'archive
+        run: python3 scripts/analyze_zip.py
+
+      - name: Taille des rapports
+        run: du -sh _analysis/* || true
+
+      - name: Commit des rapports
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f _analysis
+          if git diff --cached --quiet; then
+            echo "Rien à committer"
+          else
+            git commit -m "Analyse automatique de COOL.zip"
+            git push
+          fi
