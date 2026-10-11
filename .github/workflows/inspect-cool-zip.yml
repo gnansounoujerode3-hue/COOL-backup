@@ -1,8 +1,6 @@
 name: Inspect COOL.zip
 
 on:
-  push:
-    branches: [arena/0f2bbaef-cool-backup]
   workflow_dispatch:
 
 permissions:
