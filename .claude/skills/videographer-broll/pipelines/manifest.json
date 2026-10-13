@@ -1,0 +1,40 @@
+{
+  "$schema_note": "Machine-readable production pipelines for video-orchestrator. Each pipeline is a staged manifest the orchestrator walks for 'make a whole video from a topic' requests (source.type == 'none' and the intent is a full production, not a single clip). Every stage produces one inspectable file in the job dir. Scaffold a run with tools/scaffold_pipeline.py.",
+  "version": "1.0.0",
+  "common_stages": [
+    { "id": "research", "file": "00-research.md", "produces": "sourced facts + angle, with citations", "success": "every non-obvious claim has a source; an angle is chosen", "gate": null },
+    { "id": "proposal", "file": "01-proposal.md", "produces": "logline, audience, tone, length, platform, success metric", "success": "human approves the proposal before any asset spend", "gate": null, "human_gate": true },
+    { "id": "script", "file": "02-script.md", "produces": "VO / on-camera script with timing", "success": "script reads in the target duration at ~150 wpm", "gate": null },
+    { "id": "scene_plan", "file": "03-scene_plan.json", "produces": "shot-by-shot plan (schemas/scene-plan.schema.json)", "success": "passes the slideshow-risk pre-gate (soft: WARN requires human confirm)", "gate": "slideshow_risk" },
+    { "id": "assets", "file": "04-assets.md", "produces": "asset manifest: which shots are generated / b-roll / footage / image, with provenance + license", "success": "every shot has a resolved asset + logged license; budget within cap", "gate": null },
+    { "id": "edit", "file": "05-edit.md", "produces": "edit decisions / EDL, music + SFX cues, captions", "success": "timeline assembled; music bed + transitions placed", "gate": null },
+    { "id": "compose", "file": "06-compose.md", "produces": "final render via the matched engine + post-render QA", "success": "run-qa.py overall PASS/WARN; render profile applied", "gate": "post_render_qa" }
+  ],
+  "pipelines": {
+    "explainer": {
+      "description": "Research-grounded educational video: a claim or how-to explained with narration + supporting visuals (b-roll, data-viz, title cards used sparingly).",
+      "default_engine": "cutsense",
+      "default_tools": { "narration": "elevenlabs-tts", "visuals": "broll-retrieval", "data": "hyperframes", "compose": "remotion" },
+      "notes": "Lean on broll-retrieval + hyperframes data cards. Watch typography_overreliance - an explainer drifts into title-card slideshow fastest.",
+      "stage_overrides": {}
+    },
+    "documentary-montage": {
+      "description": "Thematic montage cut from real archive / stock footage (Archive.org, NASA, Wikimedia, Pexels) over a narration track. Retrieval-first: the footage IS the video.",
+      "default_engine": "cutsense",
+      "default_tools": { "narration": "elevenlabs-tts", "visuals": "broll-retrieval", "music": "music-sfx", "compose": "cutsense" },
+      "notes": "assets stage is dominated by broll-retrieval. Provenance/license logging in broll-manifest.json is mandatory. Stills need Ken Burns.",
+      "stage_overrides": {
+        "assets": { "produces": "broll-manifest.json: per-shot clip + license + page_url from broll-retrieval", "success": "every shot has a real clip with a logged free license" }
+      }
+    },
+    "cinematic": {
+      "description": "Mood-driven generated piece (trailer / brand film / hero reveal) built from fal-seedance / veo3 shots with a music bed. Multi-clip consistency via Lock Block.",
+      "default_engine": "fal-seedance",
+      "default_tools": { "visuals": "fal-seedance", "music": "music-sfx", "enhance": "enhance", "compose": "remotion" },
+      "notes": "Metered generation - budget governance (free-first default) and the Lock Block from brand/consistency-rules.md both apply. Pair with kmboards video-style-* skills for the prompt bodies.",
+      "stage_overrides": {
+        "script": { "produces": "beat sheet + shot prompts (one Lock Block reused across shots)", "success": "Lock Block is byte-identical across every multi-clip prompt" }
+      }
+    }
+  }
+}

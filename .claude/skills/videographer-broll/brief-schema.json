@@ -1,0 +1,296 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/video-orchestrator/brief.schema.json",
+  "title": "Video Orchestrator Brief",
+  "description": "Universal contract every adapter consumes. Read-only inside adapters. The orchestrator fills this from the user's answers + template defaults; adapters dispatch to their tool based on the values here.",
+  "type": "object",
+  "required": ["brief_id", "source", "intent", "output", "cleanup", "brand", "tools", "fork_mode", "qa_gates", "output_dir"],
+  "additionalProperties": false,
+  "properties": {
+    "brief_id": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9-]+$",
+      "description": "YYYY-MM-DD-<3-word-slug>, e.g. 2026-04-26-podcast-acme-launch"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the brief was created"
+    },
+    "template": {
+      "type": ["string", "null"],
+      "description": "Filename of the template used (e.g. 'zoom-podcast-multi.md'), or null if free-form"
+    },
+    "source": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": ["string", "null"],
+          "description": "Absolute path to the source video/audio file. Null if source is a URL only."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["zoom_podcast", "zoom_lecture", "walking_selfie", "screen_recording", "url", "avatar_script", "other"]
+        },
+        "url": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL if source is web-based (e.g. YouTube, website for promo)"
+        },
+        "duration_sec": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "speakers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Speaker labels in order of expected appearance"
+        },
+        "language": {
+          "type": "string",
+          "default": "en"
+        }
+      }
+    },
+    "intent": {
+      "type": "string",
+      "enum": ["vertical_clips", "long_cut_polish", "educational_verticals", "promo", "ad_variants", "avatar_explainer", "tutorial_chaptered", "explainer", "documentary_montage", "cinematic", "scene_planned_generation"]
+    },
+    "output": {
+      "type": "object",
+      "required": ["format", "aspect", "length_target_sec", "count"],
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["mp4", "webm", "mov"],
+          "default": "mp4"
+        },
+        "aspect": {
+          "type": "string",
+          "enum": ["9:16", "1:1", "16:9", "4:5"],
+          "description": "9:16 = vertical (Reels/Shorts/TikTok), 1:1 = square (IG feed), 16:9 = horizontal (YouTube/web), 4:5 = IG portrait feed"
+        },
+        "resolution": {
+          "type": "string",
+          "default": "1080p",
+          "enum": ["720p", "1080p", "4k"]
+        },
+        "fps": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 24,
+          "maximum": 60
+        },
+        "length_target_sec": {
+          "type": "number",
+          "minimum": 1
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "captions_style": {
+          "type": "string",
+          "enum": ["brand_pill", "jumbo", "natural_sentence", "none"],
+          "default": "brand_pill"
+        },
+        "music": {
+          "type": "string",
+          "default": "none",
+          "description": "'auto' (generate a bed via music-sfx), 'none', or an absolute path to an audio file."
+        },
+        "render_profile": {
+          "type": ["string", "null"],
+          "enum": ["youtube_landscape", "youtube_4k", "youtube_shorts", "instagram_reels", "instagram_feed", "instagram_portrait", "tiktok", "linkedin", "cinematic", null],
+          "description": "Platform delivery profile from render-profiles.json; applied at compose (dimensions, fps, safe margins, caption sizing). Null = use aspect/resolution directly. Resolve with tools/apply_profile.py."
+        }
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "remove_silences_over_sec": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "default": 1.0,
+          "description": "Cut silences longer than this. Null = off."
+        },
+        "remove_filler_words": {
+          "type": "boolean",
+          "default": true
+        },
+        "remove_retakes": {
+          "type": "boolean",
+          "default": true
+        },
+        "loudness_target_lufs": {
+          "type": "number",
+          "default": -16,
+          "description": "-16 for social, -14 for YouTube, -23 for broadcast"
+        },
+        "true_peak_max_dbtp": {
+          "type": "number",
+          "default": -1.0
+        },
+        "normalize_audio": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "brand": {
+      "type": "object",
+      "required": ["pack"],
+      "additionalProperties": false,
+      "properties": {
+        "pack": {
+          "type": "string",
+          "description": "Absolute path to brand pack JSON",
+          "default": "<skill_root>/brand/pack-personal-social.json"
+        },
+        "colors_primary": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "colors_secondary": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "colors_text": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "colors_bg": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "fonts": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "logo_path": { "type": ["string", "null"] }
+      }
+    },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {
+        "type": "string",
+        "enum": ["cutsense", "hyperframes", "video-use", "heygen", "hedra", "remotion", "website-to-hyperframes", "fal-seedance", "veo3", "lottie", "broll-retrieval", "music-sfx", "enhance"]
+      },
+      "description": "List of tools to dispatch. Single-tool mode = length 1. Fork mode = length 2-6. broll-retrieval / music-sfx / enhance are asset-stage helpers, not standalone renderers."
+    },
+    "fork_mode": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, dispatch each tool in tools[] as a parallel sub-agent and produce COMPARE.md"
+    },
+    "qa_gates": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["face_safety", "loudness", "timing"]
+      },
+      "default": ["face_safety", "loudness", "timing"]
+    },
+    "output_dir": {
+      "type": "string",
+      "description": "Absolute path to the job output directory, e.g. ${VIDEO_JOBS_DIR}/<brief_id>/"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form notes from the user (must-preserve moments, must-cut moments, slips to avoid)"
+    },
+    "pipeline": {
+      "type": ["string", "null"],
+      "enum": ["explainer", "documentary-montage", "cinematic", null],
+      "description": "If set, this brief is a staged production (see pipelines/manifest.json). Scaffold with tools/scaffold_pipeline.py; stage state lives in the job's pipeline.json."
+    },
+    "precompose_gates": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["slideshow_risk"] },
+      "default": [],
+      "description": "Gates run on the scene_plan BEFORE render (qa/slideshow-risk.py). Default mode is soft (warn & confirm, never blocks). Distinct from qa_gates, which run post-render."
+    },
+    "broll": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "B-roll retrieval pass (adapters/broll-retrieval.md). Free-first stock/archive cutaways.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "sources": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["archive", "wikimedia", "nasa", "pexels", "pixabay", "unsplash"] },
+          "default": ["archive", "wikimedia", "nasa"],
+          "description": "Free-first. Keyed sources (pexels/pixabay/unsplash) need keys in local/.env; missing keys are skipped, never fatal."
+        },
+        "max_per_opportunity": { "type": "integer", "minimum": 1, "default": 3 },
+        "min_score": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.25 },
+        "prefer_motion": { "type": "boolean", "default": true },
+        "queries": { "type": "array", "items": { "type": "string" }, "description": "Explicit queries; if empty, derived from the CutSense VUD." }
+      }
+    },
+    "provider_specific": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-tool optional fields. Only filled when that tool is in tools[].",
+      "properties": {
+        "heygen": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "avatar_id": { "type": "string", "description": "HeyGen avatar ID from registry (local/heygen-avatar-registry.md)" },
+            "voice_id": { "type": "string", "description": "HeyGen voice ID, premade or cloned" },
+            "script": { "type": "string", "description": "Narration text for the avatar to read" }
+          }
+        },
+        "hedra": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "portrait_url": { "type": "string", "description": "URL or absolute path to a portrait image for Hedra" },
+            "voice_id": { "type": "string", "description": "ElevenLabs voice ID for the audio Hedra ingests" },
+            "script": { "type": "string", "description": "Narration text (TTS happens in adapter, then audio fed to Hedra)" }
+          }
+        },
+        "hyperframes": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "starter_template": {
+              "type": "string",
+              "enum": ["blank", "warm-grain", "play-mode", "swiss-grid", "vignelli", "decision-tree", "kinetic-type", "product-promo", "nyt-graph"],
+              "description": "Starter template for hyperframes init"
+            }
+          }
+        },
+        "music_sfx": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Music bed + SFX (adapters/music-sfx.md, ElevenLabs). Metered but low cost; free-first - only when the piece needs it.",
+          "properties": {
+            "music_prompt": { "type": "string", "description": "Text prompt for the score bed" },
+            "music_length_ms": { "type": "integer", "minimum": 1000, "default": 20000 },
+            "loop": { "type": "boolean", "default": true },
+            "duck_under_vo_db": { "type": "number", "default": -18, "description": "How far to duck the bed under narration" },
+            "stingers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "at_transition": { "type": "number", "description": "Transition index or timestamp" },
+                  "text": { "type": "string", "description": "SFX prompt, e.g. 'soft whoosh'" }
+                }
+              }
+            }
+          }
+        },
+        "enhance": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional finishing pass (adapters/enhance.md). Local + free.",
+          "properties": {
+            "upscale": { "type": ["integer", "null"], "enum": [2, 3, 4, null], "description": "Upscale factor, or null for none" },
+            "engine": { "type": "string", "enum": ["ffmpeg", "realesrgan"], "default": "ffmpeg" },
+            "face_restore": { "type": "boolean", "default": false },
+            "bg_remove": { "type": "boolean", "default": false }
+          }
+        }
+      }
+    }
+  }
+}

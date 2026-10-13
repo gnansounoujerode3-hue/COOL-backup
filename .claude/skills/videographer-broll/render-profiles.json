@@ -1,0 +1,70 @@
+{
+  "_note": "Platform delivery profiles applied at the compose stage. Set brief.output.render_profile to a key below; tools/apply_profile.py resolves it to concrete dimensions + an FFmpeg fit filter + caption/safe-margin guidance. safe_margins are percentages of frame height/width to keep clear of platform UI (buttons, captions, progress bars). caption.size_pct is caption height as a fraction of frame height.",
+  "version": "1.0.0",
+  "default": "youtube_shorts",
+  "profiles": {
+    "youtube_landscape": {
+      "platform": "YouTube", "aspect": "16:9", "width": 1920, "height": 1080, "fps": 30,
+      "max_bitrate_kbps": 12000, "loudness_lufs": -14,
+      "safe_margins_pct": { "top": 5, "bottom": 10, "left": 5, "right": 5 },
+      "caption": { "size_pct": 6, "position": "lower_third" },
+      "notes": "Standard horizontal. Bottom margin clears the scrubber + end cards."
+    },
+    "youtube_4k": {
+      "platform": "YouTube", "aspect": "16:9", "width": 3840, "height": 2160, "fps": 30,
+      "max_bitrate_kbps": 45000, "loudness_lufs": -14,
+      "safe_margins_pct": { "top": 5, "bottom": 10, "left": 5, "right": 5 },
+      "caption": { "size_pct": 5, "position": "lower_third" },
+      "notes": "4K master. Only if the source resolves it - do not upscale-and-claim."
+    },
+    "youtube_shorts": {
+      "platform": "YouTube Shorts", "aspect": "9:16", "width": 1080, "height": 1920, "fps": 30,
+      "max_bitrate_kbps": 9000, "loudness_lufs": -14,
+      "safe_margins_pct": { "top": 12, "bottom": 22, "left": 6, "right": 14 },
+      "caption": { "size_pct": 7, "position": "center_high" },
+      "notes": "Big right margin clears the like/comment/share rail; big bottom clears title + CTA."
+    },
+    "instagram_reels": {
+      "platform": "Instagram Reels", "aspect": "9:16", "width": 1080, "height": 1920, "fps": 30,
+      "max_bitrate_kbps": 9000, "loudness_lufs": -16,
+      "safe_margins_pct": { "top": 14, "bottom": 24, "left": 6, "right": 14 },
+      "caption": { "size_pct": 7, "position": "center_high" },
+      "notes": "Slightly larger bottom safe area than Shorts (caption + audio tag + CTA stack)."
+    },
+    "instagram_feed": {
+      "platform": "Instagram Feed", "aspect": "1:1", "width": 1080, "height": 1080, "fps": 30,
+      "max_bitrate_kbps": 8000, "loudness_lufs": -16,
+      "safe_margins_pct": { "top": 8, "bottom": 8, "left": 6, "right": 6 },
+      "caption": { "size_pct": 7, "position": "center" },
+      "notes": "Square feed. Keep key action centered; feed crops aggressively in some surfaces."
+    },
+    "instagram_portrait": {
+      "platform": "Instagram Feed (portrait)", "aspect": "4:5", "width": 1080, "height": 1350, "fps": 30,
+      "max_bitrate_kbps": 8000, "loudness_lufs": -16,
+      "safe_margins_pct": { "top": 8, "bottom": 12, "left": 6, "right": 6 },
+      "caption": { "size_pct": 6, "position": "lower_third" },
+      "notes": "4:5 portrait feed - the most screen real estate without going vertical-video."
+    },
+    "tiktok": {
+      "platform": "TikTok", "aspect": "9:16", "width": 1080, "height": 1920, "fps": 30,
+      "max_bitrate_kbps": 9000, "loudness_lufs": -14,
+      "safe_margins_pct": { "top": 10, "bottom": 26, "left": 6, "right": 16 },
+      "caption": { "size_pct": 7, "position": "center_high" },
+      "notes": "Largest bottom + right safe area: username, caption, and the big action rail all stack low-right."
+    },
+    "linkedin": {
+      "platform": "LinkedIn", "aspect": "16:9", "width": 1920, "height": 1080, "fps": 30,
+      "max_bitrate_kbps": 10000, "loudness_lufs": -16,
+      "safe_margins_pct": { "top": 6, "bottom": 12, "left": 5, "right": 5 },
+      "caption": { "size_pct": 6, "position": "lower_third" },
+      "notes": "Often watched muted - burn captions. Professional tone."
+    },
+    "cinematic": {
+      "platform": "Cinematic / web hero", "aspect": "21:9", "width": 2560, "height": 1080, "fps": 24,
+      "max_bitrate_kbps": 14000, "loudness_lufs": -16,
+      "safe_margins_pct": { "top": 6, "bottom": 8, "left": 5, "right": 5 },
+      "caption": { "size_pct": 5, "position": "lower_third" },
+      "notes": "Ultra-wide 21:9 at 24fps for a filmic hero. Letterbox a 16:9 source rather than crop faces."
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "brief_id": "2026-04-26-podcast-acme-launch",
+  "created_at": "2026-04-26T14:30:00+03:00",
+  "template": "zoom-podcast-multi.md",
+  "source": {
+    "path": "E:\\Recordings\\zoom-acme-2026-04-26.mp4",
+    "type": "zoom_podcast",
+    "url": null,
+    "duration_sec": 3612,
+    "speakers": ["Host", "Guest"],
+    "language": "en"
+  },
+  "intent": "vertical_clips",
+  "output": {
+    "format": "mp4",
+    "aspect": "9:16",
+    "resolution": "1080p",
+    "fps": 30,
+    "length_target_sec": 60,
+    "count": 5,
+    "captions_style": "brand_pill",
+    "music": "none"
+  },
+  "cleanup": {
+    "remove_silences_over_sec": 1.0,
+    "remove_filler_words": true,
+    "remove_retakes": true,
+    "loudness_target_lufs": -16,
+    "true_peak_max_dbtp": -1.0,
+    "normalize_audio": true
+  },
+  "brand": {
+    "pack": "<skill_root>/brand/pack-personal-social.json",
+    "colors_primary": "#40DCE0",
+    "colors_secondary": "#FCA529",
+    "colors_text": "#0A0A0A",
+    "colors_bg": "#0A0A0A",
+    "fonts": ["Outfit", "JetBrains Mono"],
+    "logo_path": null
+  },
+  "tools": ["cutsense", "video-use", "hyperframes"],
+  "fork_mode": true,
+  "qa_gates": ["face_safety", "loudness", "timing"],
+  "output_dir": "${VIDEO_JOBS_DIR}/2026-04-26-podcast-acme-launch",
+  "notes": "Preserve the laugh at 12:43. Cut the false start at 02:08. Guest's name is correctly pronounced 'AY-cme', not 'AK-me'."
+}

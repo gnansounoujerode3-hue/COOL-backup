@@ -1,0 +1,21 @@
+{
+  "name": "video-orchestrator-remotion-brand-card",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone Remotion template for video-orchestrator. Brand title card / lower third / outro CTA with cyan-orange or muted-teal palette. Adapter copies this dir, fills inputProps from brief, runs npx remotion render.",
+  "scripts": {
+    "render": "remotion render BrandCard out.mp4",
+    "preview": "remotion studio"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.0.0"
+  }
+}

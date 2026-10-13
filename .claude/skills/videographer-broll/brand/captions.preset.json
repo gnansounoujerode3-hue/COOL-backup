@@ -1,0 +1,58 @@
+{
+  "name": "brand_pill",
+  "description": "Cyan/orange pill captions wired into the CutSense renderer (${CUTSENSE_DIR}/packages/renderer/scripts/render-cut.mjs).",
+  "shape": "pill",
+  "border_radius_px": 999,
+  "padding_px": { "horizontal": 80, "vertical": 28, "_min_horizontal_at_1920w": 80, "_min_vertical_at_1920w": 28, "_comment": "Pill bg MUST extend visibly beyond first/last letter. 28/14 was too tight - text touched pill edges, looked broken. Verified working at 80/28 in Ryan v4 (2026-04-28)." },
+  "max_pill_width_pct_of_frame": 85,
+  "wrap_long_lines_inside_pill": true,
+  "_wrap_rule": "If text + 2*horizontal_padding would exceed max_pill_width, wrap to 2 lines INSIDE the same pill. Do NOT shrink font, do NOT exceed 85% width, do NOT clip.",
+  "stroke": {
+    "primary_pill": {
+      "background": "#40DCE0",
+      "color": "#0A0A0A",
+      "use_for": "headline / first line / 'the thing' / hook"
+    },
+    "secondary_pill": {
+      "background": "#FCA529",
+      "color": "#0A0A0A",
+      "use_for": "context / part labels / episode markers / supporting line"
+    }
+  },
+  "font": {
+    "family": "Outfit",
+    "weight": 800,
+    "size_px_at_1080w": 56,
+    "size_px_at_1080h_vertical": 60,
+    "letter_spacing_em": -0.01,
+    "fallbacks_in_priority_order": ["Outfit Black", "Outfit", "Impact", "Anton", "Bebas Neue"]
+  },
+  "layout": {
+    "margin_bottom_pct": 6,
+    "margin_bottom_px_vertical_1920h": 80,
+    "max_width_pct": 86,
+    "max_lines": 2,
+    "alignment": "center",
+    "two_line_break_rule": "break on natural pause; balance line length within 1 word"
+  },
+  "implementation_rules": {
+    "MUST_render_real_pill_shape": "Captions MUST be rendered with TRUE rounded shape (border_radius >= half the pill height). libass BorderStyle=4 produces RECTANGLES and is NOT acceptable. If your renderer only supports rectangular boxes, swap to PNG overlay via Pillow (rounded_rectangle with radius=height//2) + ffmpeg overlay filter. Reference impl: C:/Users/raviv/VideoJobs/2026-04-27-ryan-walking-10/final_v4/render_captions_v4.py (Pillow + ffmpeg overlay chain, navy pills, 80/28 padding, 85% max width, 2-line wrap).",
+    "MUST_use_generous_padding": "Pill background MUST extend visibly beyond first/last letter on every side. Minimum 80px horizontal + 28px vertical at 1920w. Earlier 28/14 was too tight - text touched pill edges and looked broken (Ryan v3 fail 2026-04-28). When you can see text touching the pill edge, padding is too small.",
+    "MUST_cap_pill_width_and_wrap_inside": "Max pill width = 85% of frame width (never near frame edges). When text + 2*horizontal_padding would exceed max, wrap to 2 lines INSIDE the same pill. Do NOT shrink font, do NOT exceed 85%, do NOT clip. Pill height auto-grows for 2-line text. Verified working in Ryan v4 (24 of 240 phrases needed wrap).",
+    "MUST_reset_at_cut_boundaries": "Captions MUST NOT bridge across EDL cut/segment boundaries. When the editor splits the source into multiple ranges and concats them, each range must start with a fresh phrase. Track cumulative cut-local time and start a new phrase at every range boundary. Bridging captions over a cut looks wrong and breaks the karaoke effect.",
+    "MUST_remove_fillers_from_caption_text": "Filler words MUST be dropped from caption text even when audio cleanup leaves them in. Drop list: {um, uh, ah, er, hmm, mm, umm, uhh, ehh, uhm}. Match case-insensitively after stripping trailing punctuation. Do not extend the list to ambiguous filler-like words (like, you know, sort of) without explicit user opt-in - they have legitimate non-filler uses.",
+    "MUST_clear_face_zone": "Captions MUST be positioned to clear the speaker's face including mouth area. For walking-selfie 9:16 verticals, place pills in the bottom 14-18% of the frame (margin_bottom_px ~80, two-pill stack ~240px tall). For talking-head zoom 16:9, lower-third position around 70% from top of frame (NOT 78% - that's too low and feels crammed against bottom; for 1080h frame, pill center near y=756, bottom of pill stack near y=820). NEVER place a caption above the bottom third unless explicitly requested. Verify with the face-safety QA gate; FAIL means re-position.",
+    "MUST_collapse_to_single_pill_when_colors_match": "If primary and secondary pills end up the same color (e.g. both navy on a brand pack with no contrasting accent), COLLAPSE to one pill, not stacked-two-of-the-same-color. Stacks only make sense when colors are visibly distinct (cyan/orange or mustard/blue). Two identical pills add visual noise without information.",
+    "MUST_pick_high_contrast_color_pair": "When the brand has multiple colors, pick the highest-contrast pair for text-on-bg situations (WCAG AA: 4.5:1 normal text, 3:1 large text). Don't pick low-contrast 'on-brand' pairs (e.g. mustard #E8B43C on cream #EFE5D5 - the original Ryan v2 title cards FAILED this). When in doubt, navy or near-black on light bg, white on saturated bg. Brand faithfulness loses to readability."
+  },
+  "do_not": [
+    "Place captions over the face / mouth (face-safety QA gate must pass)",
+    "Render captions with a rectangular box and call it a 'pill' (libass BorderStyle=4 is rectangular - use PNG overlay instead)",
+    "Bridge a phrase across a cut/segment boundary",
+    "Leave 'um/uh/ah' in the caption text even if they're in the audio",
+    "Use pure white pills (low-contrast on light footage)",
+    "Use more than 2 lines per caption card",
+    "Use em dashes anywhere in caption text",
+    "Mix cyan and orange pills in the same on-screen moment - one pill at a time, except for the dual_karaoke variant where top=orange + bottom=cyan stacks"
+  ]
+}

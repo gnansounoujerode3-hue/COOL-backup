@@ -1,0 +1,32 @@
+{
+  "name": "video-resource-finder",
+  "version": "1.0.0",
+  "description": "Find free video/image/music/SFX resources from Pexels, Pixabay, and Unsplash APIs",
+  "main": "scripts/find-resources.js",
+  "scripts": {
+    "find": "node scripts/find-resources.js"
+  },
+  "keywords": [
+    "video",
+    "stock",
+    "pexels",
+    "pixabay",
+    "unsplash",
+    "resources",
+    "b-roll"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.13.3",
+    "cheerio": "^1.2.0",
+    "dotenv": "^16.3.1",
+    "fs-extra": "^11.1.1",
+    "minimist": "^1.2.8",
+    "pexels": "^1.4.0",
+    "puppeteer": "^24.36.0",
+    "puppeteer-core": "^24.36.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}

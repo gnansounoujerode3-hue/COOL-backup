@@ -1,0 +1,47 @@
+{
+  "name": "personal-social",
+  "description": "Default personal social brand pack - cyan + orange pill captions on near-black backgrounds. Wired into the CutSense renderer's caption style.",
+  "channel_fit": ["instagram_reels", "instagram_feed", "instagram_stories", "tiktok", "youtube_shorts", "linkedin_personal"],
+  "colors": {
+    "primary": "#40DCE0",
+    "secondary": "#FCA529",
+    "text_on_primary": "#0A0A0A",
+    "text_on_secondary": "#0A0A0A",
+    "background": "#0A0A0A",
+    "muted": "#6E6E6E"
+  },
+  "color_meaning": {
+    "primary_cyan": "Headlines, the main thing being said",
+    "secondary_orange": "Context, episode/part labels, secondary hierarchy",
+    "near_black_bg": "Dark mode default; high contrast for cyan/orange"
+  },
+  "fonts": {
+    "headline": {
+      "family": "Outfit",
+      "weights": [600, 700, 800],
+      "fallbacks": ["Inter", "system-ui", "sans-serif"]
+    },
+    "mono": {
+      "family": "JetBrains Mono",
+      "weights": [500, 700],
+      "fallbacks": ["Menlo", "Consolas", "monospace"]
+    },
+    "body": {
+      "family": "Outfit",
+      "weights": [400, 500],
+      "fallbacks": ["Inter", "system-ui", "sans-serif"]
+    }
+  },
+  "captions": {
+    "style": "brand_pill",
+    "preset_path": "<skill_root>/brand/captions.preset.json"
+  },
+  "logo_path": null,
+  "music_palette": {
+    "energy_default": "medium",
+    "vibe_tags": ["confident", "warm", "modern", "human"]
+  },
+  "wired_in": [
+    "${CUTSENSE_DIR}/packages/renderer/scripts/render-cut.mjs"
+  ]
+}

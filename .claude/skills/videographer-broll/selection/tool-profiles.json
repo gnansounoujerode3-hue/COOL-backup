@@ -1,0 +1,85 @@
+{
+  "_note": "Capability priors for the scored tool selector (tools/select_tool.py). Task-fit is computed from source.type + intent against good_for_*; the other dims are static 0..1 priors (higher = better, including cost where 1.0 = free/subscription and 0 = expensive metered). est_cost_usd is a rough per-clip estimate; metered kinds multiply by output.count. Edit these as real-world results come in - that is the point of keeping it data, not code.",
+  "weights": { "task_fit": 0.30, "quality": 0.20, "control": 0.15, "reliability": 0.15, "cost": 0.10, "latency": 0.05, "continuity": 0.05 },
+  "metered_kinds": ["generate", "avatar", "audio"],
+  "tools": {
+    "cutsense": {
+      "kind": "edit",
+      "good_for_source": ["zoom_podcast", "zoom_lecture", "walking_selfie", "screen_recording", "other"],
+      "good_for_intent": ["vertical_clips", "long_cut_polish", "educational_verticals", "tutorial_chaptered", "ad_variants"],
+      "quality": 0.85, "control": 0.80, "reliability": 0.90, "cost": 1.0, "latency": 0.70, "continuity": 0.90, "est_cost_usd": 0.0
+    },
+    "video-use": {
+      "kind": "edit",
+      "good_for_source": ["zoom_podcast", "zoom_lecture", "other"],
+      "good_for_intent": ["vertical_clips", "long_cut_polish", "educational_verticals"],
+      "quality": 0.80, "control": 0.60, "reliability": 0.75, "cost": 0.90, "latency": 0.60, "continuity": 0.85, "est_cost_usd": 0.0
+    },
+    "hyperframes": {
+      "kind": "compose",
+      "good_for_source": ["url", "none", "other"],
+      "good_for_intent": ["promo", "ad_variants"],
+      "quality": 0.85, "control": 0.95, "reliability": 0.85, "cost": 1.0, "latency": 0.50, "continuity": 0.90, "est_cost_usd": 0.0
+    },
+    "website-to-hyperframes": {
+      "kind": "compose",
+      "good_for_source": ["url"],
+      "good_for_intent": ["promo", "ad_variants"],
+      "quality": 0.80, "control": 0.80, "reliability": 0.80, "cost": 1.0, "latency": 0.60, "continuity": 0.85, "est_cost_usd": 0.0
+    },
+    "remotion": {
+      "kind": "compose",
+      "good_for_source": ["none", "other"],
+      "good_for_intent": ["promo", "ad_variants"],
+      "quality": 0.80, "control": 0.90, "reliability": 0.90, "cost": 1.0, "latency": 0.85, "continuity": 0.95, "est_cost_usd": 0.0
+    },
+    "heygen": {
+      "kind": "avatar",
+      "good_for_source": ["avatar_script"],
+      "good_for_intent": ["avatar_explainer", "ad_variants"],
+      "quality": 0.85, "control": 0.60, "reliability": 0.80, "cost": 0.40, "latency": 0.40, "continuity": 0.70, "est_cost_usd": 1.0
+    },
+    "hedra": {
+      "kind": "avatar",
+      "good_for_source": ["avatar_script"],
+      "good_for_intent": ["avatar_explainer"],
+      "quality": 0.80, "control": 0.55, "reliability": 0.70, "cost": 0.40, "latency": 0.50, "continuity": 0.65, "est_cost_usd": 0.80
+    },
+    "fal-seedance": {
+      "kind": "generate",
+      "good_for_source": ["none", "image", "references"],
+      "good_for_intent": ["promo", "ad_variants"],
+      "quality": 0.80, "control": 0.50, "reliability": 0.75, "cost": 0.30, "latency": 0.50, "continuity": 0.40, "est_cost_usd": 0.50
+    },
+    "veo3": {
+      "kind": "generate",
+      "good_for_source": ["none"],
+      "good_for_intent": ["promo", "ad_variants"],
+      "quality": 0.90, "control": 0.50, "reliability": 0.70, "cost": 0.20, "latency": 0.40, "continuity": 0.40, "est_cost_usd": 1.50
+    },
+    "lottie": {
+      "kind": "asset",
+      "good_for_source": ["none"],
+      "good_for_intent": ["promo"],
+      "quality": 0.70, "control": 0.90, "reliability": 0.95, "cost": 1.0, "latency": 0.90, "continuity": 0.90, "est_cost_usd": 0.0
+    },
+    "broll-retrieval": {
+      "kind": "asset",
+      "good_for_source": ["zoom_podcast", "zoom_lecture", "walking_selfie", "none", "other"],
+      "good_for_intent": ["long_cut_polish", "educational_verticals", "promo"],
+      "quality": 0.75, "control": 0.70, "reliability": 0.80, "cost": 1.0, "latency": 0.70, "continuity": 0.80, "est_cost_usd": 0.0
+    },
+    "music-sfx": {
+      "kind": "audio",
+      "good_for_source": ["none", "other"],
+      "good_for_intent": ["promo", "ad_variants"],
+      "quality": 0.80, "control": 0.70, "reliability": 0.80, "cost": 0.60, "latency": 0.70, "continuity": 0.80, "est_cost_usd": 0.10
+    },
+    "enhance": {
+      "kind": "asset",
+      "good_for_source": ["none", "other", "walking_selfie"],
+      "good_for_intent": ["long_cut_polish", "promo"],
+      "quality": 0.75, "control": 0.70, "reliability": 0.85, "cost": 1.0, "latency": 0.60, "continuity": 0.90, "est_cost_usd": 0.0
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "project": "felix-gray-reference9",
+  "skill_pipeline": [
+    "videographer-broll/adapters/broll-director.md",
+    "videographer-broll/adapters/broll-retrieval.md",
+    "assetseeker/SKILL.md",
+    "stock-sourcing/SKILL.md",
+    "video-resource-finder/SKILL.md",
+    "paper-cut-motion/SKILL.md"
+  ],
+  "inserts": [
+    {
+      "id": "broll_01_blueprint_zspace",
+      "t_start": 0.85,
+      "t_end": 5.2,
+      "transcript_cue": "I got into architecture\u2014my dad taught construction at a local technical college",
+      "broll_type": "prop_cutaway",
+      "placement_mode": "overlay",
+      "asset_video": "felix-gray-reference9/assets/broll/broll_blueprint_cad.mp4",
+      "asset_image": "felix-gray-reference9/assets/images/blueprint_cad.jpg"
+    },
+    {
+      "id": "broll_02_construction_spotlight",
+      "t_start": 8.4,
+      "t_end": 10.7,
+      "transcript_cue": "and was dragged onto sites",
+      "broll_type": "activity_broll",
+      "placement_mode": "overlay",
+      "asset_video": "felix-gray-reference9/assets/broll/broll_construction_site.mp4",
+      "asset_image": "felix-gray-reference9/assets/images/construction_site.jpg"
+    },
+    {
+      "id": "broll_03_site_helper_pip",
+      "t_start": 14.3,
+      "t_end": 17.15,
+      "transcript_cue": "he used to take me onto sites and I used to be as like a helper",
+      "broll_type": "activity_broll",
+      "placement_mode": "overlay",
+      "asset_video": "felix-gray-reference9/assets/broll/broll_construction_site.mp4",
+      "asset_image": "felix-gray-reference9/assets/images/construction_site.jpg"
+    },
+    {
+      "id": "broll_04_arch_model_evidence",
+      "t_start": 27.1,
+      "t_end": 30.05,
+      "transcript_cue": "Happened upon the term 'architect' without quite knowing what an architect did",
+      "broll_type": "graphic_card",
+      "placement_mode": "overlay",
+      "asset_image": "felix-gray-reference9/assets/images/arch_3d_model.jpg"
+    },
+    {
+      "id": "broll_05_management_studio_pip",
+      "t_start": 39.2,
+      "t_end": 43.25,
+      "transcript_cue": "and having a management role as well and driving the process",
+      "broll_type": "finished_product_broll",
+      "placement_mode": "overlay",
+      "asset_video": "felix-gray-reference9/assets/broll/broll_studio_table.mp4",
+      "asset_image": "felix-gray-reference9/assets/images/floorplan_review.jpg"
+    }
+  ]
+}

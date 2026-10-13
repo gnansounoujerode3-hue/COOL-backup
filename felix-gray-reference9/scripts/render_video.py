@@ -1306,15 +1306,200 @@ def render_pullback_window_finale(raw_rgb: np.ndarray, t: float) -> Image.Image:
 
 
 # ---------------------------------------------------------------------------
+# B-Roll Video & Downloaded Image 3D Card Compositor
+# (.claude/skills/broll-media-fetcher + videographer-broll + paper-cut-motion)
+# ---------------------------------------------------------------------------
+_BROLL_CLIPS_CACHE = None
+_BROLL_IMAGES_CACHE = None
+
+
+def _load_broll_assets():
+    global _BROLL_CLIPS_CACHE, _BROLL_IMAGES_CACHE
+    if _BROLL_CLIPS_CACHE is not None:
+        return _BROLL_CLIPS_CACHE, _BROLL_IMAGES_CACHE
+
+    _BROLL_CLIPS_CACHE = {}
+    _BROLL_IMAGES_CACHE = {}
+    base_dir = "/home/user/COOL-backup/felix-gray-reference9/assets"
+
+    clip_specs = {
+        "blueprint_cad": (f"{base_dir}/broll/broll_blueprint_cad.mp4", 440, 248),
+        "construction_site": (f"{base_dir}/broll/broll_construction_site.mp4", 440, 248),
+        "studio_table": (f"{base_dir}/broll/broll_studio_table.mp4", 440, 248),
+    }
+    for key, (mp4_path, cw, ch) in clip_specs.items():
+        if os.path.exists(mp4_path):
+            cmd = [
+                "ffmpeg", "-v", "error", "-i", mp4_path,
+                "-vf", f"scale={cw}:{ch}", "-r", str(FPS),
+                "-f", "rawvideo", "-pix_fmt", "rgb24", "-"
+            ]
+            raw = subprocess.check_output(cmd)
+            n_frames = len(raw) // (cw * ch * 3)
+            if n_frames > 0:
+                arr = np.frombuffer(raw[: n_frames * cw * ch * 3], dtype=np.uint8).reshape((n_frames, ch, cw, 3))
+                _BROLL_CLIPS_CACHE[key] = [Image.fromarray(arr[i]).convert("RGBA") for i in range(n_frames)]
+
+    img_path = f"{base_dir}/images/arch_3d_model.jpg"
+    if os.path.exists(img_path):
+        _BROLL_IMAGES_CACHE["arch_3d_model"] = Image.open(img_path).convert("RGBA").resize((420, 250), Image.BICUBIC)
+
+    return _BROLL_CLIPS_CACHE, _BROLL_IMAGES_CACHE
+
+
+def render_3d_broll_card(
+    canvas: Image.Image,
+    media_im: Image.Image,
+    t: float,
+    t_start: float,
+    t_end: float,
+    cx: int,
+    cy: int,
+    w: int,
+    h: int,
+    label: str,
+    rx_deg: float = 4.0,
+    ry_deg: float = -11.0,
+    rz_deg: float = 0.0,
+    style: str = "glass",
+):
+    age = t - t_start
+    rem = t_end - t
+    if age < 0.0 or rem < 0.0:
+        return
+
+    sp_in = cubic_bezier_cool(age / MOTION_ENTER)
+    sp_out = cubic_bezier_cool(rem / 0.28) if rem < 0.28 else 1.0
+    vis = clamp(min(age / 0.22, 1.0) * sp_out)
+    if vis <= 0.02:
+        return
+
+    card_w = int(round(w * (0.86 + 0.14 * sp_in)))
+    card_h = int(round(h * (0.86 + 0.14 * sp_in)))
+    if card_w < 40 or card_h < 40:
+        return
+
+    plane = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    pd = ImageDraw.Draw(plane)
+
+    x0 = cx - card_w // 2
+    y0 = cy - card_h // 2 + int(round(28 * (1.0 - sp_in)))
+    x1 = x0 + card_w
+    y1 = y0 + card_h
+
+    # Contact drop shadow
+    sh = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sh_d = ImageDraw.Draw(sh)
+    sh_d.rounded_rectangle([x0 + 10, y0 + 16, x1 + 14, y1 + 20], radius=16, fill=(0, 0, 0, int(145 * vis)))
+    sh = sh.filter(ImageFilter.GaussianBlur(radius=14))
+    plane.alpha_composite(sh)
+
+    # Media content
+    resized_media = media_im.resize((card_w - 16, card_h - 42), Image.BILINEAR)
+    if vis < 0.99:
+        r_ch, g_ch, b_ch, a_ch = resized_media.split()
+        a_ch = a_ch.point(lambda p: int(p * vis))
+        resized_media = Image.merge("RGBA", (r_ch, g_ch, b_ch, a_ch))
+
+    if style == "paper":
+        # Tactile cream paper-cut evidence card (.claude/skills/paper-cut-motion)
+        pd.rounded_rectangle([x0, y0, x1, y1], radius=8, fill=(252, 248, 238, int(248 * vis)), outline=(36, 34, 30, int(215 * vis)), width=3)
+        plane.alpha_composite(resized_media, (x0 + 8, y0 + 34))
+        # Masking tape strips at top corners
+        pd.polygon([(x0 - 12, y0 + 14), (x0 + 42, y0 - 8), (x0 + 48, y0 + 8), (x0 - 6, y0 + 30)], fill=(232, 214, 168, int(225 * vis)))
+        pd.polygon([(x1 - 42, y0 - 8), (x1 + 12, y0 + 14), (x1 + 6, y0 + 30), (x1 - 48, y0 + 8)], fill=(232, 214, 168, int(225 * vis)))
+        f_lbl = get_font(MONO_MED, 16)
+        pd.text((x0 + 14, y0 + 9), label, font=f_lbl, fill=(28, 28, 30, int(235 * vis)))
+    else:
+        # 3D Frosted-Glass HUD B-roll card (.claude/skills/broll-media-fetcher)
+        pd.rounded_rectangle([x0, y0, x1, y1], radius=14, fill=(14, 18, 24, int(232 * vis)), outline=(95, 165, 255, int(210 * vis)), width=2)
+        plane.alpha_composite(resized_media, (x0 + 8, y0 + 34))
+        # Live REC dot + HUD label
+        pd.ellipse([x0 + 14, y0 + 11, x0 + 24, y0 + 21], fill=(255, 72, 64, int(245 * vis)))
+        f_lbl = get_font(MONO_MED, 15)
+        pd.text((x0 + 30, y0 + 8), label, font=f_lbl, fill=(230, 238, 250, int(235 * vis)))
+        # Corner HUD brackets
+        bw = 14
+        col_b = (255, 196, 110, int(220 * vis))
+        pd.line([(x0 + 4, y0 + 4), (x0 + 4 + bw, y0 + 4)], fill=col_b, width=2)
+        pd.line([(x0 + 4, y0 + 4), (x0 + 4, y0 + 4 + bw)], fill=col_b, width=2)
+        pd.line([(x1 - 4 - bw, y1 - 4), (x1 - 4, y1 - 4)], fill=col_b, width=2)
+        pd.line([(x1 - 4, y1 - 4 - bw), (x1 - 4, y1 - 4)], fill=col_b, width=2)
+
+    warped = warp_plane_3d(
+        plane,
+        rx_deg=rx_deg * (1.25 - 0.25 * min(age / 0.4, 1.0)),
+        ry_deg=ry_deg * (1.25 - 0.25 * min(age / 0.4, 1.0)),
+        rz_deg=rz_deg,
+        focal=2200.0,
+    )
+    canvas.alpha_composite(warped)
+
+
+def composite_broll_inserts(canvas: Image.Image, t: float) -> Image.Image:
+    clips, imgs = _load_broll_assets()
+
+    # 1. Beat 1 (1.00s - 5.15s): Floating 3D CAD Blueprint B-roll video card in Z-Space
+    if 1.00 <= t <= 5.15 and "blueprint_cad" in clips:
+        frames = clips["blueprint_cad"]
+        f_im = frames[int((t - 1.00) * FPS) % len(frames)]
+        render_3d_broll_card(
+            canvas, f_im, t, 1.00, 5.15,
+            cx=805, cy=355, w=340, h=205,
+            label="CAD BLUEPRINT // 01", rx_deg=5.0, ry_deg=-13.0, style="glass"
+        )
+
+    # 2. Beat 2B (8.40s - 10.65s): Construction Site B-roll window inside Dark HUD Spotlight
+    elif 8.40 <= t <= 10.65 and "construction_site" in clips:
+        frames = clips["construction_site"]
+        f_im = frames[int((t - 8.40) * FPS) % len(frames)]
+        render_3d_broll_card(
+            canvas, f_im, t, 8.40, 10.65,
+            cx=540, cy=725, w=430, h=248,
+            label="SITE B-ROLL // LIVE", rx_deg=5.5, ry_deg=-4.5, style="glass"
+        )
+
+    # 3. Beat 3B (14.30s - 17.15s): Floating 3D PiP Construction Site B-roll on "take me onto sites... helper"
+    elif 14.30 <= t <= 17.15 and "construction_site" in clips:
+        frames = clips["construction_site"]
+        f_im = frames[int((t - 14.30) * FPS) % len(frames)]
+        render_3d_broll_card(
+            canvas, f_im, t, 14.30, 17.15,
+            cx=795, cy=285, w=365, h=215,
+            label="SITE HELPER // B-ROLL", rx_deg=4.5, ry_deg=-11.5, style="glass"
+        )
+
+    # 4. Beat 5B (27.10s - 30.15s): Paper-cut 3D Scale Model Photo Card on Cream Drafting Paper #2
+    elif 27.10 <= t <= 30.15 and "arch_3d_model" in imgs:
+        render_3d_broll_card(
+            canvas, imgs["arch_3d_model"], t, 27.10, 30.15,
+            cx=560, cy=360, w=400, h=238,
+            label="3D SCALE MODEL // STUDIO", rx_deg=4.0, ry_deg=-6.0, rz_deg=-2.5, style="paper"
+        )
+
+    # 5. Beat 6C (39.20s - 43.25s): Floating 3D PiP Studio Floorplan Review B-roll on "management role... driving the process"
+    elif 39.20 <= t <= 43.25 and "studio_table" in clips:
+        frames = clips["studio_table"]
+        f_im = frames[int((t - 39.20) * FPS) % len(frames)]
+        render_3d_broll_card(
+            canvas, f_im, t, 39.20, 43.25,
+            cx=795, cy=285, w=365, h=215,
+            label="STUDIO B-ROLL // 04", rx_deg=4.5, ry_deg=-11.5, style="glass"
+        )
+
+    return canvas
+
+
+# ---------------------------------------------------------------------------
 # Master Frame Compositor
 # ---------------------------------------------------------------------------
 def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
     if t < 5.65:
-        out = render_zspace_opening(t)
+        out = composite_broll_inserts(render_zspace_opening(t), t)
         return np.array(out.convert("RGB"))
 
     if 8.30 <= t < 10.75:
-        out = render_dark_spotlight_hud(t)
+        out = composite_broll_inserts(render_dark_spotlight_hud(t), t)
         return np.array(out.convert("RGB"))
 
     if 10.75 <= t < 14.10:
@@ -1337,7 +1522,7 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
         return np.array(out.convert("RGB"))
 
     if 26.85 <= t < 30.35:
-        out = render_cream_architect_stamp(t)
+        out = composite_broll_inserts(render_cream_architect_stamp(t), t)
         return np.array(out.convert("RGB"))
 
     if 35.30 <= t < 38.45:
@@ -1368,6 +1553,7 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
     graded = grade_talking_head(raw_rgb, t)
     leaked = apply_light_leak(graded, t)
     canvas = Image.fromarray(leaked).convert("RGBA")
+    composite_broll_inserts(canvas, t)
     render_talking_subtitle(canvas, t)
     return np.array(canvas.convert("RGB"))
 
@@ -1379,10 +1565,10 @@ def build_preview_grid(raw_video_path: str, out_jpg_path: str):
     preview_times = [
         0.35, 1.85, 2.55, 4.45,
         8.60, 9.85,
-        11.20, 12.40, 13.45,
+        11.20, 12.40, 15.50,
         17.48, 18.15, 19.05, 19.85,
-        27.00, 27.30, 27.85, 29.35, 30.20,
-        35.48, 36.15, 37.75,
+        27.00, 27.85, 29.35, 30.20,
+        35.48, 36.15, 37.75, 41.00,
         49.80, 51.15, 53.20,
     ]
     thumbs = []

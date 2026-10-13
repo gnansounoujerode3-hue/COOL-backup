@@ -1,0 +1,13 @@
+{
+  "title": "Why our app is the best (high-risk example)",
+  "logline": "A generic explainer that drifts into a slideshow of stock images and title cards.",
+  "total_duration_sec": 30,
+  "shots": [
+    { "id": 1, "duration_sec": 5, "subject": "logo", "action": "shows", "environment": "gradient background", "camera_move": "static", "asset_kind": "title_card", "on_screen_text": "The Best App Ever", "audio": "epic music" },
+    { "id": 2, "duration_sec": 5, "subject": "", "action": "abstract", "environment": "gradient background", "camera_move": "static", "asset_kind": "image", "on_screen_text": "Trusted by thousands" },
+    { "id": 3, "duration_sec": 5, "subject": "", "action": "abstract", "environment": "bokeh particles", "camera_move": "static", "asset_kind": "image", "on_screen_text": "Cinematic experience", "audio": "stunning breathtaking score" },
+    { "id": 4, "duration_sec": 5, "subject": "logo", "action": "shows", "environment": "gradient background", "camera_move": "static", "asset_kind": "title_card", "on_screen_text": "Sign up today" },
+    { "id": 5, "duration_sec": 5, "subject": "", "action": "displayed", "environment": "gradient background", "camera_move": "none", "asset_kind": "image", "on_screen_text": "Download now" },
+    { "id": 6, "duration_sec": 5, "subject": "logo", "action": "appears", "environment": "abstract texture", "camera_move": "static", "asset_kind": "title_card", "on_screen_text": "Epic. Powerful. Award-winning." }
+  ]
+}

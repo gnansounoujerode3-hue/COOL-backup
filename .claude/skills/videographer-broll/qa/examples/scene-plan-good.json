@@ -1,0 +1,13 @@
+{
+  "title": "How Maya ships flowers same-day (low-risk example)",
+  "logline": "A founder-led mini-doc following one same-day flower order from call to doorstep.",
+  "total_duration_sec": 32,
+  "shots": [
+    { "id": 1, "duration_sec": 4, "subject": "Maya, florist in a green apron", "action": "answers a ringing phone and grabs a notepad", "environment": "bright flower shop counter", "camera_move": "push-in", "lighting": "soft morning window light", "asset_kind": "footage", "narration": "It starts with a phone call." },
+    { "id": 2, "duration_sec": 5, "subject": "Maya's hands", "action": "cut stems and build a bouquet quickly", "environment": "work bench with roses and eucalyptus", "camera_move": "handheld", "lighting": "warm key", "asset_kind": "footage" },
+    { "id": 3, "duration_sec": 5, "subject": "city street", "action": "delivery van pulls out into traffic", "environment": "downtown Tokyo street at midday", "camera_move": "pan", "lighting": "natural daylight", "asset_kind": "broll", "source_ref": "pexels:1234567" },
+    { "id": 4, "duration_sec": 4, "subject": "bouquet on a doorstep", "action": "a hand picks it up and the door opens", "environment": "suburban front porch", "camera_move": "tilt", "lighting": "golden hour", "asset_kind": "footage" },
+    { "id": 5, "duration_sec": 5, "subject": "Maya", "action": "smiles and wipes her hands, looks to camera", "environment": "flower shop, end of day", "camera_move": "push-in", "lighting": "warm rim light", "asset_kind": "footage", "narration": "Same day. Every time." },
+    { "id": 6, "duration_sec": 4, "subject": "shop logo on the window", "action": "reveal as the open sign flips", "environment": "shopfront glass", "camera_move": "ken-burns", "lighting": "dusk neon", "asset_kind": "image", "on_screen_text": "Bloom & Co - same-day delivery" }
+  ]
+}
