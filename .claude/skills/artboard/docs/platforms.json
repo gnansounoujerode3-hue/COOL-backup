@@ -1,0 +1,106 @@
+{
+  "_note": [
+    "Delivery constraints for static creative. `evidence` says how each line is known.",
+    "  api-verified  = an API rejected or accepted it in a real run; the message is quoted.",
+    "  documented    = published platform guidance, not verified here. Treat as a strong prior.",
+    "Never promote `documented` to `api-verified` without a run that proves it.",
+    "Ratios are width/height. `maxTallerThan` means anything taller is centre-cropped, not letterboxed."
+  ],
+  "_verifiedAgainst": "GoHighLevel Social Planner API (services.leadconnectorhq.com), 2026-09-01",
+
+  "surfaces": {
+    "instagram.feed": {
+      "ratios": { "widest": 1.91, "tallest": 0.8, "recommended": "1080x1350 (4:5)" },
+      "maxTallerThan": 0.8,
+      "static": true,
+      "caption": true,
+      "evidence": "documented",
+      "gotcha": "A 9:16 posted to feed is centre-cropped to 4:5. On a layout with a headline at top and content at bottom, that removes both. 4:5 is the tallest ratio shown intact, and is the correct answer to 'make it vertical for mobile'."
+    },
+    "instagram.story": {
+      "ratios": { "recommended": "1080x1920 (9:16)" },
+      "static": true,
+      "caption": false,
+      "evidence": "api-verified",
+      "quote": "Instagram Story will not support caption for publishing post directly",
+      "gotcha": "Stories render no caption at all. Any text must be burned into the image. They also expire in 24h and get no algorithmic distribution beyond existing followers, so they are a reach-poor surface for evergreen creative."
+    },
+    "instagram.reel": {
+      "ratios": { "recommended": "1080x1920 (9:16)" },
+      "static": false,
+      "caption": true,
+      "evidence": "api-verified",
+      "gotcha": "Video only. Reels are pushed to non-followers, so follower geography matters far less here than on feed surfaces."
+    },
+    "facebook.feed": {
+      "ratios": { "widest": 1.91, "tallest": 0.8, "recommended": "1200x630 (1.91:1) or 1080x1350 (4:5)" },
+      "static": true,
+      "caption": true,
+      "evidence": "documented",
+      "gotcha": "Distribution is mostly to existing followers, unlike Reels. If the follower base sits in a different timezone from the target market, this is the surface where that hurts most."
+    },
+    "facebook.story": {
+      "ratios": { "recommended": "1080x1920 (9:16)" },
+      "static": true,
+      "caption": false,
+      "evidence": "api-verified",
+      "quote": "Facebook Story will not support caption for publishing post directly"
+    },
+    "facebook.reel": {
+      "ratios": { "recommended": "1080x1920 (9:16)" },
+      "static": false,
+      "caption": true,
+      "evidence": "api-verified",
+      "gotcha": "A Reel and a feed post to the same Page within a few hours split that Page's reach. Separate them by at least a day."
+    },
+    "tiktok": {
+      "ratios": { "recommended": "1080x1920 (9:16)" },
+      "static": false,
+      "caption": true,
+      "evidence": "api-verified",
+      "quote": "TikTok needs a video to create a post, it  doesn't support multi media formats",
+      "gotcha": "A static image cannot be posted at all through this path, at any ratio. Note the failure mode: creating it as a DRAFT succeeds, and only scheduling rejects it. Verify by scheduling, not by drafting."
+    },
+    "youtube.short": {
+      "ratios": { "recommended": "1080x1920 (9:16)" },
+      "static": false,
+      "caption": true,
+      "evidence": "documented",
+      "gotcha": "Video only. There is no static-image post type on YouTube, so a still creative simply has no home there."
+    },
+    "linkedin": {
+      "ratios": { "widest": 1.91, "tallest": 1.0, "recommended": "1200x627 (1.91:1)" },
+      "static": true,
+      "caption": true,
+      "evidence": "documented",
+      "gotcha": "No Stories surface since 2021. Posts carrying an outbound link in the body are down-ranked; the usual fix is link-in-first-comment, which many scheduling APIs cannot express."
+    },
+    "threads": {
+      "ratios": { "recommended": "flexible; 1.91:1 to 4:5 behaves best" },
+      "static": true,
+      "caption": true,
+      "evidence": "documented"
+    },
+    "google.business": {
+      "ratios": { "recommended": "1200x900 (4:3)" },
+      "static": true,
+      "caption": true,
+      "evidence": "documented",
+      "gotcha": "Surfaces in Maps and Search rather than a feed, so posting time barely matters. Handles video poorly; prefer a still."
+    },
+    "x": {
+      "ratios": { "recommended": "1600x900 (16:9)" },
+      "static": true,
+      "caption": true,
+      "evidence": "documented"
+    }
+  },
+
+  "recutMatrix": {
+    "_note": "Given one source creative, the set worth producing. Fewer, correct files beat one file stretched everywhere.",
+    "16:9": ["linkedin", "facebook.feed", "threads", "x"],
+    "4:5": ["instagram.feed", "facebook.feed"],
+    "9:16": ["instagram.story", "facebook.story"],
+    "4:3": ["google.business"]
+  }
+}

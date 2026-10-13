@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The five gates / Systo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Newsreader:ital,opsz@1,18&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--flare:#FF532E;--ember:#FF7A3D;--honey:#FFB627;--grape:#5B3DF5;
+        --ink:#1C1A17;--paper:#FFF4E8;--paper2:#F7E7D3;
+        --display:"Bricolage Grotesque",system-ui,sans-serif;--mono:"Space Grotesk",monospace;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--display);padding:48px 56px}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;
+       border-bottom:2px solid var(--ink);padding-bottom:19px;margin-bottom:30px}
+  .bl{display:flex;align-items:center;gap:10px}
+  .dot{width:13px;height:13px;border-radius:50%;background:linear-gradient(135deg,var(--ember),var(--flare))}
+  .bl b{font-size:19px;letter-spacing:-.02em}
+  .meta{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+        color:rgba(28,26,23,.55);text-align:right;line-height:1.9}
+  h1{font-size:42px;font-weight:800;letter-spacing:-.03em;margin:0 0 7px;line-height:1.05}
+  h1 em{font-family:"Newsreader",serif;font-style:italic;color:var(--flare)}
+  .sub{font-size:14.5px;color:rgba(28,26,23,.64);max-width:74ch;margin:0 0 30px;line-height:1.6}
+  h2{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+     color:var(--flare);margin:0 0 13px;font-weight:700}
+
+  .rail{display:flex;gap:5px;margin-bottom:9px;align-items:stretch}
+  .st{flex:1;background:var(--paper2);border-radius:7px;padding:11px 8px;text-align:center;
+      font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;line-height:1.35;
+      color:rgba(28,26,23,.62);position:relative}
+  .st.gate{background:var(--ink);color:var(--paper)}
+  .st.gate::after{content:"GATE";position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+     background:var(--honey);color:var(--ink);font-size:8px;font-weight:700;letter-spacing:.1em;
+     padding:2px 6px;border-radius:3px}
+  .railnote{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:rgba(28,26,23,.45);
+            margin-bottom:30px;text-align:center}
+
+  .gates{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;margin-bottom:26px}
+  .g{background:var(--paper2);border-radius:12px;padding:16px 15px;border-top:3px solid var(--flare);
+     display:flex;flex-direction:column}
+  .g .n{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;color:var(--flare);
+        font-weight:700;margin-bottom:6px}
+  .g h3{font-size:16px;margin:0 0 4px;font-weight:800;letter-spacing:-.015em;line-height:1.15}
+  .g .rep{font-family:var(--mono);font-size:9.5px;color:rgba(28,26,23,.45);margin-bottom:9px}
+  .g p{font-size:12px;line-height:1.5;color:rgba(28,26,23,.72);margin:0}
+  .g:nth-child(2){border-top-color:var(--honey)}
+  .g:nth-child(2) .n{color:#B07800}
+
+  .cols{display:grid;grid-template-columns:1.5fr 1fr;gap:18px}
+  .warn{background:var(--ink);color:var(--paper);border-radius:12px;padding:18px 21px}
+  .warn b{color:var(--honey);display:block;font-family:var(--mono);font-size:10px;
+          letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px}
+  .warn p{margin:0 0 9px;font-size:12.5px;line-height:1.6;color:rgba(255,244,232,.82)}
+  .warn ul{margin:0;padding-left:17px;font-size:12.5px;line-height:1.6;color:rgba(255,244,232,.72)}
+  .card{background:var(--paper2);border-radius:12px;padding:17px 19px}
+  .card b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+          text-transform:uppercase;color:var(--flare);margin-bottom:10px}
+  .kv{display:flex;justify-content:space-between;padding:7px 0;font-size:12.5px;
+      border-bottom:1px solid rgba(28,26,23,.1)}
+  .kv:last-child{border-bottom:0}
+  .kv span:last-child{font-family:var(--mono);font-weight:700}
+  .foot{margin-top:24px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+        color:rgba(28,26,23,.42);border-top:1px solid rgba(28,26,23,.16);padding-top:13px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="bl"><span class="dot"></span><b>systo.</b></div>
+  <div class="meta">Motion graphics director<br>The process, not the technique<br>Runs before any tool skill</div>
+</div>
+
+<h1>Five gates, minutes each, <em>before</em> the code</h1>
+<p class="sub">Studios put days between these stages because a human has to look and respond. An agent does not need days. It needs to actually stop and do the gate's job instead of skipping it because nothing is forcing a pause.</p>
+
+<h2>The industry stage model, and where the approval gates sit</h2>
+<div class="rail">
+  <div class="st">brief</div>
+  <div class="st gate">concept<br>treatment</div>
+  <div class="st gate">storyboard</div>
+  <div class="st">style<br>frames</div>
+  <div class="st">animatic</div>
+  <div class="st">production</div>
+  <div class="st">sound</div>
+  <div class="st gate">review</div>
+  <div class="st">delivery</div>
+</div>
+<p class="railnote">Converged from two independent sources: a working agency's documented process and a motion design educator's project guide. The storyboard gate is the last stage where significant changes do not create major delays.</p>
+
+<h2>The same shape, adapted to agent speed</h2>
+<div class="gates">
+  <div class="g">
+    <div class="n">GATE 1</div><h3>Concept statement</h3>
+    <div class="rep">replaces treatment</div>
+    <p>One paragraph before any code. The one dominant idea, what the viewer should feel, what carries the argument. Name 2 to 3 directions and pick one with a stated reason.</p>
+  </div>
+  <div class="g">
+    <div class="n">GATE 2</div><h3>Shot list</h3>
+    <div class="rep">replaces storyboard</div>
+    <p>One line per beat. The cheapest check and the one most worth never skipping. Read it back and ask whether every beat needs to look different from its neighbours, and does.</p>
+  </div>
+  <div class="g">
+    <div class="n">GATE 3</div><h3>Style-frame check</h3>
+    <div class="rep">replaces style frames</div>
+    <p>Render ONE static frame, the busiest beat or frame 0, and look at it as a still. Catch a wrong composition before spending effort animating it.</p>
+  </div>
+  <div class="g">
+    <div class="n">GATE 4</div><h3>Rough timing pass</h3>
+    <div class="rep">replaces animatic</div>
+    <p>Structure first: beats, cuts, rough durations, no polish. A wrong structure throws away finished polish along with it.</p>
+  </div>
+  <div class="g">
+    <div class="n">GATE 5</div><h3>Self-critique</h3>
+    <div class="rep">replaces final review</div>
+    <p>Does every element earn its place? Does visual weight match significance? Are transitions designed or accidental? If an answer is uncomfortable, the gate is working.</p>
+  </div>
+</div>
+
+<div class="cols">
+  <div class="warn"><b>The failure this exists to prevent</b>
+    <p>A stat video passed every technical check and still needed a from-scratch rebuild once a human actually looked at it. The first attempt shipped:</p>
+    <ul>
+      <li>Four visually identical scenes</li>
+      <li>A decorative field with no reason to be there</li>
+      <li>Zero variation in weight or pacing</li>
+    </ul>
+    <p style="margin-top:9px">All of it was visible in a shot list before a single line of CSS. "5 scenes, identical layout, identical motion trick, identical colour, no camera, no transition" reads as a warning even as a sentence.</p>
+  </div>
+  <div class="card"><b>Cost of the gates</b>
+    <div class="kv"><span>Gate work per piece</span><span>minutes</span></div>
+    <div class="kv"><span>Cost of skipping</span><span>full rebuild</span></div>
+    <div class="kv"><span>Cheapest gate</span><span>Gate 2</span></div>
+    <div class="kv"><span>Runs before</span><span>any tool skill</span></div>
+    <div class="kv"><span>Hands off to</span><span>hyperframes</span></div>
+    <div class="kv"><span>Then verified by</span><span>render-discipline</span></div>
+  </div>
+</div>
+
+<div class="foot">Systo skill: motion-graphics-director. The five gates are the fast, always-worth-it minimum. Longer narrative pieces, real narration, or a first piece for a new brand run the full formal pipeline instead, and stating which one is being used is Gate 1's job.</div>
+
+</body>
+</html>

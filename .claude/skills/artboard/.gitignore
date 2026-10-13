@@ -1,0 +1,5 @@
+node_modules/
+.analysis/
+*.raw
+*.bin
+.DS_Store

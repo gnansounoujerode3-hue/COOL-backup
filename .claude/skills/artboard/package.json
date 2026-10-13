@@ -1,0 +1,8 @@
+{
+  "name": "artboard",
+  "version": "0.1.0",
+  "description": "Recut, rebrand and generate static creative across aspect ratios, by measurement.",
+  "type": "module",
+  "license": "MIT",
+  "dependencies": { "sharp": "^0.33.0" }
+}

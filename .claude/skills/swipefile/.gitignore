@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Machine-specific Claude Code permissions
+.claude/settings.local.json
+
+# Packager output
+dist/
+*.skill
+
+# Capture and mirror artifacts. These are CONTENT, not source: they belong to
+# the job that produced them and to the machine that ran it. scripts/package.py
+# refuses to ship any of them, and git should not carry them either.
+# Anchored to the repo root on purpose. macOS sets core.ignorecase=true, so an
+# unanchored `REPORT.md` also matches `references/report.md` — the replication
+# report's own specification — and silently drops it from the repo. These
+# artifacts are only ever written at the root of a build directory anyway.
+/_raw/
+/site/
+/cdn/
+/capture/
+/crawl-manifest.json
+/build-manifest.json
+/report.json
+/REPORT.md
+/measurements.json
+
+.DS_Store

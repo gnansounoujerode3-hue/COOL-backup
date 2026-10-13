@@ -1,0 +1,7 @@
+SOURCE: Anthropic-authored skill, installed 2026-07-27 from a .skill bundle,
+        originally distributed under the name `web-design-clone`.
+RENAMED: `swipefile` on 2026-07-30.
+
+Local additions since install: references/{mirror,crawl,verify,report}.md and
+scripts/{crawl,build,serve}.py, all derived from measured captures — see
+library/INDEX.md "Cross-site patterns observed" for the evidence behind each.
