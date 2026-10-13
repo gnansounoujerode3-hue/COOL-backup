@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 """
 Renders `felix-gray-reference9-9x16.mp4` (1080x1920, 30.00 fps, 54.85s) from
-`video brut 9.mp4`, faithfully translating every visual signature of `reference9.mp4`:
-  1. 3D Z-Space Dark Blueprint & Node Canvas (receding 3D typography, blue icon pills,
-     golden contour lines, and cobalt blueprint CRT flash).
-  2. Technical Viewfinder HUD Border Overlay (`45 + G`, diagonal hatch ticks `/////////`,
-     vertical rotated code `456 JK / 789 0`, registration hairlines).
-  3. Dark HUD Viewfinder Spotlight Cutaway (`from day one` / `dragged onto building sites.`).
-  4. Cream Architectural Drafting-Paper Cutaways (`#F7F0D8`) with Terracotta (`#D8432E`)
-     & Ochre (`#D9A441`) contour lines, Central Black Circular Portal with 3 tilted
-     Sky-Blue (`#4294FF`) pills, and sliding dark geometric silhouettes.
-  5. Dark Technical Grid + Translucent Blue UI Text-Selection Box (`|o ... o|`) +
-     Floating Wireframe Arrow Cursors (`↖`) + Italic Electric-Blue Condensed Stamps.
-  6. Talking-Head Lower-Case Tight-Tracked Chest Subtitles with progressive word opacity
-     + Royal-Blue & Crimson-Amber vertical anamorphic light leaks.
-  7. Pull-Back Floating Video Window on Pitch Black + Giant Metallic Ice-Blue Chrome
-     `"14"` / `"ARCHITECT"` Lockup (`48.95–51.80s`), followed by HUD-framed
-     `peakarchitects` studio blueprint B-roll (`51.80–54.85s`).
+`video brut 9.mp4`, combining every visual and motion signature of `reference9.mp4`
+with the exact motion-design methodology of `MOTION-DESIGN.md`:
+
+  - Master Easing Curve: `--motion-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1.0)`
+    (no aggressive overshoot bounces; smooth acceleration/deceleration).
+  - Directional `[data-reveal]` Entrances: `opacity: 0 -> 1` paired with
+    `transform: translateY(14px) -> translateY(0)` (28px at 1080p) over
+    `--motion-enter: 480ms`, with secondary elements staggered by `60ms` (40–80ms).
+  - Rhythm Benchmarks from `MOTION-DESIGN.md`:
+      * Active/press feedback (`scale(0.98)`): 140ms (100–180ms)
+      * Hover/focus control state (`translateY(-2px)`, `:focus-visible` outline): 180ms (150–220ms)
+      * State transition / small reveal: 300ms (220–400ms)
+      * Primary section entrance: 480ms (400–650ms)
+      * Narrative camera pan / GSAP DrawSVG contour trace: 680–750ms (500–900ms)
+  - Exact Frame-by-Frame Transitions from `reference9.mp4`:
+      * Progressive SVG contour drawing (`draw_progressive_polyline`)
+      * 3D connecting plugs approaching the twin spotlight cores (`8.30–10.75s`)
+      * Diagonal neon blue/crimson light-ribbon wipe (`17.30–17.66s`, `35.30–35.66s`)
+      * Live cursor-driven text selection (`|early awareness|`, `|technical skills|`)
+      * Two-state wireframe card transition with Border Beam (`what the -> the construction PROCESS`)
+      * Staggered directional reveal (`ARCHI -> ARCHITECT`) + blazing diagonal golden-red
+        light beam transition (`30.08–30.35s`, matching `t=17.85s` in `reference9.mp4`).
 """
 import argparse
 import math
@@ -31,12 +37,19 @@ FPS = 30.0
 DURATION = 54.85
 TOTAL_FRAMES = int(round(DURATION * FPS))
 
+# Rhythm benchmarks from MOTION-DESIGN.md
+MOTION_FAST = 0.180      # 180ms (hover/focus/active feedback: 100–220ms)
+MOTION_STATE = 0.300     # 300ms (state transition or small reveal: 220–400ms)
+MOTION_ENTER = 0.480     # 480ms (--motion-enter primary reveal: 400–650ms)
+MOTION_SEQUENCE = 0.720  # 720ms (narrative camera pan / SVG trace: 500–900ms)
+MOTION_STAGGER = 0.060   # 60ms  (secondary element cascade stagger: 40–80ms)
+REVEAL_OFFSET_Y = 28     # 14px CSS -> 28px at 1080x1920 retina scale
+
 FONT_BASE = "/tmp/work_cache/fonts/node_modules/@expo-google-fonts"
 INTER_REG = f"{FONT_BASE}/inter/400Regular/Inter_400Regular.ttf"
 INTER_MED = f"{FONT_BASE}/inter/600SemiBold/Inter_600SemiBold.ttf"
 INTER_BOLD = f"{FONT_BASE}/inter/700Bold/Inter_700Bold.ttf"
 JAKARTA_BOLD = f"{FONT_BASE}/plus-jakarta-sans/700Bold/PlusJakartaSans_700Bold.ttf"
-JAKARTA_EBOLD = f"{FONT_BASE}/plus-jakarta-sans/800ExtraBold/PlusJakartaSans_800ExtraBold.ttf"
 MONTSERRAT_BLACK_IT = f"{FONT_BASE}/montserrat/900Black_Italic/Montserrat_900Black_Italic.ttf"
 BEBAS_REG = f"{FONT_BASE}/bebas-neue/400Regular/BebasNeue_400Regular.ttf"
 MONO_MED = f"{FONT_BASE}/dm-mono/500Medium/DMMono_500Medium.ttf"
@@ -45,7 +58,7 @@ _FONT_CACHE = {}
 
 
 def get_font(path: str, size: int):
-    sz = max(12, int(size))
+    sz = max(12, int(round(size)))
     key = (path, sz)
     if key not in _FONT_CACHE:
         _FONT_CACHE[key] = ImageFont.truetype(path, sz)
@@ -56,28 +69,87 @@ def clamp(v, lo=0.0, hi=1.0):
     return max(lo, min(hi, v))
 
 
-def ease_out_cubic(x):
-    x = clamp(x)
-    return 1.0 - (1.0 - x) ** 3
+def cubic_bezier_cool(x: float, x1=0.2, y1=0.8, x2=0.2, y2=1.0) -> float:
+    """
+    Exact solver for `--motion-ease-out: cubic-bezier(.2, .8, .2, 1)` from MOTION-DESIGN.md.
+    Smooth, fast initial response with a gentle, zero-overshoot deceleration.
+    """
+    x = clamp(x, 0.0, 1.0)
+    if x <= 0.0 or x >= 1.0:
+        return x
+    u = x
+    for _ in range(6):
+        bx = 3.0 * ((1.0 - u) ** 2) * u * x1 + 3.0 * (1.0 - u) * (u ** 2) * x2 + (u ** 3) - x
+        dbx = (
+            3.0 * ((1.0 - u) ** 2) * x1
+            + 6.0 * (1.0 - u) * u * (x2 - x1)
+            + 3.0 * (u ** 2) * (1.0 - x2)
+        )
+        if abs(dbx) < 1e-6:
+            break
+        u = clamp(u - bx / dbx, 0.0, 1.0)
+    return 3.0 * ((1.0 - u) ** 2) * u * y1 + 3.0 * (1.0 - u) * (u ** 2) * y2 + (u ** 3)
 
 
-def ease_out_back(x, s=1.45):
-    x = clamp(x) - 1.0
-    return x * x * ((s + 1.0) * x + s) + 1.0
+def data_reveal(age: float, duration: float = MOTION_ENTER, offset_y: float = REVEAL_OFFSET_Y):
+    """
+    Implements `[data-reveal]` from MOTION-DESIGN.md:
+      opacity: 0 -> 1
+      transform: translateY(14px) -> translateY(0)
+      transition: var(--motion-enter) var(--motion-ease-out)
+    Returns (alpha_0_to_1, dy_pixels).
+    """
+    p = cubic_bezier_cool(age / max(0.001, duration))
+    return p, (1.0 - p) * offset_y
 
 
-def ease_in_out_cubic(x):
-    x = clamp(x)
-    return 4 * x * x * x if x < 0.5 else 1 - (-2 * x + 2) ** 3 / 2
+def draw_progressive_polyline(
+    draw: ImageDraw.ImageDraw,
+    pts: list,
+    progress: float,
+    fill: tuple,
+    width: int = 4,
+):
+    """
+    GSAP DrawSVG-style progressive vector path drawing along a polyline.
+    """
+    p = cubic_bezier_cool(progress)
+    if p <= 0.001 or len(pts) < 2:
+        return
+    seg_lens = []
+    total_len = 0.0
+    for i in range(len(pts) - 1):
+        dx = pts[i + 1][0] - pts[i][0]
+        dy = pts[i + 1][1] - pts[i][1]
+        d = math.hypot(dx, dy)
+        seg_lens.append(d)
+        total_len += d
+    if total_len <= 1e-3:
+        return
+
+    target_len = total_len * p
+    out_pts = [pts[0]]
+    acc = 0.0
+    for i, slen in enumerate(seg_lens):
+        if acc + slen <= target_len:
+            out_pts.append(pts[i + 1])
+            acc += slen
+        else:
+            rem = target_len - acc
+            frac = clamp(rem / max(1e-4, slen))
+            nx = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * frac
+            ny = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * frac
+            out_pts.append((nx, ny))
+            break
+    if len(out_pts) >= 2:
+        draw.line(out_pts, fill=fill, width=width, joint="curve")
 
 
 # ---------------------------------------------------------------------------
 # Color Grade & Anamorphic Light Leaks on Talking Head
 # ---------------------------------------------------------------------------
 def grade_talking_head(frame_rgb: np.ndarray, t: float) -> np.ndarray:
-    """Crisp editorial contrast grade + subtle vignette matching reference9.mp4."""
     f = frame_rgb.astype(np.float32) / 255.0
-    # Slight S-curve contrast & clean neutral-warm skin tones
     f = np.clip((f - 0.5) * 1.08 + 0.50, 0.0, 1.0)
     f[:, :, 0] = np.clip(f[:, :, 0] * 1.02, 0.0, 1.0)
     f[:, :, 2] = np.clip(f[:, :, 2] * 0.98, 0.0, 1.0)
@@ -92,14 +164,12 @@ def get_light_leaks():
     global _LIGHT_LEAK_BLUE, _LIGHT_LEAK_RED
     if _LIGHT_LEAK_BLUE is None:
         yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-        # Left vertical anamorphic royal-blue glow (like t=18.2s & t=25.3s in reference9.mp4)
         wx = np.exp(-((xx / W) ** 2) / (2 * 0.22 ** 2))
         wy = np.exp(-(((yy / H) - 0.45) ** 2) / (2 * 0.48 ** 2))
         w_blue = (wx * wy)[:, :, None]
         blue_col = np.array([36.0, 92.0, 255.0], dtype=np.float32)[None, None, :]
         _LIGHT_LEAK_BLUE = w_blue * blue_col
 
-        # Warm crimson-amber flash glow (like t=18.1s in reference9.mp4)
         wx_r = np.exp(-((xx / W) ** 2) / (2 * 0.30 ** 2))
         wy_r = np.exp(-(((yy / H) - 0.50) ** 2) / (2 * 0.50 ** 2))
         w_red = (wx_r * wy_r)[:, :, None]
@@ -112,7 +182,6 @@ def apply_light_leak(frame_rgb: np.ndarray, t: float) -> np.ndarray:
     blue_leak, red_leak = get_light_leaks()
     out = frame_rgb.astype(np.float32)
 
-    # Royal-blue light leak windows (matching t=18.2s, 25.3s in reference9.mp4)
     blue_windows = [
         (5.65, 6.45, 0.85),
         (20.55, 21.45, 0.90),
@@ -125,7 +194,6 @@ def apply_light_leak(frame_rgb: np.ndarray, t: float) -> np.ndarray:
             env = math.sin(math.pi * p) ** 1.3 * peak
             out = np.clip(out + blue_leak * env, 0, 255)
 
-    # Crimson-amber flash transitions (matching t=18.0-18.15s in reference9.mp4)
     red_windows = [
         (14.10, 14.65, 0.82),
         (38.45, 39.15, 0.85),
@@ -140,21 +208,13 @@ def apply_light_leak(frame_rgb: np.ndarray, t: float) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# Signature Element #2: Technical Viewfinder / Film-HUD Overlay
+# Technical Viewfinder / Film-HUD Overlay
 # ---------------------------------------------------------------------------
 _HUD_DARK_CACHE = None
 _HUD_LIGHT_CACHE = None
 
 
 def get_hud_overlay(mode: str = "dark") -> Image.Image:
-    """
-    Builds the exact technical viewfinder HUD border from reference9.mp4:
-      - Vertical registration hairlines at x=52 and x=1028
-      - Top-left '45 + G' micro-marker
-      - Top-right diagonal hatch ticks '/////////'
-      - Right-edge vertical code '456 JK / 789 0'
-      - Left-edge tick marks
-    """
     global _HUD_DARK_CACHE, _HUD_LIGHT_CACHE
     if mode == "dark" and _HUD_DARK_CACHE is not None:
         return _HUD_DARK_CACHE
@@ -168,39 +228,33 @@ def get_hud_overlay(mode: str = "dark") -> Image.Image:
     col_dim = (225, 232, 245, 90) if mode == "dark" else (35, 38, 44, 95)
     f_mono = get_font(MONO_MED, 18)
 
-    # Left & Right vertical registration hairlines
     d.line([(52, 80), (52, 920)], fill=col_dim, width=2)
     d.line([(52, 1340), (52, 1840)], fill=col_dim, width=2)
     d.line([(1028, 80), (1028, 390)], fill=col_dim, width=2)
     d.line([(1028, 600), (1028, 960)], fill=col_dim, width=2)
     d.line([(1028, 1240), (1028, 1840)], fill=col_dim, width=2)
 
-    # Top-left vertical micro-label "45 + G"
     lbl_tl = Image.new("RGBA", (140, 40), (0, 0, 0, 0))
     dtl = ImageDraw.Draw(lbl_tl)
     dtl.text((0, 6), "45  +  G", font=f_mono, fill=col_main)
     lbl_tl_rot = lbl_tl.rotate(-90, expand=True)
     img.alpha_composite(lbl_tl_rot, (28, 96))
 
-    # Top-right diagonal hatch ticks (/////////)
     for i in range(11):
         yy = 415 + i * 14
         d.line([(1020, yy + 6), (1036, yy - 6)], fill=col_main, width=2)
 
-    # Right-edge rotated micro-code "456 JK / 789 0"
     lbl_r = Image.new("RGBA", (220, 40), (0, 0, 0, 0))
     dr = ImageDraw.Draw(lbl_r)
     dr.text((0, 6), "456 JK  /  789 0", font=f_mono, fill=col_main)
     lbl_r_rot = lbl_r.rotate(-90, expand=True)
     img.alpha_composite(lbl_r_rot, (1006, 995))
 
-    # Left-edge vertical tick ruler (y = 970..1280)
     for i in range(13):
         yy = 980 + i * 22
         w_tick = 12 if i % 3 == 0 else 6
         d.line([(46, yy), (46 + w_tick, yy)], fill=col_main, width=2)
 
-    # Small corner registration dots
     for cx, cy in [(86, 52), (994, 52), (86, 1868), (994, 1868)]:
         d.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill=col_main)
 
@@ -212,95 +266,96 @@ def get_hud_overlay(mode: str = "dark") -> Image.Image:
 
 
 # ---------------------------------------------------------------------------
-# Signature Element #1: 3D Z-Space Dark Blueprint & Node Canvas (0.00s - 5.65s)
+# Beat 1 (0.00s - 5.65s): 3D Z-Space Dark Blueprint & Node Canvas
+# (Follows MOTION-DESIGN.md: 1 unified camera motion per state + `[data-reveal]`
+# `translateY(28px) -> 0` with `cubic-bezier(0.2, 0.8, 0.2, 1.0)` + DrawSVG curve)
 # ---------------------------------------------------------------------------
 def render_zspace_opening(t: float) -> Image.Image:
-    """
-    Reproduces t=0.00s–4.00s of reference9.mp4:
-      - Pitch-black canvas (#030408) with subtle technical blueprint grid
-      - Sweeping golden-ochre contour curve (#A67B38)
-      - Floating dark-glass pills with glowing royal-blue circular icons (#2460FF)
-      - 4 sequential kinetic phrases that pop in the foreground and recede into 3D Z-depth
-      - Brief cobalt-blue blueprint CRT scanline flash at 5.25s–5.65s
-    """
     img = Image.new("RGBA", (W, H), (3, 4, 8, 255))
     d = ImageDraw.Draw(img)
 
-    # Camera Z-progress as phrases accumulate
+    # Smooth narrative camera Z-progression (MOTION_SEQUENCE = 720ms per step)
     cam_z = (
-        ease_out_cubic((t - 0.54) / 0.55) * 1.0
-        + ease_out_cubic((t - 1.58) / 0.55) * 1.0
-        + ease_out_cubic((t - 3.65) / 0.55) * 1.0
+        cubic_bezier_cool((t - 0.54) / MOTION_SEQUENCE) * 1.0
+        + cubic_bezier_cool((t - 1.58) / MOTION_SEQUENCE) * 1.0
+        + cubic_bezier_cool((t - 3.65) / MOTION_SEQUENCE) * 1.0
     )
 
-    # 1. Background technical blueprint grid on the right half (matching t=1.4s, 2.2s, 3.6s)
-    grid_shift_x = int(-cam_z * 28)
-    grid_shift_y = int(cam_z * 22)
+    # 1. Background technical blueprint grid on the right half
+    grid_shift_x = int(-cam_z * 26)
+    grid_shift_y = int(cam_z * 20)
     grid_col = (24, 38, 66, 95)
     for gx in range(520 + grid_shift_x, W + 120, 72):
         d.line([(gx, 180), (gx, 1740)], fill=grid_col, width=1)
     for gy in range(260 + grid_shift_y, 1680, 72):
         d.line([(480, gy), (W, gy)], fill=grid_col, width=1)
-    # Crosshair nodes on the blueprint grid
     for gx in range(592 + grid_shift_x, W, 144):
         for gy in range(332 + grid_shift_y, 1600, 144):
             d.line([(gx - 6, gy), (gx + 6, gy)], fill=(48, 76, 130, 140), width=2)
             d.line([(gx, gy - 6), (gx, gy + 6)], fill=(48, 76, 130, 140), width=2)
 
-    # 2. Sweeping golden-ochre architectural contour curve (matching t=2.2s & t=3.6s)
-    if t >= 0.90:
-        curve_alpha = int(clamp((t - 0.90) / 0.60) * 195)
+    # 2. Progressive GSAP DrawSVG golden-ochre contour curve (starts drawing at t=1.60s over 800ms,
+    #    matching t=1.65s -> 2.50s -> 3.10s in ref9_motion_strip.jpg)
+    if t >= 1.60:
         pts = []
         for idx in range(60):
             u = idx / 59.0
             py = int(80 + u * 1760)
-            px = int(
-                640
-                + 240 * math.sin(u * 3.6 - cam_z * 0.45)
-                + 85 * math.cos(u * 7.2)
-            )
+            px = int(650 + 230 * math.sin(u * 3.6 - cam_z * 0.42) + 80 * math.cos(u * 7.2))
             pts.append((px, py))
-        d.line(pts, fill=(168, 124, 54, curve_alpha), width=5)
+        draw_progressive_polyline(
+            d,
+            pts,
+            progress=(t - 1.60) / 0.82,
+            fill=(172, 128, 56, 205),
+            width=5,
+        )
 
-    # 3. Floating dark-glass notification pills with royal-blue icon circles
+    # 3. Floating dark-glass notification pills with royal-blue icon circles & Magic UI shimmer
     pills = [
-        # (t_appear, base_x, base_y, base_z, label, icon_char)
-        (0.10, 140, 1020, 0.2, "Site Blueprint CAD", "📐"),
-        (1.05, 760, 1280, 1.0, "Hey, I'm an architect...", "✎"),
-        (1.85, 680, 620, 1.8, "Structural Studio", "🏛"),
-        (2.70, 260, 880, 2.3, "Technical College", "✓"),
+        (0.10, 150, 1020, 0.2, "Site Blueprint CAD"),
+        (1.05, 760, 1280, 1.0, "Hey, I'm an architect..."),
+        (1.85, 680, 620, 1.8, "Structural Studio"),
+        (2.70, 260, 880, 2.3, "Technical College"),
     ]
-    for t_app, bx, by, bz, label, _ in pills:
+    for t_app, bx, by, bz, label in pills:
         if t < t_app:
             continue
         age = t - t_app
-        pop = ease_out_back(age / 0.35)
+        alpha_p, dy_rev = data_reveal(age, duration=MOTION_STATE, offset_y=20)
         rel_z = max(0.0, cam_z - bz * 0.55)
-        scale = clamp(pop * (1.0 / (1.0 + rel_z * 0.42)), 0.35, 1.15)
-        alpha = int(clamp(age / 0.20) * clamp(1.0 - rel_z * 0.28, 0.25, 0.92) * 255)
+        scale = clamp(1.0 / (1.0 + rel_z * 0.42), 0.36, 1.0)
+        alpha = int(alpha_p * clamp(1.0 - rel_z * 0.28, 0.25, 0.92) * 255)
 
         pw, ph = int(340 * scale), int(76 * scale)
         px = int(bx + (W * 0.52 - bx) * (1.0 - 1.0 / (1.0 + rel_z * 0.35)))
-        py = int(by + (H * 0.46 - by) * (1.0 - 1.0 / (1.0 + rel_z * 0.35)))
+        py = int(by + dy_rev + (H * 0.46 - by) * (1.0 - 1.0 / (1.0 + rel_z * 0.35)))
 
         pill_layer = Image.new("RGBA", (pw + 20, ph + 20), (0, 0, 0, 0))
         pd = ImageDraw.Draw(pill_layer)
-        # Dark glass pill body
         pd.rounded_rectangle(
             [6, 6, pw + 6, ph + 6],
             radius=ph // 2,
-            fill=(14, 20, 34, int(alpha * 0.85)),
-            outline=(45, 75, 140, int(alpha * 0.7)),
+            fill=(14, 20, 34, int(alpha * 0.86)),
+            outline=(52, 88, 165, int(alpha * 0.75)),
             width=max(1, int(2 * scale)),
         )
-        # Glowing royal-blue circle on the left
+        # Subtle Magic UI shimmer reflection sweeping across the pill on arrival (0.15s..0.55s)
+        if 0.10 <= age <= 0.58:
+            sh_p = cubic_bezier_cool((age - 0.10) / 0.48)
+            sx = int(12 + sh_p * (pw - 24))
+            pd.line(
+                [(sx, 8), (sx + int(28 * scale), 8)],
+                fill=(150, 200, 255, int(alpha * (1.0 - sh_p))),
+                width=max(2, int(3 * scale)),
+            )
+
         r_cir = int(ph * 0.38)
         cx_c, cy_c = 6 + int(ph * 0.52), 6 + ph // 2
         pd.ellipse(
             [cx_c - r_cir, cy_c - r_cir, cx_c + r_cir, cy_c + r_cir],
             fill=(36, 98, 255, alpha),
         )
-        # Small white checkmark/triangle inside blue circle
         s_tri = max(3, int(7 * scale))
         pd.polygon(
             [(cx_c - s_tri, cy_c - s_tri // 2), (cx_c + s_tri, cy_c - s_tri), (cx_c, cy_c + s_tri)],
@@ -311,15 +366,14 @@ def render_zspace_opening(t: float) -> Image.Image:
             (cx_c + r_cir + int(14 * scale), cy_c - int(13 * scale)),
             label,
             font=f_pill,
-            fill=(180, 198, 230, int(alpha * 0.9)),
+            fill=(188, 206, 238, int(alpha * 0.92)),
         )
         if rel_z > 0.6:
             pill_layer = pill_layer.filter(ImageFilter.GaussianBlur(radius=min(3.5, rel_z * 1.4)))
         img.alpha_composite(pill_layer, (px - pw // 2, py - ph // 2))
 
-    # 4. 3D Z-Space Kinetic Phrases (foreground crisp -> recedes into Z-depth as next phrase pops)
+    # 4. 3D Z-Space Kinetic Phrases using `[data-reveal]` (translateY(28px) -> 0 + 60ms line stagger)
     phrases = [
-        # (t_in, z_idx, target_x, target_y, vx, vy, lines, align)
         (0.04, 0.0, 360, 920, 290, 780, [("i got into", 68, INTER_MED)], "left"),
         (0.54, 1.0, 410, 720, 560, 580, [("architecture.", 84, INTER_BOLD)], "center"),
         (
@@ -348,30 +402,33 @@ def render_zspace_opening(t: float) -> Image.Image:
         if t < t_in:
             continue
         age = t - t_in
-        pop = ease_out_back(min(1.0, age / 0.28), s=1.25)
         depth_behind = max(0.0, cam_z - z_idx)
-        scale = pop * (1.0 / (1.0 + depth_behind * 0.62))
-        alpha = int(clamp(age / 0.14) * clamp(1.0 - depth_behind * 0.36, 0.20, 1.0) * 255)
+        scale = 1.0 / (1.0 + depth_behind * 0.62)
+        depth_fade = clamp(1.0 - depth_behind * 0.36, 0.20, 1.0)
 
-        # Pull receding text smoothly toward its spatial Z-pocket
         z_pull = 1.0 - 1.0 / (1.0 + depth_behind * 0.55)
         cx = int(tx + (vx - tx) * z_pull)
         cy = int(ty + (vy - ty) * z_pull)
 
-        layer = Image.new("RGBA", (820, 360), (0, 0, 0, 0))
+        layer = Image.new("RGBA", (820, 380), (0, 0, 0, 0))
         ld = ImageDraw.Draw(layer)
         cur_y = 40
-        for txt, base_sz, f_path in lines:
+        for l_idx, (txt, base_sz, f_path) in enumerate(lines):
+            # 60ms stagger per secondary line (MOTION-DESIGN.md: 40–80ms)
+            line_age = max(0.0, age - l_idx * MOTION_STAGGER)
+            rev_a, rev_dy = data_reveal(line_age, duration=MOTION_ENTER, offset_y=26 * scale)
+            line_alpha = int(rev_a * depth_fade * 255)
+            if line_alpha <= 2:
+                cur_y += int(base_sz * scale * 1.04)
+                continue
             sz = max(14, int(base_sz * scale))
             fnt = get_font(f_path, sz)
             bbox = ld.textbbox((0, 0), txt, font=fnt)
-            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            tw = bbox[2] - bbox[0]
             lx = (820 - tw) // 2 if align == "center" else 90
-            # Warm ivory-white text (#F8F4E8) matching reference9.mp4
-            ld.text((lx, cur_y), txt, font=fnt, fill=(248, 244, 232, alpha))
+            ld.text((lx, int(cur_y + rev_dy)), txt, font=fnt, fill=(248, 244, 232, line_alpha))
             cur_y += int(sz * 1.04)
 
-        # Add soft warm halation glow on foreground phrase
         if depth_behind < 0.35:
             glow = layer.filter(ImageFilter.GaussianBlur(radius=8))
             img.alpha_composite(glow, (cx - 410, cy - 140))
@@ -380,7 +437,7 @@ def render_zspace_opening(t: float) -> Image.Image:
 
         img.alpha_composite(layer, (cx - 410, cy - 140))
 
-    # 5. Cobalt-blue CRT / blueprint scanline flash at 5.25s - 5.65s (matching t=3.70s in reference9.mp4)
+    # 5. Cobalt-blue CRT / blueprint scanline flash at 5.25s - 5.65s
     if 5.25 <= t <= 5.65:
         p = (t - 5.25) / 0.40
         flash_a = int(math.sin(math.pi * p) * 215)
@@ -394,25 +451,19 @@ def render_zspace_opening(t: float) -> Image.Image:
 
 
 # ---------------------------------------------------------------------------
-# Cutaway #2 (8.30s - 10.75s): Dark HUD Viewfinder Spotlight Cutaway
-# (Directly inspired by t=4.30s - 6.20s "in 2025 / cold outreach is dead")
+# Beat 2B (8.30s - 10.75s): Dark HUD Viewfinder Spotlight + 3D Connecting Plugs
+# (Exact replica of t=4.60s - 6.10s in ref9_motion_strip.jpg + MOTION-DESIGN.md)
 # ---------------------------------------------------------------------------
 def render_dark_spotlight_hud(t: float) -> Image.Image:
-    """
-    Reproduces t=4.30s–6.20s of reference9.mp4:
-      - Atmospheric dark teal-black architectural night canvas
-      - Glowing twin warm tungsten spotlight beams in the center (y=940)
-      - Technical Viewfinder HUD border ('45 + G', '/////////', '456 JK / 789 0')
-      - Top-left 'from day one' + lower spatial reveal 'dragged onto' / 'building sites.'
-    """
     yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    # Deep atmospheric teal-black background gradient
     r_ch = np.clip(6.0 + 18.0 * np.exp(-(((yy - 940) / 380) ** 2)), 0, 255)
     g_ch = np.clip(14.0 + 36.0 * np.exp(-(((yy - 940) / 420) ** 2)), 0, 255)
     b_ch = np.clip(22.0 + 48.0 * np.exp(-(((yy - 940) / 460) ** 2)), 0, 255)
 
-    # Twin warm amber spotlight cores at center (matching the twin glowing lights at t=5.40s)
-    for lx in (495.0, 585.0):
+    # Twin warm amber spotlight cores at center (matching t=4.60s..6.10s)
+    age = t - 8.30
+    sep = 45.0 + 32.0 * cubic_bezier_cool(max(0.0, (t - 9.40) / 0.85))
+    for lx in (540.0 - sep, 540.0 + sep):
         d2 = ((xx - lx) / 36.0) ** 2 + ((yy - 920.0) / 26.0) ** 2
         glow = np.exp(-d2 * 0.5)
         halo = np.exp(-(((xx - lx) / 160.0) ** 2 + ((yy - 920.0) / 95.0) ** 2) * 0.5)
@@ -420,7 +471,6 @@ def render_dark_spotlight_hud(t: float) -> Image.Image:
         g_ch += glow * 195.0 + halo * 58.0
         b_ch += glow * 130.0 + halo * 28.0
 
-    # Subtle horizon reflection line at y=1320
     refl = np.exp(-(((yy - 1320.0) / 22.0) ** 2)) * np.exp(-(((xx - 540.0) / 340.0) ** 2))
     r_ch += refl * 35.0
     g_ch += refl * 65.0
@@ -430,157 +480,178 @@ def render_dark_spotlight_hud(t: float) -> Image.Image:
     img = Image.fromarray(arr).convert("RGBA")
     d = ImageDraw.Draw(img)
 
-    # Technical HUD overlay
+    # 3D cylindrical cables & plugs extending from left/right edges to the twin lights (matching t=6.10s)
+    plug_p = cubic_bezier_cool(max(0.0, (t - 8.50) / 0.80))
+    lx_end = int(540 - sep - 18)
+    rx_end = int(540 + sep + 18)
+    # Left cable & plug body
+    d.line([(0, 965), (int(lx_end * plug_p), 924)], fill=(46, 58, 72, 220), width=16)
+    d.line([(0, 961), (int(lx_end * plug_p), 920)], fill=(95, 118, 142, 180), width=4)
+    # Right cable & plug body
+    rx_start = int(W - (W - rx_end) * plug_p)
+    d.line([(W, 975), (rx_start, 924)], fill=(46, 58, 72, 220), width=16)
+    d.line([(W, 971), (rx_start, 920)], fill=(95, 118, 142, 180), width=4)
+
     img.alpha_composite(get_hud_overlay("dark"))
 
-    # Top-left caption "from day one" (matching "in 2025" at t=5.40s)
-    if t >= 8.38:
-        a1 = int(clamp((t - 8.38) / 0.25) * 235)
+    # Top-left caption "from day one" rising smoothly (matching "in 2025" at t=4.60s->5.60s)
+    if t >= 8.35:
+        a1, dy1 = data_reveal(t - 8.35, duration=MOTION_ENTER, offset_y=32)
+        drift_up = cubic_bezier_cool((t - 8.35) / 2.2) * 48.0
         f_top = get_font(INTER_REG, 64)
-        d.text((235, 510), "from day one", font=f_top, fill=(215, 228, 238, a1))
+        d.text((225, int(545 + dy1 - drift_up)), "from day one", font=f_top, fill=(220, 232, 242, int(a1 * 240)))
 
-    # Lower spatial words: "dragged" (8.95s) -> "onto" (9.35s) -> "building sites." (9.75s)
+    # Lower spatial words with 60ms-style sequential `[data-reveal]`
     if t >= 8.95:
-        a2 = int(clamp((t - 8.95) / 0.22) * 255)
+        a2, dy2 = data_reveal(t - 8.95, duration=MOTION_STATE, offset_y=24)
         f_w1 = get_font(INTER_MED, 74)
-        d.text((545, 1065), "dragged", font=f_w1, fill=(248, 244, 232, a2))
+        d.text((545, int(1065 + dy2)), "dragged", font=f_w1, fill=(248, 244, 232, int(a2 * 255)))
 
-    if t >= 9.35:
-        a3 = int(clamp((t - 9.35) / 0.22) * 240)
+    if t >= 9.30:
+        a3, dy3 = data_reveal(t - 9.30, duration=MOTION_STATE, offset_y=24)
         f_w2 = get_font(INTER_REG, 66)
-        d.text((310, 1145), "onto", font=f_w2, fill=(232, 228, 218, a3))
+        d.text((310, int(1145 + dy3)), "onto", font=f_w2, fill=(232, 228, 218, int(a3 * 240)))
 
-    if t >= 9.75:
-        a4 = int(clamp((t - 9.75) / 0.24) * 255)
+    if t >= 9.68:
+        a4, dy4 = data_reveal(t - 9.68, duration=MOTION_ENTER, offset_y=28)
         f_w3 = get_font(INTER_BOLD, 78)
-        d.text((310, 1225), "building sites.", font=f_w3, fill=(252, 248, 238, a4))
+        d.text((310, int(1225 + dy4)), "building sites.", font=f_w3, fill=(252, 248, 238, int(a4 * 255)))
 
     return img
 
 
 # ---------------------------------------------------------------------------
-# Signature Element #4: Cream Drafting-Paper Cutaway #1 with Terracotta Contours,
-# Central Black Portal & 3 Stacked Sky-Blue Pills (10.75s - 14.10s)
-# (Exact replica of t=11.40s - 14.20s in reference9.mp4)
+# Beat 3A (10.75s - 14.10s): Cream Drafting-Paper + Progressive SVG Contours +
+# Black Portal & 3 Interactive Sky-Blue UI Pills (hover/active/focus-visible)
 # ---------------------------------------------------------------------------
 def render_cream_portal_pills(t: float) -> Image.Image:
-    """
-    Reproduces t=11.40s–14.20s of reference9.mp4:
-      - Warm cream drafting-paper canvas (#F7F0D8)
-      - Dark charcoal Technical Viewfinder HUD border
-      - Bold terracotta-red (#D8432E) and ochre-gold (#D9A441) angular contour lines
-      - Central deep-black circular portal (r=280)
-      - 3 tilted (-2.2°) sky-blue (#4294FF) rounded pills popping in sequentially:
-          1. 'When I was young' (11.00s)
-          2. 'Kicking my heels...' (12.20s)
-          3. 'During summer holidays!' (13.05s)
-    """
     img = Image.new("RGBA", (W, H), (247, 240, 216, 255))
     d = ImageDraw.Draw(img)
 
-    # Subtle top-left dark header bar like reference9.mp4 (t=12.2s, 13.5s)
     d.rectangle([0, 0, 390, 68], fill=(10, 10, 12, 255))
 
-    # Ochre-gold thin contour line (#D9A441)
-    gold_pts = [(0, 420), (145, 510), (95, 760), (210, 1180), (0, 1480)]
-    d.line(gold_pts, fill=(217, 164, 65, 220), width=4)
+    age = t - 10.75
 
-    # Terracotta-red bold angular contour lines (#D8432E) at upper-left & lower-right
+    # Progressive GSAP DrawSVG contour lines (MOTION_SEQUENCE = 720ms)
+    gold_pts = [(0, 420), (145, 510), (95, 760), (210, 1180), (0, 1480)]
+    draw_progressive_polyline(d, gold_pts, age / MOTION_SEQUENCE, fill=(217, 164, 65, 220), width=4)
+
     red_tl = [(265, 68), (235, 195), (165, 290), (138, 430), (65, 545), (48, 720), (0, 795)]
-    d.line(red_tl, fill=(216, 67, 46, 255), width=20, joint="curve")
+    draw_progressive_polyline(d, red_tl, age / MOTION_SEQUENCE, fill=(216, 67, 46, 255), width=20)
 
     red_br = [(1080, 1320), (960, 1490), (885, 1560), (745, 1690), (540, 1850), (465, 1920)]
-    d.line(red_br, fill=(216, 67, 46, 255), width=32, joint="curve")
+    draw_progressive_polyline(d, red_br, (age - 0.12) / MOTION_SEQUENCE, fill=(216, 67, 46, 255), width=32)
 
-    # Technical HUD overlay in dark charcoal
     img.alpha_composite(get_hud_overlay("light"))
 
-    # Central deep-black circular portal (matching t=12.2s & t=13.5s)
-    pop_portal = ease_out_back(min(1.0, (t - 10.75) / 0.32), s=1.15)
-    r_p = int(282 * pop_portal)
+    # Central deep-black circular portal with smooth cubic-bezier entrance (zero bounce)
+    p_portal = cubic_bezier_cool(age / MOTION_ENTER)
+    r_p = int(282 * (0.86 + 0.14 * p_portal))
     cx, cy = 540, 1020
-    # Inner teal-blue subtle rim inside black circle
-    d.ellipse([cx - r_p, cy - r_p, cx + r_p, cy + r_p], fill=(6, 10, 16, 255))
+    d.ellipse([cx - r_p, cy - r_p, cx + r_p, cy + r_p], fill=(6, 10, 16, int(255 * p_portal)))
     d.ellipse(
         [cx - r_p + 6, cy - r_p + 6, cx + r_p - 6, cy + r_p - 6],
-        outline=(28, 56, 88, 120),
+        outline=(28, 56, 88, int(135 * p_portal)),
         width=4,
     )
 
-    # 3 stacked sky-blue rounded pills (#4294FF)
+    # 3 stacked sky-blue rounded pills (#4294FF) following MOTION-DESIGN.md `.button` rules:
+    #   - `[data-reveal]` entrance: opacity 0->1 + translateY(26px)->0 over 320ms (`cubic_bezier_cool`)
+    #   - `:hover` state: translateY(-4px) over 180ms (`MOTION_FAST`)
+    #   - `:active` press state: scale(0.98) over 140ms
+    #   - `:focus-visible` outline on final pill + Magic UI shimmer sweep
     pills_spec = [
-        # (t_in, y_off, w_pill, h_pill, text, font_sz)
         (11.00, -118, 390, 74, "When I was young", 34),
-        (12.20, -24, 420, 78, "Kicking my heels...", 36),
-        (13.05, 92, 600, 134, "During summer\nholidays!", 48),
+        (12.15, -24, 420, 78, "Kicking my heels...", 36),
+        (13.00, 92, 600, 134, "During summer\nholidays!", 48),
     ]
     for idx, (t_in, y_off, pw, ph, txt, fsz) in enumerate(pills_spec):
         if t < t_in:
             continue
         p_age = t - t_in
-        s_pill = ease_out_back(min(1.0, p_age / 0.28), s=1.35)
-        cw, ch = int(pw * s_pill), int(ph * s_pill)
-        if cw < 20 or ch < 20:
-            continue
+        rev_a, rev_dy = data_reveal(p_age, duration=MOTION_STATE, offset_y=26)
 
-        pill_img = Image.new("RGBA", (cw + 40, ch + 40), (0, 0, 0, 0))
+        # Interactive `.button:active` (100-180ms press) -> `.button:hover` (-4px lift)
+        press_scale = 1.0
+        hover_dy = 0.0
+        if 0.24 <= p_age <= 0.40:
+            # 160ms active press pulse (`transform: scale(.98)`)
+            press_w = math.sin(math.pi * (p_age - 0.24) / 0.16)
+            press_scale = 1.0 - 0.025 * press_w
+        elif p_age > 0.40:
+            hover_dy = -4.0 * cubic_bezier_cool((p_age - 0.40) / MOTION_FAST)
+
+        cw, ch = int(pw * press_scale), int(ph * press_scale)
+        pill_img = Image.new("RGBA", (cw + 48, ch + 48), (0, 0, 0, 0))
         pd = ImageDraw.Draw(pill_img)
-        # Drop shadow
+
+        alpha_i = int(rev_a * 255)
+        # Soft drop shadow
         pd.rounded_rectangle(
-            [20, 26, 20 + cw, 26 + ch],
+            [24, 30, 24 + cw, 30 + ch],
             radius=min(38, ch // 2),
-            fill=(0, 0, 0, 135),
+            fill=(0, 0, 0, int(rev_a * 140)),
         )
-        # Sky-blue pill body (#4294FF) with subtle lighter top border
+        # Sky-blue pill body (#4294FF)
         pd.rounded_rectangle(
-            [18, 18, 18 + cw, 18 + ch],
+            [22, 22, 22 + cw, 22 + ch],
             radius=min(38, ch // 2),
-            fill=(66, 148, 255, 255),
-            outline=(135, 192, 255, 220),
+            fill=(66, 148, 255, alpha_i),
+            outline=(155, 206, 255, int(rev_a * 235)),
             width=2,
         )
-        f_p = get_font(INTER_MED, max(12, int(fsz * s_pill)))
+        # `:focus-visible` ring on the active/featured 3rd pill (MOTION-DESIGN.md)
+        if idx == 2 and p_age >= 0.28:
+            foc_a = int(cubic_bezier_cool((p_age - 0.28) / MOTION_FAST) * 210)
+            pd.rounded_rectangle(
+                [16, 16, 28 + cw, 28 + ch],
+                radius=min(44, ch // 2 + 6),
+                outline=(255, 255, 255, foc_a),
+                width=3,
+            )
+
+        # Magic UI shimmer reflection sweeping across the pill (360ms)
+        if 0.18 <= p_age <= 0.56:
+            sh_p = cubic_bezier_cool((p_age - 0.18) / 0.38)
+            sx = int(30 + sh_p * (cw - 60))
+            pd.line(
+                [(sx, 24), (sx + 48, 24)],
+                fill=(255, 255, 255, int(alpha_i * (1.0 - sh_p) * 0.9)),
+                width=3,
+            )
+
+        f_p = get_font(INTER_MED, int(fsz * press_scale))
         lines = txt.split("\n")
-        total_h = len(lines) * int(fsz * s_pill * 1.12)
-        cur_y = 18 + (ch - total_h) // 2 - int(4 * s_pill)
+        total_h = len(lines) * int(fsz * press_scale * 1.12)
+        cur_y = 22 + (ch - total_h) // 2 - 4
         for line in lines:
             bb = pd.textbbox((0, 0), line, font=f_p)
             tw = bb[2] - bb[0]
-            tx = 18 + (cw - tw) // 2
-            pd.text((tx, cur_y), line, font=f_p, fill=(255, 255, 255, 255))
-            cur_y += int(fsz * s_pill * 1.12)
+            tx = 22 + (cw - tw) // 2
+            pd.text((tx, cur_y), line, font=f_p, fill=(255, 255, 255, alpha_i))
+            cur_y += int(fsz * press_scale * 1.12)
 
-        # Tilt by -2.2 degrees just like t=13.50s in reference9.mp4
         pill_rot = pill_img.rotate(2.2 if idx % 2 == 0 else -1.8, resample=Image.BICUBIC, expand=True)
         px = cx - pill_rot.width // 2 + (-22 if idx == 0 else (28 if idx == 1 else -8))
-        py = cy + y_off - pill_rot.height // 2
+        py = int(cy + y_off + rev_dy + hover_dy - pill_rot.height // 2)
         img.alpha_composite(pill_rot, (px, py))
 
     return img
 
 
 # ---------------------------------------------------------------------------
-# Signature Element #3: Dark Technical Grid + UI Selection Box + Wireframe Cursors
-# & Italic Electric-Blue Condensed Stamp (17.30s - 20.55s and 35.30s - 38.45s)
-# (Exact replica of t=8.00s - 11.20s in reference9.mp4)
+# Beat 4 (17.30s - 20.55s) & Beat 6B (35.30s - 38.45s):
+# Diagonal Neon Blue/Crimson Light-Ribbon Wipe -> Live Cursor-Driven Text Selection
+# -> Two-State Wireframe Card with Border Beam & Progressive Red SVG Contour
+# (Exact replica of t=8.20s - 10.85s in ref9_motion_strip.jpg + MOTION-DESIGN.md)
 # ---------------------------------------------------------------------------
 def draw_wireframe_cursor(canvas: Image.Image, cx: int, cy: int, angle_deg: float, scale: float = 1.0):
-    """Draws the crisp white wireframe arrow cursor from t=8.60s of reference9.mp4."""
     size = int(110 * scale)
     c_img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     cd = ImageDraw.Draw(c_img)
-    # Classic pointer polygon centered near top-left
-    pts = [
-        (24, 16),
-        (24, 82),
-        (42, 66),
-        (56, 94),
-        (68, 88),
-        (54, 60),
-        (78, 58),
-    ]
+    pts = [(24, 16), (24, 82), (42, 66), (56, 94), (68, 88), (54, 60), (78, 58)]
     pts_scaled = [(int(x * scale), int(y * scale)) for x, y in pts]
-    cd.polygon(pts_scaled, fill=(12, 16, 22, 180), outline=(238, 242, 250, 235), width=3)
+    cd.polygon(pts_scaled, fill=(12, 16, 22, 185), outline=(238, 242, 250, 240), width=3)
     rot = c_img.rotate(angle_deg, resample=Image.BICUBIC, expand=True)
     canvas.alpha_composite(rot, (cx - rot.width // 2, cy - rot.height // 2))
 
@@ -592,23 +663,17 @@ def render_dark_selection_and_stamp(
     t_end: float,
     sel_top_text: str,
     sel_bot_text: str,
+    state1_top: str,
+    state1_bot: str,
     stamp_top_text: str,
     stamp_blue_word: str,
 ) -> Image.Image:
-    """
-    Reproduces t=8.00s–11.20s of reference9.mp4:
-      - Phase A (t_start .. t_mid): Translucent blue UI text-selection box (`|o ... o|`)
-        around `sel_top_text` + bold white `sel_bot_text` underneath + floating wireframe
-        arrow cursors + warm tungsten upper-right lens flare.
-      - Phase B (t_mid .. t_end): Technical wireframe bounding box + sweeping red/ochre
-        contour path + `stamp_top_text` above bold condensed italic electric-blue `stamp_blue_word`.
-    """
     yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
     r_ch = np.full((H, W), 5.0, dtype=np.float32)
     g_ch = np.full((H, W), 7.0, dtype=np.float32)
     b_ch = np.full((H, W), 12.0, dtype=np.float32)
 
-    # Warm tungsten horizontal lens flare at upper-right (matching t=8.60s & t=10.80s)
+    # Warm tungsten horizontal lens flare at upper-right (matching t=8.55s & t=10.85s)
     flare_core = np.exp(-(((xx - 980.0) / 140.0) ** 2 + ((yy - 560.0) / 38.0) ** 2) * 0.5)
     flare_streak = np.exp(-(((yy - 560.0) / 14.0) ** 2)) * np.exp(-(((xx - 720.0) / 480.0) ** 2))
     flare_left = np.exp(-(((xx - 160.0) / 220.0) ** 2 + ((yy - 650.0) / 120.0) ** 2) * 0.5)
@@ -616,23 +681,34 @@ def render_dark_selection_and_stamp(
     g_ch += flare_core * 175.0 + flare_streak * 95.0 + flare_left * 32.0
     b_ch += flare_core * 95.0 + flare_streak * 35.0 + flare_left * 18.0
 
-    # Soft center ambient glow behind typography
     c_glow = np.exp(-(((xx - 540.0) / 260.0) ** 2 + ((yy - 950.0) / 190.0) ** 2) * 0.5)
     r_ch += c_glow * 36.0
     g_ch += c_glow * 42.0
     b_ch += c_glow * 58.0
 
+    # Diagonal Neon Blue/Crimson Light-Ribbon Wipe during first 380ms (exact match to t=8.20s in ref9_motion_strip.jpg!)
+    age_total = t - t_start
+    if age_total <= 0.38:
+        w_p = cubic_bezier_cool(age_total / 0.38)
+        env = math.sin(math.pi * w_p)
+        # Diagonal coordinate u = (xx * 0.65 + yy * 0.76)
+        diag_d = (xx * 0.65 + (yy - (760.0 + w_p * 520.0)) * 0.76)
+        blue_band = np.exp(-((diag_d / 145.0) ** 2)) * env
+        red_edge = np.exp(-(((diag_d - 140.0) / 55.0) ** 2)) * env
+        r_ch += blue_band * 55.0 + red_edge * 245.0
+        g_ch += blue_band * 165.0 + red_edge * 48.0
+        b_ch += blue_band * 255.0 + red_edge * 95.0
+
     arr = np.stack([np.clip(r_ch, 0, 255), np.clip(g_ch, 0, 255), np.clip(b_ch, 0, 255)], axis=-1).astype(np.uint8)
     img = Image.fromarray(arr).convert("RGBA")
     d = ImageDraw.Draw(img)
 
-    # Technical HUD overlay
     img.alpha_composite(get_hud_overlay("dark"))
 
     if t < t_mid:
-        # ---------------- PHASE A: Blue UI Text-Selection Box + Floating Cursors ----------------
+        # ---------------- PHASE A: Live Cursor-Driven Text Selection (`MOTION_ENTER = 480ms`) ----------------
         age = t - t_start
-        sel_p = ease_out_cubic(min(1.0, age / 0.38))
+        sel_p = cubic_bezier_cool(age / MOTION_ENTER)
 
         f_top = get_font(INTER_REG, 68)
         f_bot = get_font(INTER_BOLD, 86)
@@ -642,44 +718,53 @@ def render_dark_selection_and_stamp(
         tx_top = (W - tw_top) // 2
         ty_top = 845
 
-        # Translucent blue UI selection highlight rectangle + left/right handle pins
         cur_w = int((tw_top + 28) * sel_p)
         bx0 = tx_top - 14
         by0 = ty_top - 4
         bx1 = bx0 + cur_w
         by1 = ty_top + th_top + 18
 
-        d.rectangle([bx0, by0, bx1, by1], fill=(42, 118, 255, 108))
-        # Left selection handle (vertical bar + top circle pin)
+        # Translucent blue UI selection box + left & right handle pins
+        d.rectangle([bx0, by0, bx1, by1], fill=(42, 118, 255, 112))
         d.line([(bx0, by0), (bx0, by1)], fill=(66, 148, 255, 255), width=4)
         d.ellipse([bx0 - 8, by0 - 14, bx0 + 8, by0 + 2], fill=(66, 148, 255, 255))
-        # Right selection handle (vertical bar + bottom circle pin)
         d.line([(bx1, by0), (bx1, by1)], fill=(66, 148, 255, 255), width=4)
         d.ellipse([bx1 - 8, by1 - 2, bx1 + 8, by1 + 14], fill=(66, 148, 255, 255))
 
-        # Top text & bottom bold text
+        # Top text (progressively brightens as the selection sweeps across it, like t=8.20s -> 8.55s)
         d.text((tx_top, ty_top), sel_top_text, font=f_top, fill=(246, 244, 236, 255))
 
-        if age >= 0.16:
-            bot_p = ease_out_back(min(1.0, (age - 0.16) / 0.28), s=1.2)
+        # Secondary line enters after 80ms stagger via `[data-reveal]` (translateY(28px) -> 0)
+        if age >= 0.08:
+            bot_a, bot_dy = data_reveal(age - 0.08, duration=MOTION_ENTER, offset_y=28)
             bb_bot = d.textbbox((0, 0), sel_bot_text, font=f_bot)
             tw_bot = bb_bot[2] - bb_bot[0]
             tx_bot = (W - tw_bot) // 2
-            ty_bot = int(930 + (1.0 - bot_p) * 24)
-            d.text((tx_bot, ty_bot), sel_bot_text, font=f_bot, fill=(252, 250, 242, int(clamp((age - 0.16) / 0.18) * 255)))
+            d.text((tx_bot, int(930 + bot_dy)), sel_bot_text, font=f_bot, fill=(252, 250, 242, int(bot_a * 255)))
 
-        # Floating white wireframe arrow cursors (matching t=8.60s in reference9.mp4)
-        drift = age * 28.0
-        draw_wireframe_cursor(img, int(395 + drift * 0.6), int(1465 - drift), angle_deg=-24, scale=1.05)
-        draw_wireframe_cursor(img, int(890 - drift * 0.5), int(430 + drift * 0.8), angle_deg=155, scale=0.95)
+        # Wireframe cursors: lower cursor tracks the selection drag and then settles downward
+        if age <= MOTION_ENTER:
+            cur_x = int(bx1 + 18)
+            cur_y = int(by1 + 68 + age * 180)
+        else:
+            post = cubic_bezier_cool((age - MOTION_ENTER) / 0.65)
+            cur_x = int((bx1 + 18) * (1.0 - post) + 410 * post)
+            cur_y = int((by1 + 155) * (1.0 - post) + 1435 * post)
+        draw_wireframe_cursor(img, cur_x, cur_y, angle_deg=-24, scale=1.05)
+        draw_wireframe_cursor(
+            img,
+            int(895 - cubic_bezier_cool(age / 0.9) * 35),
+            int(420 + cubic_bezier_cool(age / 0.9) * 45),
+            angle_deg=155,
+            scale=0.95,
+        )
     else:
-        # ---------------- PHASE B: Technical Bounding Box + Red Contour + Italic Blue Stamp ----------------
+        # ---------------- PHASE B: Wireframe Card + Progressive SVG Contour + Two-State Reveal ----------------
+        # (Matches t=9.60s -> 10.20s `are sending` -> 10.85s `the same MESSAGE` in ref9_motion_strip.jpg!)
         age = t - t_mid
-        pop = ease_out_back(min(1.0, age / 0.28), s=1.25)
 
-        # Sweeping terracotta-red & ochre contour path (matching t=10.80s in reference9.mp4)
         ochre_pts = [(690, 0), (540, 140), (200, 340), (195, 580), (490, 620), (750, 560)]
-        d.line(ochre_pts, fill=(185, 138, 68, 175), width=6, joint="curve")
+        draw_progressive_polyline(d, ochre_pts, age / 0.62, fill=(185, 138, 68, 180), width=6)
 
         red_pts = [
             (840, 490),
@@ -691,65 +776,76 @@ def render_dark_selection_and_stamp(
             (180, 1690),
             (0, 1720),
         ]
-        d.line(red_pts, fill=(192, 56, 40, 225), width=22, joint="curve")
+        draw_progressive_polyline(d, red_pts, age / 0.68, fill=(192, 56, 40, 230), width=22)
 
         # Technical wireframe grid box around center lockup
-        gx0, gy0, gx1, gy1 = 220, 680, 790, 1290
+        card_a, card_dy = data_reveal(age, duration=MOTION_STATE, offset_y=20)
+        gx0, gy0, gx1, gy1 = 220, int(680 + card_dy), 790, int(1290 + card_dy)
+        grid_alpha = int(card_a * 140)
         for xx_l in (gx0, gx0 + 95, gx1 - 95, gx1):
-            d.line([(xx_l, gy0 - 40), (xx_l, gy1 + 40)], fill=(58, 76, 104, 135), width=2)
+            d.line([(xx_l, gy0 - 40), (xx_l, gy1 + 40)], fill=(58, 76, 104, grid_alpha), width=2)
         for yy_l in (gy0, gy0 + 110, gy1 - 110, gy1):
-            d.line([(gx0 - 40, yy_l), (gx1 + 40, yy_l)], fill=(58, 76, 104, 135), width=2)
-        d.rectangle([gx0, gy0, gx1, gy1], outline=(82, 108, 148, 180), width=2)
+            d.line([(gx0 - 40, yy_l), (gx1 + 40, yy_l)], fill=(58, 76, 104, grid_alpha), width=2)
+        d.rectangle([gx0, gy0, gx1, gy1], outline=(82, 108, 148, int(card_a * 185)), width=2)
+        d.rectangle([gx0 + 12, gy0 + 12, gx0 + 34, gy0 + 34], outline=(160, 180, 210, int(card_a * 185)), width=2)
 
-        # Small technical icon in top-left of bounding box
-        d.rectangle([gx0 + 12, gy0 + 12, gx0 + 34, gy0 + 34], outline=(160, 180, 210, 180), width=2)
+        # Aceternity UI / Magic UI Border Beam traveling along the card perimeter
+        beam_p = cubic_bezier_cool((age % 1.15) / 1.15)
+        bx_beam = int(gx0 + (gx1 - gx0) * beam_p)
+        d.line([(bx_beam, gy0), (min(gx1, bx_beam + 90), gy0)], fill=(88, 168, 255, 235), width=4)
 
-        # Top white phrase + giant italic electric-blue stamp (#3888FF)
-        f_top = get_font(INTER_REG, 58)
-        bb_t = d.textbbox((0, 0), stamp_top_text, font=f_top)
-        tw_t = bb_t[2] - bb_t[0]
-        d.text(((W - tw_t) // 2, 790), stamp_top_text, font=f_top, fill=(246, 244, 236, 255))
+        # State 1 (0.00 .. 0.42s): Preliminary dim phrase (like `are / sending` at t=10.20s)
+        if age < 0.42:
+            s1_a, s1_dy = data_reveal(age, duration=0.26, offset_y=22)
+            f_s1 = get_font(INTER_REG, 56)
+            bb1 = d.textbbox((0, 0), state1_top, font=f_s1)
+            d.text((385, int(815 + s1_dy)), state1_top, font=f_s1, fill=(220, 226, 235, int(s1_a * 230)))
+            f_s2 = get_font(INTER_MED, 62)
+            d.text((385, int(880 + s1_dy)), state1_bot, font=f_s2, fill=(120, 134, 156, int(s1_a * 185)))
+        else:
+            # State 2 (0.42s .. end): Smooth state transition (`MOTION_STATE = 300ms`) into
+            # `stamp_top_text` + bold italic electric-blue `stamp_blue_word` (`PROCESS` / `CREATIVE`)
+            s2_age = age - 0.42
+            top_a, top_dy = data_reveal(s2_age, duration=MOTION_STATE, offset_y=22)
+            f_top = get_font(INTER_REG, 58)
+            bb_t = d.textbbox((0, 0), stamp_top_text, font=f_top)
+            tw_t = bb_t[2] - bb_t[0]
+            d.text(((W - tw_t) // 2, int(790 + top_dy)), stamp_top_text, font=f_top, fill=(246, 244, 236, int(top_a * 255)))
 
-        f_blue = get_font(MONTSERRAT_BLACK_IT, int(94 * pop))
-        bb_b = d.textbbox((0, 0), stamp_blue_word, font=f_blue)
-        tw_b = bb_b[2] - bb_b[0]
-        bx = (W - tw_b) // 2
-        by = 865
-        # Soft blue glow behind electric-blue word
-        glow_l = Image.new("RGBA", (W, 240), (0, 0, 0, 0))
-        gd = ImageDraw.Draw(glow_l)
-        gd.text((bx, 40), stamp_blue_word, font=f_blue, fill=(42, 124, 255, 135))
-        glow_l = glow_l.filter(ImageFilter.GaussianBlur(radius=12))
-        img.alpha_composite(glow_l, (0, by - 40))
+            # 60ms stagger on the primary electric-blue keyword (`MOTION_STAGGER = 60ms`)
+            blue_age = max(0.0, s2_age - MOTION_STAGGER)
+            blue_a, blue_dy = data_reveal(blue_age, duration=MOTION_ENTER, offset_y=28)
+            f_blue = get_font(MONTSERRAT_BLACK_IT, 94)
+            bb_b = d.textbbox((0, 0), stamp_blue_word, font=f_blue)
+            tw_b = bb_b[2] - bb_b[0]
+            bx = (W - tw_b) // 2
+            by = int(865 + blue_dy)
 
-        d.text((bx, by), stamp_blue_word, font=f_blue, fill=(58, 142, 255, 255))
+            glow_l = Image.new("RGBA", (W, 240), (0, 0, 0, 0))
+            gd = ImageDraw.Draw(glow_l)
+            gd.text((bx, 40), stamp_blue_word, font=f_blue, fill=(42, 124, 255, int(blue_a * 135)))
+            glow_l = glow_l.filter(ImageFilter.GaussianBlur(radius=12))
+            img.alpha_composite(glow_l, (0, by - 40))
+
+            d.text((bx, by), stamp_blue_word, font=f_blue, fill=(58, 142, 255, int(blue_a * 255)))
 
     return img
 
 
 # ---------------------------------------------------------------------------
-# Cutaway #4 (26.85s - 30.35s): Cream Drafting-Paper #2 with Sliding Silhouettes
-# & Italic Electric-Blue Stamp (Exact replica of t=16.80s - 17.95s "you're just / ONE MORE")
+# Beat 5B (26.85s - 30.35s): Cream Drafting-Paper #2 + Progressive Gold/Red SVG
+# Contours + Staggered Directional Reveal + Diagonal Golden-Red Light Beam Transition
+# (Exact replica of t=16.95s -> 17.25s -> 17.55s -> 17.85s in ref9_motion_strip.jpg!)
 # ---------------------------------------------------------------------------
 def render_cream_architect_stamp(t: float) -> Image.Image:
-    """
-    Reproduces t=16.80s–17.95s of reference9.mp4:
-      - Warm cream drafting-paper canvas (#F7F0D8)
-      - Sweeping ochre-gold & terracotta-red contour lines
-      - Dark charcoal architectural silhouette shapes sliding across upper-left,
-        middle-right, and lower-left corners
-      - Center typography: 'the term' / 'ARCHITECT' (italic electric-blue) ->
-        'without knowing / what it meant'
-    """
     img = Image.new("RGBA", (W, H), (247, 240, 216, 255))
     d = ImageDraw.Draw(img)
 
-    # Top-left black header bar
     d.rectangle([0, 0, 390, 68], fill=(10, 10, 12, 255))
 
     age = t - 26.85
 
-    # Golden-ochre sweeping contour loop (matching t=17.40s)
+    # 1. Golden-ochre contour draws in first (0.00s .. 0.55s, matching t=16.95s)
     gold_pts = [
         (360, 68),
         (590, 440),
@@ -761,9 +857,9 @@ def render_cream_architect_stamp(t: float) -> Image.Image:
         (110, 1090),
         (0, 1075),
     ]
-    d.line(gold_pts, fill=(216, 162, 62, 235), width=5, joint="curve")
+    draw_progressive_polyline(d, gold_pts, age / 0.55, fill=(216, 162, 62, 235), width=5)
 
-    # Bold terracotta-red angular contour line at bottom (matching t=17.40s)
+    # 2. Terracotta-red bottom contour draws in starting at age=0.28s (matching t=17.25s)
     red_pts = [
         (240, 1920),
         (295, 1620),
@@ -773,65 +869,117 @@ def render_cream_architect_stamp(t: float) -> Image.Image:
         (920, 1360),
         (1080, 1465),
     ]
-    d.line(red_pts, fill=(212, 64, 44, 255), width=28, joint="curve")
+    draw_progressive_polyline(d, red_pts, (age - 0.25) / 0.60, fill=(212, 64, 44, 255), width=28)
 
-    # Dark charcoal architectural silhouette blocks sliding across corners (matching t=17.40s)
-    slide = int(age * 42)
-    sil_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    sd = ImageDraw.Draw(sil_layer)
-    # Upper-left silhouette polygon
-    sd.polygon(
-        [(0, 68), (240 - slide // 2, 68), (160 - slide // 2, 320), (0, 480)],
-        fill=(32, 38, 36, 235),
-    )
-    # Right-middle silhouette polygon
-    sd.polygon(
-        [(1080, 640 + slide // 3), (880, 820 + slide // 3), (960, 1060 + slide // 3), (1080, 1120 + slide // 3)],
-        fill=(32, 38, 36, 230),
-    )
-    # Lower-left silhouette polygon
-    sd.polygon(
-        [(0, 1320 - slide // 3), (220, 1460 - slide // 3), (295, 1680 - slide // 3), (140, 1920), (0, 1920)],
-        fill=(32, 38, 36, 235),
-    )
-    sil_layer = sil_layer.filter(ImageFilter.GaussianBlur(radius=4))
-    img.alpha_composite(sil_layer)
+    # 3. Dark charcoal 3D silhouettes enter smoothly from corners starting at age=0.32s
+    if age >= 0.30:
+        sil_p = cubic_bezier_cool((age - 0.30) / MOTION_SEQUENCE)
+        sil_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        sd = ImageDraw.Draw(sil_layer)
+        # Upper-left silhouette polygon
+        ul_x = int(-180 * (1.0 - sil_p))
+        sd.polygon(
+            [(0, 68), (245 + ul_x, 68), (155 + ul_x, 340), (0, 490)],
+            fill=(32, 38, 36, int(235 * sil_p)),
+        )
+        # Right-middle silhouette polygon
+        rm_x = int(160 * (1.0 - sil_p))
+        sd.polygon(
+            [(1080, 660), (875 + rm_x, 830), (955 + rm_x, 1070), (1080, 1130)],
+            fill=(32, 38, 36, int(230 * sil_p)),
+        )
+        # Lower-left silhouette polygon
+        ll_y = int(220 * (1.0 - sil_p))
+        sd.polygon(
+            [(0, 1310 + ll_y), (225, 1450 + ll_y), (295, 1680 + ll_y), (145, 1920), (0, 1920)],
+            fill=(32, 38, 36, int(235 * sil_p)),
+        )
+        sil_layer = sil_layer.filter(ImageFilter.GaussianBlur(radius=4))
+        img.alpha_composite(sil_layer)
 
-    # Technical HUD overlay in dark charcoal
     img.alpha_composite(get_hud_overlay("light"))
 
-    # Center typography lockup (matching "you're just / ONE MORE" at t=17.40s)
-    if t < 28.75:
+    # 4. Center Typography Lockup with `[data-reveal]` + 2-part staggered word reveal
+    #    (matching `you're just` at t=16.95s -> `ONE` at t=17.25s -> `ONE MORE` at t=17.55s!)
+    if t < 28.70:
+        top_a, top_dy = data_reveal(age, duration=MOTION_STATE, offset_y=24)
         f_top = get_font(INTER_REG, 56)
         txt_top = "the term"
         bb_t = d.textbbox((0, 0), txt_top, font=f_top)
-        d.text(((W - (bb_t[2] - bb_t[0])) // 2 + 25, 920), txt_top, font=f_top, fill=(28, 30, 34, 255))
+        d.text(
+            ((W - (bb_t[2] - bb_t[0])) // 2 + 18, int(918 + top_dy)),
+            txt_top,
+            font=f_top,
+            fill=(28, 30, 34, int(top_a * 255)),
+        )
 
-        pop = ease_out_back(min(1.0, (t - 26.92) / 0.26), s=1.3)
-        f_blue = get_font(MONTSERRAT_BLACK_IT, max(24, int(92 * pop)))
-        word = "ARCHITECT" if t >= 27.25 else "ARCHI"
-        bb_b = d.textbbox((0, 0), word, font=f_blue)
-        d.text(((W - (bb_b[2] - bb_b[0])) // 2, 985), word, font=f_blue, fill=(58, 142, 255, 255))
+        if age >= 0.26:
+            f_blue = get_font(MONTSERRAT_BLACK_IT, 92)
+            full_word = "ARCHITECT"
+            bb_full = d.textbbox((0, 0), full_word, font=f_blue)
+            full_w = bb_full[2] - bb_full[0]
+            start_x = (W - full_w) // 2
+
+            # Part 1 ("ARCHI") reveals at age=0.26s; Part 2 ("TECT") reveals with 80ms stagger
+            p1_a, p1_dy = data_reveal(age - 0.26, duration=MOTION_STATE, offset_y=26)
+            d.text((start_x, int(985 + p1_dy)), "ARCHI", font=f_blue, fill=(58, 142, 255, int(p1_a * 255)))
+
+            if age >= 0.34:
+                bb_p1 = d.textbbox((0, 0), "ARCHI", font=f_blue)
+                w_p1 = bb_p1[2] - bb_p1[0]
+                p2_a, p2_dy = data_reveal(age - 0.34, duration=MOTION_STATE, offset_y=26)
+                d.text(
+                    (start_x + w_p1 - 4, int(985 + p2_dy)),
+                    "TECT",
+                    font=f_blue,
+                    fill=(58, 142, 255, int(p2_a * 255)),
+                )
     else:
-        p2 = ease_out_back(min(1.0, (t - 28.75) / 0.26), s=1.25)
+        s2_age = t - 28.70
+        top_a, top_dy = data_reveal(s2_age, duration=MOTION_STATE, offset_y=24)
         f_top = get_font(INTER_REG, 54)
         txt_top = "without knowing"
         bb_t = d.textbbox((0, 0), txt_top, font=f_top)
-        d.text(((W - (bb_t[2] - bb_t[0])) // 2, 915), txt_top, font=f_top, fill=(28, 30, 34, 255))
+        d.text(
+            ((W - (bb_t[2] - bb_t[0])) // 2, int(915 + top_dy)),
+            txt_top,
+            font=f_top,
+            fill=(28, 30, 34, int(top_a * 255)),
+        )
 
-        f_blue = get_font(MONTSERRAT_BLACK_IT, max(24, int(86 * p2)))
+        blue_a, blue_dy = data_reveal(max(0.0, s2_age - MOTION_STAGGER), duration=MOTION_ENTER, offset_y=28)
+        f_blue = get_font(MONTSERRAT_BLACK_IT, 86)
         word = "WHAT IT MEANT"
         bb_b = d.textbbox((0, 0), word, font=f_blue)
-        d.text(((W - (bb_b[2] - bb_b[0])) // 2, 985), word, font=f_blue, fill=(58, 142, 255, 255))
+        d.text(
+            ((W - (bb_b[2] - bb_b[0])) // 2, int(985 + blue_dy)),
+            word,
+            font=f_blue,
+            fill=(58, 142, 255, int(blue_a * 255)),
+        )
+
+    # 5. Blazing Diagonal Golden-White/Crimson Light-Beam Transition at 30.05s - 30.35s
+    #    (Exact replica of t=17.85s in ref9_motion_strip.jpg!)
+    if t >= 30.05:
+        bp = cubic_bezier_cool((t - 30.05) / 0.30)
+        beam_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        bd = ImageDraw.Draw(beam_layer)
+        bx_top = int(220 + bp * 260)
+        bx_bot = int(-60 + bp * 260)
+        # Outer warm crimson-orange glow
+        bd.line([(bx_top, -40), (bx_bot, H + 40)], fill=(235, 78, 32, 225), width=140)
+        # Inner bright golden-white core
+        bd.line([(bx_top, -40), (bx_bot, H + 40)], fill=(255, 248, 220, 255), width=58)
+        beam_layer = beam_layer.filter(ImageFilter.GaussianBlur(radius=14))
+        img.alpha_composite(beam_layer)
 
     return img
 
 
 # ---------------------------------------------------------------------------
-# Signature Element #5: Talking-Head Lower-Case Minimalist Tight-Tracked Chest Subtitles
-# with Progressive Word Opacity (matching t=7.2s, 15.2s, 18.2s, 21.0s, 25.3s)
+# Talking-Head Lower-Case Minimalist Tight-Tracked Chest Subtitles
+# with `[data-reveal]` block entrance & progressive word opacity
 # ---------------------------------------------------------------------------
-# Format: (t_start, t_end, [ [(word, t_active), ...], [(word, t_active), ...] ])
 TALKING_SUBTITLES = [
     # Beat 2 (5.65 - 8.30s)
     (5.70, 6.95, [[("so", 5.70), ("i'd", 5.82), ("always", 5.95), ("been", 6.20), ("aware", 6.40)]]),
@@ -860,20 +1008,15 @@ TALKING_SUBTITLES = [
 
 
 def render_talking_subtitle(canvas: Image.Image, t: float):
-    """
-    Renders the exact lower-case tight-tracked chest captions from reference9.mp4
-    (e.g. t=18.2s 'what you', t=21.0s 'content on / social media.', t=25.3s 'now, i get it'):
-      - Positioned at chest level (y ~ 1110)
-      - Words not yet spoken appear at 28% ghost opacity and illuminate to 100% crisp white
-        with a soft dark drop shadow as spoken.
-    """
     for t0, t1, lines in TALKING_SUBTITLES:
         if t0 <= t < t1:
             fnt = get_font(INTER_MED, 62)
             line_h = 68
             block_y = 1095 if len(lines) == 1 else 1065
 
-            # Measure widest line so multi-line blocks align cleanly at left edge of centered block
+            # Subtle `[data-reveal]` block entrance (220ms cubic-bezier)
+            blk_a, blk_dy = data_reveal(t - t0, duration=0.22, offset_y=14)
+
             line_widths = []
             d = ImageDraw.Draw(canvas)
             for line in lines:
@@ -885,11 +1028,10 @@ def render_talking_subtitle(canvas: Image.Image, t: float):
 
             for l_idx, line in enumerate(lines):
                 cur_x = start_x if len(lines) > 1 else (W - line_widths[l_idx]) // 2
-                cur_y = block_y + l_idx * line_h
+                cur_y = int(block_y + l_idx * line_h + blk_dy)
                 for w_str, t_act in line:
-                    active_p = clamp((t - t_act) / 0.10, 0.0, 1.0)
-                    alpha = int(72 + 183 * active_p)
-                    # Soft dark shadow
+                    active_p = cubic_bezier_cool((t - t_act) / MOTION_FAST)
+                    alpha = int((72 + 183 * active_p) * blk_a)
                     d.text((cur_x + 2, cur_y + 3), w_str, font=fnt, fill=(0, 0, 0, int(alpha * 0.72)))
                     d.text((cur_x, cur_y), w_str, font=fnt, fill=(250, 248, 242, alpha))
                     bb_w = d.textbbox((0, 0), w_str + " ", font=fnt)
@@ -898,27 +1040,23 @@ def render_talking_subtitle(canvas: Image.Image, t: float):
 
 
 # ---------------------------------------------------------------------------
-# Signature Element #6: Final Pull-Back Window-in-Black Frame + Giant Metallic
-# Ice-Blue Chrome Lockup (48.95s - 51.80s, exact match to t=35.80s - 37.86s "2025")
+# Beat 7B (48.95s - 51.80s): Pull-Back Window-in-Black Frame + Giant Metallic
+# Ice-Blue Chrome Lockup (Follows MOTION-DESIGN.md: smooth 580ms cubic-bezier
+# scale-down + `[data-reveal]` translateY(28px) -> 0 on the metallic headline)
 # ---------------------------------------------------------------------------
-def render_metallic_chrome_text(text: str, font_size: int = 230) -> Image.Image:
-    """
-    Renders giant condensed display text with the exact vertical metallic ice-blue-to-white
-    chrome gradient & subtle glow from t=36.80s ("2025") of reference9.mp4.
-    """
+def render_metallic_chrome_text(text: str, font_size: int = 225, alpha_scale: float = 1.0) -> Image.Image:
     fnt = get_font(BEBAS_REG, font_size)
     tmp = Image.new("RGBA", (W, 340), (0, 0, 0, 0))
     td = ImageDraw.Draw(tmp)
     bb = td.textbbox((0, 0), text, font=fnt)
-    tw, th = bb[2] - bb[0], bb[3] - bb[1]
+    tw = bb[2] - bb[0]
     tx = (W - tw) // 2
     ty = 40 - bb[1]
 
     mask = Image.new("L", (W, 340), 0)
     md = ImageDraw.Draw(mask)
-    md.text((tx, ty), text, font=fnt, fill=255)
+    md.text((tx, ty), text, font=fnt, fill=int(255 * clamp(alpha_scale)))
 
-    # Vertical chrome gradient: ice-blue top -> bright white middle -> steel-blue bottom
     yy = np.linspace(0.0, 1.0, 340, dtype=np.float32)[:, None]
     r = np.where(yy < 0.48, 128 + (255 - 128) * (yy / 0.48), 255 - (255 - 98) * ((yy - 0.48) / 0.52))
     g = np.where(yy < 0.48, 178 + (255 - 178) * (yy / 0.48), 255 - (255 - 152) * ((yy - 0.48) / 0.52))
@@ -939,16 +1077,9 @@ def render_metallic_chrome_text(text: str, font_size: int = 230) -> Image.Image:
 
 
 def render_pullback_window_finale(raw_rgb: np.ndarray, t: float) -> Image.Image:
-    """
-    Reproduces t=35.80s–37.86s of reference9.mp4:
-      - Talking-head frame smoothly scales down from 100% -> 56% into a centered
-        floating vertical rectangle on a pitch-black (#000000) background.
-      - Overlapping the lower portion of the video card:
-          * Small lower-case white label ('when i was just' -> 'i wanted to be an')
-          * Giant metallic ice-blue-to-white chrome headline ('"AGE 14"' -> '"ARCHITECT"')
-    """
     canvas = Image.new("RGBA", (W, H), (0, 0, 0, 255))
-    p_zoom = ease_out_cubic(min(1.0, (t - 48.95) / 0.48))
+    # Smooth 580ms section entrance (`cubic_bezier_cool`, zero bounce)
+    p_zoom = cubic_bezier_cool((t - 48.95) / 0.58)
     scale = 1.0 - 0.44 * p_zoom  # 1.00 -> 0.56
 
     nw, nh = int(W * scale), int(H * scale)
@@ -964,24 +1095,27 @@ def render_pullback_window_finale(raw_rgb: np.ndarray, t: float) -> Image.Image:
     if t < 50.52:
         lbl = "when i was about"
         chrome_word = '"AGE 14"'
-        pop = ease_out_back(min(1.0, max(0.0, (t - 49.20) / 0.30)), s=1.3)
-        f_sz = max(40, int(235 * pop))
+        lbl_a, lbl_dy = data_reveal(t - 49.05, duration=MOTION_STATE, offset_y=20)
+        ch_a, ch_dy = data_reveal(t - 49.15, duration=MOTION_ENTER, offset_y=28)
+        f_sz = 235
     else:
         lbl = "i wanted to be an"
         chrome_word = '"ARCHITECT"'
-        pop = ease_out_back(min(1.0, (t - 50.52) / 0.30), s=1.3)
-        f_sz = max(40, int(195 * pop))
+        lbl_a, lbl_dy = data_reveal(t - 50.52, duration=MOTION_STATE, offset_y=20)
+        ch_a, ch_dy = data_reveal(t - 50.58, duration=MOTION_ENTER, offset_y=28)
+        f_sz = 195
 
-    f_lbl = get_font(INTER_MED, 50)
-    bb_l = d.textbbox((0, 0), lbl, font=f_lbl)
-    lw = bb_l[2] - bb_l[0]
-    ly = 1045
-    d.text(((W - lw) // 2 + 2, ly + 2), lbl, font=f_lbl, fill=(0, 0, 0, 200))
-    d.text(((W - lw) // 2, ly), lbl, font=f_lbl, fill=(250, 248, 242, 255))
+    if lbl_a > 0.02:
+        f_lbl = get_font(INTER_MED, 50)
+        bb_l = d.textbbox((0, 0), lbl, font=f_lbl)
+        lw = bb_l[2] - bb_l[0]
+        ly = int(1045 + lbl_dy)
+        d.text(((W - lw) // 2 + 2, ly + 2), lbl, font=f_lbl, fill=(0, 0, 0, int(lbl_a * 200)))
+        d.text(((W - lw) // 2, ly), lbl, font=f_lbl, fill=(250, 248, 242, int(lbl_a * 255)))
 
-    if (t >= 49.20 and t < 50.52) or t >= 50.52:
-        chrome_layer = render_metallic_chrome_text(chrome_word, font_size=f_sz)
-        canvas.alpha_composite(chrome_layer, (0, 1085))
+    if ch_a > 0.02:
+        chrome_layer = render_metallic_chrome_text(chrome_word, font_size=f_sz, alpha_scale=ch_a)
+        canvas.alpha_composite(chrome_layer, (0, int(1085 + ch_dy)))
 
     return canvas
 
@@ -990,67 +1124,62 @@ def render_pullback_window_finale(raw_rgb: np.ndarray, t: float) -> Image.Image:
 # Master Frame Compositor
 # ---------------------------------------------------------------------------
 def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
-    # 1. Beat 1 (0.00 - 5.65s): 3D Z-Space Dark Blueprint & Node Canvas
     if t < 5.65:
         out = render_zspace_opening(t)
         return np.array(out.convert("RGB"))
 
-    # 2. Beat 2B (8.30 - 10.75s): Dark HUD Viewfinder Spotlight Cutaway
     if 8.30 <= t < 10.75:
         out = render_dark_spotlight_hud(t)
         return np.array(out.convert("RGB"))
 
-    # 3. Beat 3A (10.75 - 14.10s): Cream Drafting-Paper + Black Portal & 3 Sky-Blue Pills
     if 10.75 <= t < 14.10:
         out = render_cream_portal_pills(t)
         return np.array(out.convert("RGB"))
 
-    # 4. Beat 4 (17.30 - 20.55s): Dark Grid + Blue UI Selection Box + Wireframe Cursors & Italic Blue Stamp
     if 17.30 <= t < 20.55:
         out = render_dark_selection_and_stamp(
             t,
             t_start=17.30,
-            t_mid=18.90,
+            t_mid=18.85,
             t_end=20.55,
             sel_top_text="early awareness",
             sel_bot_text="of building",
+            state1_top="what the",
+            state1_bot="building",
             stamp_top_text="the construction",
             stamp_blue_word="PROCESS",
         )
         return np.array(out.convert("RGB"))
 
-    # 5. Beat 5B (26.85 - 30.35s): Cream Drafting-Paper #2 + Sliding Silhouettes & Italic Blue Stamp
     if 26.85 <= t < 30.35:
         out = render_cream_architect_stamp(t)
         return np.array(out.convert("RGB"))
 
-    # 6. Beat 6B (35.30 - 38.45s): Dark Grid + Blue UI Selection Box + Italic Blue Stamp ("CREATIVE")
     if 35.30 <= t < 38.45:
         out = render_dark_selection_and_stamp(
             t,
             t_start=35.30,
-            t_mid=36.90,
+            t_mid=36.85,
             t_end=38.45,
             sel_top_text="technical skills",
             sel_bot_text="in design",
+            state1_top="having both",
+            state1_bot="sides",
             stamp_top_text="plus the",
             stamp_blue_word="CREATIVE",
         )
         return np.array(out.convert("RGB"))
 
-    # 7. Beat 7B (48.95 - 51.80s): Pull-Back Window-in-Black Frame + Metallic Chrome '"AGE 14"' / '"ARCHITECT"'
     if 48.95 <= t < 51.80:
         out = render_pullback_window_finale(raw_rgb, t)
         return np.array(out.convert("RGB"))
 
-    # 8. Beat 7C (51.80 - 54.85s): Studio Blueprint Table B-Roll with HUD Viewfinder Border
     if t >= 51.80:
         graded = grade_talking_head(raw_rgb, t)
         canvas = Image.fromarray(graded).convert("RGBA")
         canvas.alpha_composite(get_hud_overlay("dark"))
         return np.array(canvas.convert("RGB"))
 
-    # 9. Default: Talking Head with Anamorphic Light Leaks & Lower-Case Progressive Chest Subtitles
     graded = grade_talking_head(raw_rgb, t)
     leaked = apply_light_leak(graded, t)
     canvas = Image.fromarray(leaked).convert("RGBA")
@@ -1059,16 +1188,16 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# CLI Entry Point (Preview Contact Sheet & Full 1080x1920 Render)
+# CLI Entry Point
 # ---------------------------------------------------------------------------
 def build_preview_grid(raw_video_path: str, out_jpg_path: str):
     preview_times = [
-        0.35, 1.25, 2.35, 4.45, 5.45,
-        6.10, 7.50, 9.85,
-        11.50, 12.60, 13.55,
-        16.40, 18.10, 19.65,
-        21.60, 27.60, 29.40,
-        36.10, 37.60, 41.20,
+        0.35, 1.85, 2.55, 4.45,
+        8.60, 9.85,
+        11.20, 12.40, 13.45,
+        17.48, 18.15, 19.05, 19.85,
+        27.00, 27.30, 27.85, 29.35, 30.20,
+        35.48, 36.15, 37.75,
         49.80, 51.15, 53.20,
     ]
     thumbs = []
@@ -1097,7 +1226,7 @@ def build_preview_grid(raw_video_path: str, out_jpg_path: str):
         im = Image.fromarray(comp_rgb).resize((270, 480), Image.BILINEAR)
         d = ImageDraw.Draw(im)
         d.rectangle([0, 0, 115, 30], fill=(0, 0, 0))
-        d.text((8, 7), f"t={t:.2f}s", fill=(255, 255, 0))
+        d.text((8, 7), f"t={t:.2f}s", fill=(0, 255, 200))
         thumbs.append(im)
 
     cols = 6
