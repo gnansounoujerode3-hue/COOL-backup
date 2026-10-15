@@ -1,0 +1,47 @@
+{
+  "total_duration": 69.027,
+  "scenes": [
+    {
+      "scene": 1,
+      "file": "seg1_hook.mp3",
+      "t_start": 0.25,
+      "t_end": 8.261,
+      "duration": 8.011
+    },
+    {
+      "scene": 2,
+      "file": "seg2_skills.mp3",
+      "t_start": 8.611,
+      "t_end": 22.856,
+      "duration": 14.245
+    },
+    {
+      "scene": 3,
+      "file": "seg3_analyse.mp3",
+      "t_start": 23.206,
+      "t_end": 34.758,
+      "duration": 11.552
+    },
+    {
+      "scene": 4,
+      "file": "seg4_broll.mp3",
+      "t_start": 35.108,
+      "t_end": 45.43,
+      "duration": 10.321
+    },
+    {
+      "scene": 5,
+      "file": "seg5_transitions.mp3",
+      "t_start": 45.78,
+      "t_end": 57.204,
+      "duration": 11.424
+    },
+    {
+      "scene": 6,
+      "file": "seg6_outro.mp3",
+      "t_start": 57.554,
+      "t_end": 68.177,
+      "duration": 10.623
+    }
+  ]
+}
