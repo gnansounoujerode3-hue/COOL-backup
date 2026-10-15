@@ -27,6 +27,20 @@ import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+sys.path.insert(0, "/home/user/COOL-backup/.claude/skills/motion-code-harvester/scripts")
+from motion_engine import (
+    expo_out,
+    power3_in,
+    power4_in,
+    power4_out,
+    nudge_curve_3phase,
+    waterfall_word_state,
+    swipe_clip_reveal,
+    zoom_through_seam,
+    cut_the_curve_seam,
+    rack_focus_blur_cut,
+)
+
 W, H = 1080, 1920
 FPS = 30.0
 DURATION = 54.85
@@ -1493,21 +1507,18 @@ def composite_broll_inserts(canvas: Image.Image, t: float) -> Image.Image:
 # ---------------------------------------------------------------------------
 # Master Frame Compositor
 # ---------------------------------------------------------------------------
-def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
+def _render_scene_layer_ref9(raw_rgb: np.ndarray, t: float) -> Image.Image:
     if t < 5.65:
-        out = composite_broll_inserts(render_zspace_opening(t), t)
-        return np.array(out.convert("RGB"))
+        return composite_broll_inserts(render_zspace_opening(t), t)
 
     if 8.30 <= t < 10.75:
-        out = composite_broll_inserts(render_dark_spotlight_hud(t), t)
-        return np.array(out.convert("RGB"))
+        return composite_broll_inserts(render_dark_spotlight_hud(t), t)
 
     if 10.75 <= t < 14.10:
-        out = render_cream_portal_pills(t)
-        return np.array(out.convert("RGB"))
+        return render_cream_portal_pills(t)
 
     if 17.30 <= t < 20.55:
-        out = render_dark_selection_and_stamp(
+        return render_dark_selection_and_stamp(
             t,
             t_start=17.30,
             t_mid=18.85,
@@ -1519,14 +1530,12 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
             stamp_top_text="the construction",
             stamp_blue_word="PROCESS",
         )
-        return np.array(out.convert("RGB"))
 
     if 26.85 <= t < 30.35:
-        out = composite_broll_inserts(render_cream_architect_stamp(t), t)
-        return np.array(out.convert("RGB"))
+        return composite_broll_inserts(render_cream_architect_stamp(t), t)
 
     if 35.30 <= t < 38.45:
-        out = render_dark_selection_and_stamp(
+        return render_dark_selection_and_stamp(
             t,
             t_start=35.30,
             t_mid=36.85,
@@ -1538,24 +1547,53 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
             stamp_top_text="plus the",
             stamp_blue_word="CREATIVE",
         )
-        return np.array(out.convert("RGB"))
 
     if 48.95 <= t < 51.80:
-        out = render_pullback_window_finale(raw_rgb, t)
-        return np.array(out.convert("RGB"))
+        return render_pullback_window_finale(raw_rgb, t)
 
     if t >= 51.80:
         graded = grade_talking_head(raw_rgb, t)
         canvas = Image.fromarray(graded).convert("RGBA")
         canvas.alpha_composite(get_hud_overlay("dark"))
-        return np.array(canvas.convert("RGB"))
+        return canvas
 
     graded = grade_talking_head(raw_rgb, t)
     leaked = apply_light_leak(graded, t)
     canvas = Image.fromarray(leaked).convert("RGBA")
     composite_broll_inserts(canvas, t)
     render_talking_subtitle(canvas, t)
-    return np.array(canvas.convert("RGB"))
+    return canvas
+
+
+SEAM_WINDOWS_REF9 = [
+    (5.65, 0.34, "inverse_zoom"),
+    (8.30, 0.32, "zoom_in"),
+    (14.10, 0.34, "cut_left"),
+    (20.55, 0.34, "rack_focus"),
+    (30.35, 0.34, "inverse_zoom"),
+    (38.45, 0.34, "rack_focus"),
+]
+
+
+def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
+    for cut_t, half_w, seam_kind in SEAM_WINDOWS_REF9:
+        t0, t1 = cut_t - half_w * 0.40, cut_t + half_w * 0.60
+        if t0 <= t <= t1:
+            p = (t - t0) / (t1 - t0)
+            old_im = _render_scene_layer_ref9(raw_rgb, cut_t - 0.04)
+            new_im = _render_scene_layer_ref9(raw_rgb, max(cut_t + 0.02, t))
+            if seam_kind == "inverse_zoom":
+                out = zoom_through_seam(old_im, new_im, p, inverse=True)
+            elif seam_kind == "zoom_in":
+                out = zoom_through_seam(old_im, new_im, p, inverse=False)
+            elif seam_kind == "cut_left":
+                out = cut_the_curve_seam(old_im, new_im, p, direction="left")
+            else:
+                out = rack_focus_blur_cut(old_im, new_im, p)
+            return np.array(out.convert("RGB"))
+
+    out = _render_scene_layer_ref9(raw_rgb, t)
+    return np.array(out.convert("RGB"))
 
 
 # ---------------------------------------------------------------------------

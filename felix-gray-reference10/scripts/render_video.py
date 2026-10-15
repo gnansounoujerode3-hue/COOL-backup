@@ -46,6 +46,20 @@ import sys
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
+sys.path.insert(0, "/home/user/COOL-backup/.claude/skills/motion-code-harvester/scripts")
+from motion_engine import (
+    expo_out,
+    power3_in,
+    power4_in,
+    power4_out,
+    nudge_curve_3phase,
+    waterfall_word_state,
+    swipe_clip_reveal,
+    zoom_through_seam,
+    cut_the_curve_seam,
+    rack_focus_blur_cut,
+)
+
 W, H = 1080, 1920
 FPS = 30.0
 DURATION = 54.85
@@ -289,9 +303,18 @@ def draw_ref10_lockup(
     echo_trail: bool = True,
     align: str = "center",
 ):
-    a_lead, dy_lead = data_reveal(age, duration=0.28, offset_y=20)
-    hero_age = max(0.0, age - 0.07) if lead_text else age
-    a_hero, dy_hero = data_reveal(hero_age, duration=0.36, offset_y=26)
+    # Waterfall Entry (`cut-the-curve` §6: shrinking gap * 0.84^i + weight-based Y offset)
+    a_lead, dy_lead, _ = waterfall_word_state(age, word_index=0, weight="normal")
+    hero_idx = 1 if lead_text else 0
+    a_hero, dy_hero, _ = waterfall_word_state(age, word_index=hero_idx, weight="anchor")
+    hero_age = max(0.0, age - (0.055 if lead_text else 0.0))
+
+    # 3-Phase Nudge Curve (`cut-the-curve` §7: 10%/65%/25% distance over 20%/18%/62% time)
+    # Gently repositions the lead + hero group upward by 16px when script/sub-text arrives!
+    nudge_dy = 0.0
+    if script_text or sub_text:
+        nudge_age = max(0.0, hero_age - 0.10)
+        nudge_dy = -16.0 * nudge_curve_3phase(nudge_age / 0.42)
 
     overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     od = ImageDraw.Draw(overlay)
@@ -315,21 +338,20 @@ def draw_ref10_lockup(
             lx = (W - hero_w) // 2
         else:
             lx = (W - lw) // 2
-        ly = int(cy - 68 + dy_lead)
-        # Drop shadow
+        ly = int(cy - 68 + dy_lead + nudge_dy)
         od.text((lx + 2, ly + 4), lead_text, font=f_lead, fill=(0, 0, 0, int(185 * a_lead)))
         od.text((lx, ly), lead_text, font=f_lead, fill=(248, 248, 252, int(255 * a_lead)))
 
     # 2. Hero word (Glowing Yellow-Gold or Crisp White) + Vertical Kinetic Echo Trail
     if hero_text and a_hero > 0.02:
         hx = (W - hero_w) // 2
-        hy = int(cy - 10 + dy_hero)
+        hy = int(cy - 10 + dy_hero + nudge_dy)
 
         # Vertical ghost echo copies during entry (like "Paul", "started", "Peak" in ref10)
         if echo_trail and 0.01 < hero_age < 0.62:
-            echo_p = 1.0 - cubic_bezier_cool(hero_age / 0.62)
-            for mult, alpha_scale in [(1, 0.42), (2, 0.22)]:
-                off = int(round(mult * 72 * echo_p))
+            echo_p = 1.0 - power4_out(hero_age / 0.62)
+            for mult, alpha_scale in [(1, 0.44), (2, 0.24)]:
+                off = int(round(mult * 76 * echo_p))
                 e_alpha = int(255 * alpha_scale * echo_p)
                 if e_alpha > 6:
                     od.text((hx, hy - off), hero_text, font=f_hero, fill=(255, 220, 40, e_alpha))
@@ -351,10 +373,9 @@ def draw_ref10_lockup(
             fill=(hero_color[0], hero_color[1], hero_color[2], int(255 * a_hero)),
         )
 
-    # 3. Sub-text below hero word (e.g. "in a large" under "director" at t=15.35s in ref10)
+    # 3. Sub-text below hero word
     if sub_text:
-        sub_age = max(0.0, hero_age - 0.12)
-        a_sub, dy_sub = data_reveal(sub_age, duration=0.28, offset_y=18)
+        a_sub, dy_sub, _ = waterfall_word_state(age, word_index=hero_idx + 1, weight="light")
         if a_sub > 0.02:
             bb_s = od.textbbox((0, 0), sub_text, font=f_sub)
             sw = bb_s[2] - bb_s[0]
@@ -363,18 +384,19 @@ def draw_ref10_lockup(
             od.text((sx + 2, sy + 3), sub_text, font=f_sub, fill=(0, 0, 0, int(185 * a_sub)))
             od.text((sx, sy), sub_text, font=f_sub, fill=(242, 242, 246, int(250 * a_sub)))
 
-    # 4. Sweeping White Calligraphic Script Overlay across the lower baseline of the hero word
-    # (Matching "Peak Architects" at t=3.35s and "London practice" at t=16.60s in ref10)
+    # 4. Sweeping White Calligraphic Script Overlay via `swipe_clip_reveal` (`expo.inOut` left-to-right wipe!)
     if script_text:
-        sc_age = max(0.0, hero_age - 0.14)
-        a_sc, dy_sc = data_reveal(sc_age, duration=0.38, offset_y=22)
-        if a_sc > 0.02:
-            bb_sc = od.textbbox((0, 0), script_text, font=f_script)
+        sc_age = max(0.0, hero_age - 0.12)
+        if sc_age > 0.01:
+            sc_layer = Image.new("RGBA", (W, 260), (0, 0, 0, 0))
+            scd = ImageDraw.Draw(sc_layer)
+            bb_sc = scd.textbbox((0, 0), script_text, font=f_script)
             sc_w = bb_sc[2] - bb_sc[0]
             sc_x = (W - sc_w) // 2 + 12
-            sc_y = int(cy + 78 + dy_sc)
-            od.text((sc_x + 3, sc_y + 5), script_text, font=f_script, fill=(0, 0, 0, int(225 * a_sc)))
-            od.text((sc_x, sc_y), script_text, font=f_script, fill=(255, 255, 255, int(255 * a_sc)))
+            scd.text((sc_x + 3, 45), script_text, font=f_script, fill=(0, 0, 0, 225))
+            scd.text((sc_x, 40), script_text, font=f_script, fill=(255, 255, 255, 255))
+            sc_wiped = swipe_clip_reveal(sc_layer, sc_age / 0.42, direction="left_to_right")
+            overlay.alpha_composite(sc_wiped, (0, int(cy + 38)))
 
     canvas.alpha_composite(overlay)
 
@@ -425,12 +447,21 @@ def render_talking_head_scene(raw_rgb: np.ndarray, t: float) -> Image.Image:
         # If golden halftone backdrop is active (like t=3.35s-3.60s in ref10),
         # composite halftone behind the foreground speaker cutout!
         if use_halftone:
-            ht_p = cubic_bezier_cool(age / 0.32) * (
+            ht_p = expo_out(age / 0.32) * (
                 cubic_bezier_cool((t1 - t) / 0.25) if (t1 - t) < 0.25 else 1.0
             )
             if ht_p > 0.02:
                 fg_speaker = base.copy()
-                ht = get_halftone_layer()
+                ht = get_halftone_layer().copy()
+                # Also draw an oversized Subject-Occluded Display Watermark (`embedded-captions` Vogue-cover depth embed)
+                if hero:
+                    hd = ImageDraw.Draw(ht)
+                    f_big = get_font(JAKARTA_BOLD, 215)
+                    bb_b = hd.textbbox((0, 0), hero.upper(), font=f_big)
+                    bw = bb_b[2] - bb_b[0]
+                    bx = (W - bw) // 2
+                    by = int(455 - 24 * expo_out(age / 0.45))
+                    hd.text((bx, by), hero.upper(), font=f_big, fill=(255, 224, 52, int(92 * ht_p)))
                 if ht_p < 0.99:
                     r, g, b_ch, a = ht.split()
                     a = a.point(lambda p: int(p * ht_p))
@@ -944,10 +975,10 @@ SCENE7B_CAPTIONS = [
 ]
 
 
-def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
+def _render_scene_layer(raw_rgb: np.ndarray, t: float) -> Image.Image:
     # Scene 2 (3.65s - 8.35s): 4-Slice Vertical Accordion Architectural Evolution #1
     if 3.65 <= t < 8.35:
-        out = render_4slice_accordion_scene(
+        return render_4slice_accordion_scene(
             t,
             t_start=3.65,
             t_end=8.35,
@@ -955,11 +986,10 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
             word_cues=SCENE2_WORDS,
             climax_word="College",
         )
-        return np.array(out.convert("RGB"))
 
     # Scene 3B (10.15s - 14.15s): Full-Screen Vertical Stacked Typography Postcard ("S-I-T-E-S")
     if 10.15 <= t < 14.15:
-        out = render_vertical_postcard_scene(
+        return render_vertical_postcard_scene(
             t,
             t_start=10.15,
             t_end=14.15,
@@ -967,11 +997,10 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
             vertical_word="SITES",
             caption_cues=SCENE3B_CAPTIONS,
         )
-        return np.array(out.convert("RGB"))
 
     # Scene 4 (14.15s - 20.55s): Dark Split-Card Rounded Window + 3D Winding Staircase & Tower Cutout
     if 14.15 <= t < 20.55:
-        out = render_dark_split_window_scene(
+        return render_dark_split_window_scene(
             raw_rgb,
             t,
             t_start=14.15,
@@ -984,11 +1013,10 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
             tower_hero="Process",
             tower_script="building",
         )
-        return np.array(out.convert("RGB"))
 
     # Scene 6 (26.85s - 32.50s): 4-Slice Vertical Accordion Architectural Evolution #2
     if 26.85 <= t < 32.50:
-        out = render_4slice_accordion_scene(
+        return render_4slice_accordion_scene(
             t,
             t_start=26.85,
             t_end=32.50,
@@ -996,11 +1024,10 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
             word_cues=SCENE6_WORDS,
             climax_word="Architect",
         )
-        return np.array(out.convert("RGB"))
 
     # Scene 7B (35.30s - 38.45s): Full-Screen Vertical Stacked Typography Postcard ("D-E-S-I-G-N")
     if 35.30 <= t < 38.45:
-        out = render_vertical_postcard_scene(
+        return render_vertical_postcard_scene(
             t,
             t_start=35.30,
             t_end=38.45,
@@ -1008,11 +1035,10 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
             vertical_word="DESIGN",
             caption_cues=SCENE7B_CAPTIONS,
         )
-        return np.array(out.convert("RGB"))
 
     # Scene 8 (38.45s - 46.80s): Dark Split-Card Rounded Window #2 + 3D Winding Staircase & Tower Cutout
     if 38.45 <= t < 46.80:
-        out = render_dark_split_window_scene(
+        return render_dark_split_window_scene(
             raw_rgb,
             t,
             t_start=38.45,
@@ -1025,15 +1051,42 @@ def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
             tower_hero="Process",
             tower_script="appealed",
         )
-        return np.array(out.convert("RGB"))
 
     # Scene 9B (51.80s - 54.85s): Studio Finale
     if t >= 51.80:
-        out = render_studio_finale(raw_rgb, t)
-        return np.array(out.convert("RGB"))
+        return render_studio_finale(raw_rgb, t)
 
     # Default: Talking Head with Glowing Yellow-Gold Captions, Golden Halftone & Script Overlays
-    out = render_talking_head_scene(raw_rgb, t)
+    return render_talking_head_scene(raw_rgb, t)
+
+
+# Velocity-matched seam windows (`cut-the-curve/SKILL.md` + `examples/gsap-implementation.md`)
+SEAM_WINDOWS = [
+    (8.35, 0.36, "inverse_zoom"),
+    (14.15, 0.34, "cut_left"),
+    (20.55, 0.34, "rack_focus"),
+    (32.50, 0.36, "inverse_zoom"),
+    (38.45, 0.34, "cut_left"),
+    (46.80, 0.34, "rack_focus"),
+]
+
+
+def render_frame(raw_rgb: np.ndarray, t: float) -> np.ndarray:
+    for cut_t, half_w, seam_kind in SEAM_WINDOWS:
+        t0, t1 = cut_t - half_w * 0.40, cut_t + half_w * 0.60
+        if t0 <= t <= t1:
+            p = (t - t0) / (t1 - t0)
+            old_im = _render_scene_layer(raw_rgb, cut_t - 0.04)
+            new_im = _render_scene_layer(raw_rgb, max(cut_t + 0.02, t))
+            if seam_kind == "inverse_zoom":
+                out = zoom_through_seam(old_im, new_im, p, inverse=True)
+            elif seam_kind == "cut_left":
+                out = cut_the_curve_seam(old_im, new_im, p, direction="left")
+            else:
+                out = rack_focus_blur_cut(old_im, new_im, p)
+            return np.array(out.convert("RGB"))
+
+    out = _render_scene_layer(raw_rgb, t)
     return np.array(out.convert("RGB"))
 
 
