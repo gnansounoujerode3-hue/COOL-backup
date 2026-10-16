@@ -40,6 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 sys.path.insert(0, "/home/user/COOL-backup/.claude/skills/motion-code-harvester/scripts")
+sys.path.insert(0, "/home/user/COOL-backup/.claude/skills/animation-design-rules/scripts")
 from motion_engine import (
     cubic_bezier,
     expo_in_out,
@@ -51,6 +52,20 @@ from motion_engine import (
     zoom_through_seam,
     cut_the_curve_seam,
     rack_focus_blur_cut,
+)
+from animation_rules_engine import (
+    emil_ease_out,
+    emil_ease_in_out,
+    emil_drawer_ease,
+    md3_emphasized_decelerate,
+    md3_emphasized_accelerate,
+    disney_overshoot_ease,
+    disney_squash_stretch,
+    disney_anticipation_launch,
+    disney_arc_position,
+    disney_follow_through_layers,
+    counter_motion_ambient,
+    audit_animation_spec,
 )
 
 W, H = 1080, 1920
@@ -106,24 +121,24 @@ def clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
 
 
 def ease_motion(p: float) -> float:
-    return cubic_bezier(clamp(p), 0.2, 0.8, 0.2, 1.0)
+    """Emil Kowalski strong UI entrance deceleration: cubic-bezier(0.23, 1, 0.32, 1)"""
+    return emil_ease_out(clamp(p))
 
 
 def ease_out_back(t: float, s: float = 1.4) -> float:
-    t = clamp(t) - 1.0
-    return t * t * ((s + 1.0) * t + s) + 1.0
+    return disney_overshoot_ease(clamp(t))
 
 
-def data_reveal(age: float, delay: float = 0.0, dur: float = 0.46, offset_y: float = 28.0):
+def data_reveal(age: float, delay: float = 0.0, dur: float = 0.42, offset_y: float = 28.0):
     t_loc = age - delay
     if t_loc <= 0.0:
         return 0.0, offset_y
-    e = ease_motion(clamp(t_loc / max(1e-4, dur)))
+    e = emil_ease_out(clamp(t_loc / max(1e-4, dur)))
     return e, offset_y * (1.0 - e)
 
 
 # ---------------------------------------------------------------------------
-# 3D Projective Homography (`warp_plane_3d`)
+# 3D Projective Homography (`warp_plane_3d`) + Disney Squash & Stretch
 # ---------------------------------------------------------------------------
 def _solve_perspective_coeffs(src_pts, dst_pts):
     matrix = []
@@ -145,6 +160,8 @@ def warp_plane_3d(
     rz_deg: float = 0.0,
     scale: float = 1.0,
     focal: float = 1400.0,
+    squash_progress: float = 1.0,
+    squash_intensity: float = 0.032,
 ) -> Image.Image:
     w, h = img.size
     cx, cy = w * 0.5, h * 0.5
@@ -156,7 +173,17 @@ def warp_plane_3d(
     Ry = np.array([[cy_r, 0, sy_r], [0, 1, 0], [-sy_r, 0, cy_r]], dtype=np.float64)
     Rz = np.array([[cz_r, -sz_r, 0], [sz_r, cz_r, 0], [0, 0, 1]], dtype=np.float64)
     R = Rz @ Ry @ Rx
-    corners = np.array([[-cx, -cy, 0.0], [cx, -cy, 0.0], [cx, cy, 0.0], [-cx, cy, 0.0]], dtype=np.float64) * max(0.15, scale)
+    eff_scale = max(0.90, scale)
+    sx_d, sy_d = disney_squash_stretch(squash_progress, max_deform=squash_intensity)
+    corners = np.array(
+        [
+            [-cx * sx_d, -cy * sy_d, 0.0],
+            [cx * sx_d, -cy * sy_d, 0.0],
+            [cx * sx_d, cy * sy_d, 0.0],
+            [-cx * sx_d, cy * sy_d, 0.0],
+        ],
+        dtype=np.float64,
+    ) * eff_scale
     src_pts = [(0.0, 0.0), (float(w), 0.0), (float(w), float(h)), (0.0, float(h))]
     dst_pts = []
     for pt in corners:
@@ -164,13 +191,75 @@ def warp_plane_3d(
         z = max(200.0, focal + p3[2])
         dst_pts.append((cx + (p3[0] * focal) / z, cy + (p3[1] * focal) / z))
     coeffs = _solve_perspective_coeffs(src_pts, dst_pts)
-    return img.transform((w, h), Image.PERSPECTIVE, coeffs, Image.BICUBIC)
+    return img.transform((w, h), Image.PERSPECTIVE, coeffs, Image.BILINEAR)
+
+
+def _get_cached_shadow(cw: int, ch: int) -> Image.Image:
+    key = ("shadow", cw, ch)
+    if key not in _BG_CACHE:
+        sh = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+        sd = ImageDraw.Draw(sh)
+        sd.rounded_rectangle([18, 22, cw - 18, ch - 10], radius=38, fill=(0, 0, 0, 125))
+        _BG_CACHE[key] = sh
+    return _BG_CACHE[key]
+
+
+def composite_hero_card_3layers(
+    canvas: Image.Image,
+    card: Image.Image,
+    target_x: int,
+    target_y: int,
+    age: float,
+    delay: float = 0.0,
+    dur: float = 0.44,
+    rx_deg: float = 0.0,
+    ry_deg: float = 0.0,
+    rz_deg: float = 0.0,
+    arc_px: float = 12.0,
+):
+    """
+    Implements the LottieFiles Card Entrance Recipe & Disney Principles 1, 5, 7, 8:
+    1. Start 26px below target at scale=0.95 (never scale(0))
+    2. Parabolic Arc path (`disney_arc_position`, 12px X midpoint offset)
+    3. Easing: `md3_emphasized_decelerate` / `emil_ease_out`
+    4. Follow-through: 3D ambient shadow arrives +50ms after card lands
+    5. Squash & Stretch: subtle volume-preserving settle on arrival
+    """
+    local_age = age - delay
+    if local_age <= 0.0:
+        return
+    layers = disney_follow_through_layers(local_age, base_dur=dur)
+    shadow_p = layers["shadow"]
+    sc = layers["scale"]  # 0.95 -> 1.00
+
+    ax, ay = disney_arc_position(
+        float(target_x), float(target_y + 28), float(target_x), float(target_y), clamp(local_age / dur), arc_offset_px=arc_px
+    )
+    warped = warp_plane_3d(
+        card,
+        rx_deg=rx_deg,
+        ry_deg=ry_deg,
+        rz_deg=rz_deg,
+        scale=sc * 0.96,
+        squash_progress=clamp(local_age / (dur * 1.15)),
+        squash_intensity=0.032,
+    )
+
+    if shadow_p > 0.15:
+        cw, ch = card.size
+        sh = _get_cached_shadow(cw, ch)
+        sh_y_off = int(12 + 10 * shadow_p)
+        sh_x_off = int(6 * shadow_p)
+        canvas.alpha_composite(sh, (int(round(ax)) + sh_x_off, int(round(ay)) + sh_y_off))
+
+    canvas.alpha_composite(warped, (int(round(ax)), int(round(ay))))
 
 
 # ---------------------------------------------------------------------------
-# Cached Studio Canvases (Dark Obsidian Grid & Editorial Ivory Grid)
+# Cached Studio Canvases (Dark Obsidian Grid & Editorial Ivory Grid +
+# Rule 6 Ambient Counter-Motion Layer & Klik Chapter HUD)
 # ---------------------------------------------------------------------------
-def get_dark_canvas(t: float) -> Image.Image:
+def get_dark_canvas(t: float, age: float = 0.5) -> Image.Image:
     if "dark_base" not in _BG_CACHE:
         bg = Image.new("RGBA", (W, H), (*C_DARK_BG, 255))
         d = ImageDraw.Draw(bg)
@@ -186,18 +275,20 @@ def get_dark_canvas(t: float) -> Image.Image:
         _BG_CACHE["dark_base"] = bg
     im = _BG_CACHE["dark_base"].copy()
     d = ImageDraw.Draw(im)
-    # Floating depth-of-field particles
+    _, hero_dy = data_reveal(age, delay=0.0, dur=0.45, offset_y=28.0)
+    _, amb_dy = counter_motion_ambient(0.0, hero_dy, ratio=0.28)
     for i in range(28):
         seed = (i + 1) * 137.5
         px = (seed * 29.3 + math.sin(t * 0.8 + i) * 22.0) % W
-        py = (seed * 67.1 - t * (22.0 + (i % 5) * 8.0)) % H
+        py = (seed * 67.1 - t * (22.0 + (i % 5) * 8.0) + amb_dy) % H
         r = 2 + (i % 4)
-        col = (*C_AMBER, 110) if i % 2 == 0 else (255, 255, 255, 75)
+        col = (*C_AMBER, 115) if i % 2 == 0 else (255, 255, 255, 80)
         d.ellipse([px - r, py - r, px + r, py + r], fill=col)
+    draw_bottom_rule_hud(d, t, dark_theme=True)
     return im
 
 
-def get_ivory_canvas(t: float) -> Image.Image:
+def get_ivory_canvas(t: float, age: float = 0.5) -> Image.Image:
     if "ivory_base" not in _BG_CACHE:
         bg = Image.new("RGBA", (W, H), (*C_IVORY_BG, 255))
         d = ImageDraw.Draw(bg)
@@ -206,11 +297,43 @@ def get_ivory_canvas(t: float) -> Image.Image:
         for gy in range(0, H, 72):
             d.line([(0, gy), (W, gy)], fill=(230, 224, 212, 255), width=1)
         _BG_CACHE["ivory_base"] = bg
-    return _BG_CACHE["ivory_base"].copy()
+    im = _BG_CACHE["ivory_base"].copy()
+    d = ImageDraw.Draw(im)
+    _, hero_dy = data_reveal(age, delay=0.0, dur=0.45, offset_y=28.0)
+    _, amb_dy = counter_motion_ambient(0.0, hero_dy, ratio=0.25)
+    for i in range(18):
+        seed = (i + 3) * 97.3
+        px = (seed * 31.7 + math.cos(t * 0.7 + i) * 18.0) % W
+        py = (seed * 53.9 - t * 14.0 + amb_dy) % H
+        r = 3 + (i % 3)
+        d.ellipse([px - r, py - r, px + r, py + r], fill=(235, 165, 55, 75))
+    draw_bottom_rule_hud(d, t, dark_theme=False)
+    return im
+
+
+def draw_bottom_rule_hud(d: ImageDraw.ImageDraw, t: float, dark_theme: bool = True):
+    prog = clamp(t / TOTAL_DURATION)
+    bar_y = 1852
+    bg_c = (24, 28, 40, 215) if dark_theme else (232, 226, 214, 235)
+    fg_c = (190, 198, 214, 230) if dark_theme else (60, 64, 74, 230)
+    d.rounded_rectangle([64, bar_y - 18, W - 64, bar_y + 28], radius=22, fill=bg_c)
+
+    tx0, tx1 = 250, W - 230
+    d.rounded_rectangle([tx0, bar_y, tx1, bar_y + 10], radius=5, fill=(60, 68, 86, 160))
+    fill_w = max(12, int((tx1 - tx0) * prog))
+    d.rounded_rectangle([tx0, bar_y, tx0 + fill_w, bar_y + 10], radius=5, fill=(*C_AMBER, 255))
+
+    f_tc = get_font(MONO_MED, 19)
+    d.text((88, bar_y - 8), f"TC {int(t // 60):02d}:{int(t % 60):02d}.{int((t % 1) * 30):02d}", font=f_tc, fill=fg_c)
+
+    for bi in range(10):
+        bx = W - 205 + bi * 12
+        bh = int(6 + 12 * abs(math.sin(t * 7.5 + bi * 0.65)))
+        d.rounded_rectangle([bx, bar_y + 5 - bh // 2, bx + 6, bar_y + 5 + bh // 2], radius=2, fill=(*C_AMBER, 240))
 
 
 def draw_top_header(canvas: Image.Image, age: float, act_num: str, label: str, dark_theme: bool = True):
-    a, dy = data_reveal(age, delay=0.02, dur=0.40, offset_y=20.0)
+    a, dy = data_reveal(age, delay=0.02, dur=0.38, offset_y=20.0)
     if a <= 0.02:
         return
     d = ImageDraw.Draw(canvas)
@@ -239,7 +362,6 @@ def draw_kinetic_caption_stack(
     dark_theme: bool = True,
     accent=C_AMBER,
 ):
-    """Renders 3-line kinetic typography synchronized to the voiceover."""
     d = ImageDraw.Draw(canvas)
     f_l1 = get_font(JAKARTA_BOLD, 48)
     f_l2 = get_font(JAKARTA_EBOLD, 78)
@@ -247,28 +369,39 @@ def draw_kinetic_caption_stack(
 
     fg_main = (255, 255, 255) if dark_theme else C_INK
 
-    a1, dy1 = data_reveal(age, delay=0.0, dur=0.36, offset_y=24.0)
+    a1, dy1 = data_reveal(age, delay=0.0, dur=0.28, offset_y=22.0)
     if line1 and a1 > 0.02:
         bb1 = d.textbbox((0, 0), line1, font=f_l1)
         x1 = (W - (bb1[2] - bb1[0])) // 2
         y1 = int(cy - 82 + dy1)
         d.text((x1, y1), line1, font=f_l1, fill=(*fg_main, int(250 * a1)))
 
-    a2, dy2 = data_reveal(age, delay=0.07, dur=0.40, offset_y=28.0)
+    a2, dy2 = data_reveal(age, delay=0.055, dur=0.30, offset_y=26.0)
     if line2_highlight and a2 > 0.02:
         bb2 = d.textbbox((0, 0), line2_highlight, font=f_l2)
         w2 = bb2[2] - bb2[0]
         h2 = bb2[3] - bb2[1]
         x2 = (W - w2) // 2
         y2 = int(cy + dy2)
-        wipe = expo_in_out(clamp((age - 0.07) / 0.36))
-        bw = int((w2 + 48) * wipe)
+        wipe = emil_ease_in_out(clamp((age - 0.055) / 0.28))
+        bw = int((w2 + 52) * wipe)
         if bw > 6:
-            d.rounded_rectangle([x2 - 24, y2 - 10, x2 - 24 + bw, y2 + h2 + 18], radius=18, fill=(*accent, int(245 * a2)))
+            sh_a = int(110 * clamp((age - 0.095) / 0.25))
+            if sh_a > 5:
+                d.rounded_rectangle(
+                    [x2 - 22, y2 - 4, x2 - 22 + bw, y2 + h2 + 24],
+                    radius=18,
+                    fill=(0, 0, 0, sh_a),
+                )
+            d.rounded_rectangle(
+                [x2 - 26, y2 - 10, x2 - 26 + bw, y2 + h2 + 18],
+                radius=18,
+                fill=(*accent, int(248 * a2)),
+            )
         txt_c = (14, 16, 22) if accent in (C_AMBER, C_PEACH, C_GREEN, C_CYAN) else (255, 255, 255)
         d.text((x2, y2 - bb2[1]), line2_highlight, font=f_l2, fill=(*txt_c, int(255 * a2)))
 
-    a3, dy3 = data_reveal(age, delay=0.14, dur=0.40, offset_y=24.0)
+    a3, dy3 = data_reveal(age, delay=0.101, dur=0.28, offset_y=22.0)
     if line3 and a3 > 0.02:
         bb3 = d.textbbox((0, 0), line3, font=f_l3)
         x3 = (W - (bb3[2] - bb3[0])) // 2
@@ -319,9 +452,18 @@ def render_act1_hook(t: float) -> Image.Image:
         cd.line([(102, 775), (102 + int(20 * math.sin(ang)), 775 - int(20 * math.cos(ang)))], fill=(*C_CYAN, 255), width=4)
         cd.text((158, 752), "TEMPS REQUIS : 1 À 2H / SEMAINE", font=get_font(JAKARTA_EBOLD, 36), fill=(255, 255, 255, 255))
 
-        warped = warp_plane_3d(card, rx_deg=6.0 * math.sin(t * 1.1), ry_deg=-5.5 * math.cos(t * 0.9), scale=0.95)
-        a_c, dy_c = data_reveal(age, delay=0.05, dur=0.45, offset_y=36.0)
-        canvas.alpha_composite(warped, ((W - cw) // 2, int(230 + dy_c)))
+        composite_hero_card_3layers(
+            canvas,
+            card,
+            (W - cw) // 2,
+            230,
+            age,
+            delay=0.04,
+            dur=0.45,
+            rx_deg=6.0 * math.sin(t * 1.1),
+            ry_deg=-5.5 * math.cos(t * 0.9),
+            arc_px=14.0,
+        )
 
         if t < 2.25:
             draw_kinetic_caption_stack(canvas, age, "ATTENDS, TU SAIS QUE TU PEUX AVOIR", "1 MOIS DE CONTENU", "PRÊT À ÊTRE POSTÉ ?", cy=1420)
@@ -365,9 +507,18 @@ def render_act1_hook(t: float) -> Image.Image:
         cd.line([(ph_x, 575), (ph_x, 840)], fill=(255, 255, 255, 255), width=4)
         cd.polygon([(ph_x - 10, 575), (ph_x + 10, 575), (ph_x, 592)], fill=(*C_RED, 255))
 
-        warped = warp_plane_3d(card, rx_deg=5.0, ry_deg=6.0 * math.sin(p_age * 1.2), scale=0.95)
-        a_c, dy_c = data_reveal(p_age, delay=0.02, dur=0.42, offset_y=32.0)
-        canvas.alpha_composite(warped, ((W - cw) // 2, int(220 + dy_c)))
+        composite_hero_card_3layers(
+            canvas,
+            card,
+            (W - cw) // 2,
+            220,
+            p_age,
+            delay=0.02,
+            dur=0.42,
+            rx_deg=5.0,
+            ry_deg=6.0 * math.sin(p_age * 1.2),
+            arc_px=-14.0,
+        )
 
         draw_kinetic_caption_stack(
             canvas,
@@ -556,10 +707,14 @@ def render_act3_workflow(t: float) -> Image.Image:
         p_up = ease_motion(clamp(u_age / 1.4))
         cd.text((76, 56), "TRANSFERT DES RUSHS  //  AUTOMATISATION", font=get_font(MONO_MED, 25), fill=(*C_CYAN, 255))
 
-        # 3 Rush video file cards flying into the Studio Cloud
+        # 3 Rush video file cards flying into the Studio Cloud with Disney Anticipation + Arc Trajectory!
         for fi in range(3):
-            fx = 88 + fi * 260
-            fy = int(150 + 20 * math.sin(t * 3.0 + fi))
+            f_loc = clamp((u_age - fi * 0.08) / 0.52)
+            ant_p = disney_anticipation_launch(f_loc, dip_ratio=0.18, dip_amount=0.05)
+            fx_base = 88 + fi * 260
+            fy_base = 150 + int(16 * math.sin(t * 3.0 + fi))
+            ax_f, ay_f = disney_arc_position(float(fx_base - 24), float(fy_base + 34), float(fx_base), float(fy_base), clamp(ant_p), arc_offset_px=12.0)
+            fx, fy = int(round(ax_f)), int(round(ay_f))
             cd.rounded_rectangle([fx, fy, fx + 220, fy + 160], radius=22, fill=(28, 36, 52, 255), outline=(*C_CYAN, 230), width=3)
             cd.polygon([(fx + 88, fy + 45), (fx + 88, fy + 105), (fx + 142, fy + 75)], fill=(*C_AMBER, 255))
             cd.text((fx + 38, fy + 118), f"RUSH_0{fi+1}.MP4", font=get_font(MONO_MED, 21), fill=(255, 255, 255, 255))
@@ -576,8 +731,18 @@ def render_act3_workflow(t: float) -> Image.Image:
         cd.text((135, 650), "TU N'AS PLUS RIEN À FAIRE", font=get_font(JAKARTA_EBOLD, 48), fill=(*C_PEACH, 255))
         cd.text((195, 725), "Je m'occupe de 100 % du montage", font=get_font(INTER_MED, 32), fill=(255, 255, 255, 245))
 
-    warped = warp_plane_3d(card, rx_deg=5.0 * math.sin(age * 1.1), ry_deg=-4.5 * math.cos(age * 0.9), scale=0.95)
-    canvas.alpha_composite(warped, ((W - cw) // 2, 210))
+    composite_hero_card_3layers(
+        canvas,
+        card,
+        (W - cw) // 2,
+        210,
+        age if t < 25.40 else (t - 25.40),
+        delay=0.02,
+        dur=0.44,
+        rx_deg=5.0 * math.sin(age * 1.1),
+        ry_deg=-4.5 * math.cos(age * 0.9),
+        arc_px=12.0,
+    )
 
     if t < 25.40:
         draw_kinetic_caption_stack(canvas, age, "TU AS JUSTE À BLOQUER", "2 À 3 HEURES", "DANS LE MOIS POUR TOURNER", cy=1420, accent=C_PEACH)
@@ -664,8 +829,18 @@ def render_act4_delivery(t: float) -> Image.Image:
         else:
             cd.text((cx + (18 if day < 10 else 6), cy + 10), str(day), font=f_num, fill=(210, 216, 228, 220))
 
-    warped = warp_plane_3d(cal, rx_deg=5.5 * math.sin(p_age * 1.3), ry_deg=-4.5 * math.cos(p_age * 1.0), scale=0.95)
-    canvas.alpha_composite(warped, ((W - cw) // 2, 220))
+    composite_hero_card_3layers(
+        canvas,
+        cal,
+        (W - cw) // 2,
+        220,
+        p_age,
+        delay=0.02,
+        dur=0.44,
+        rx_deg=5.5 * math.sin(p_age * 1.3),
+        ry_deg=-4.5 * math.cos(p_age * 1.0),
+        arc_px=-12.0,
+    )
 
     draw_kinetic_caption_stack(
         canvas,
@@ -712,8 +887,18 @@ def render_act5_expertise(t: float) -> Image.Image:
             cd.text((210, ry + 42), t1, font=get_font(JAKARTA_EBOLD, 42), fill=(255, 255, 255, int(255 * sa)))
             cd.text((210, ry + 112), t2, font=get_font(INTER_MED, 30), fill=(190, 198, 214, int(245 * sa)))
 
-        warped = warp_plane_3d(card, rx_deg=4.5 * math.sin(age * 1.1), ry_deg=-4.0 * math.cos(age * 0.9), scale=0.95)
-        canvas.alpha_composite(warped, ((W - cw) // 2, 210))
+        composite_hero_card_3layers(
+            canvas,
+            card,
+            (W - cw) // 2,
+            210,
+            age,
+            delay=0.02,
+            dur=0.44,
+            rx_deg=4.5 * math.sin(age * 1.1),
+            ry_deg=-4.0 * math.cos(age * 0.9),
+            arc_px=12.0,
+        )
 
         if t < 39.80:
             draw_kinetic_caption_stack(canvas, age, "EN SEULEMENT 3H PASSÉES", "PUBLIER RÉGULIÈREMENT", "SANS INTERRUPTION", cy=1420, accent=C_AMBER)
@@ -826,22 +1011,30 @@ def render_act6_cta(t: float) -> Image.Image:
         (3.40, "03 • IMAGE DE MARQUE", "Développe tes réseaux de manière sérieuse", C_GREEN),
     ]
     for idx, (delay, title_p, sub_p, col) in enumerate(pillars):
-        pa, pdy = data_reveal(age, delay=delay, dur=0.44, offset_y=28.0)
-        if pa <= 0.02:
+        if age - delay <= 0.02:
             continue
         cw, ch = 880, 205
         card = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
         cd = ImageDraw.Draw(card)
-        cd.rounded_rectangle([0, 0, cw - 1, ch - 1], radius=28, fill=(18, 22, 32, int(245 * pa)), outline=(*col, int(245 * pa)), width=3)
-        cd.rounded_rectangle([24, 24, 42, ch - 24], radius=8, fill=(*col, int(255 * pa)))
-        cd.text((68, 34), title_p, font=get_font(JAKARTA_EBOLD, 42), fill=(*col, int(255 * pa)))
-        cd.text((68, 108), sub_p, font=get_font(INTER_MED, 30), fill=(240, 244, 252, int(250 * pa)))
-        warped = warp_plane_3d(card, rx_deg=3.5 * math.sin(age + idx), ry_deg=-3.5 * math.cos(age + idx), scale=0.96)
-        canvas.alpha_composite(warped, ((W - cw) // 2, int(175 + idx * 230 + pdy)))
+        cd.rounded_rectangle([0, 0, cw - 1, ch - 1], radius=28, fill=(18, 22, 32, 245), outline=(*col, 245), width=3)
+        cd.rounded_rectangle([24, 24, 42, ch - 24], radius=8, fill=(*col, 255))
+        cd.text((68, 34), title_p, font=get_font(JAKARTA_EBOLD, 42), fill=(*col, 255))
+        cd.text((68, 108), sub_p, font=get_font(INTER_MED, 30), fill=(240, 244, 252, 250))
+        composite_hero_card_3layers(
+            canvas,
+            card,
+            (W - cw) // 2,
+            175 + idx * 230,
+            age,
+            delay=delay,
+            dur=0.42,
+            rx_deg=3.5 * math.sin(age + idx),
+            ry_deg=-3.5 * math.cos(age + idx),
+            arc_px=10.0 if idx % 2 == 0 else -10.0,
+        )
 
     # Final 3D Contact Portal Card (`y=890..1310`)
     cta_age = max(0.0, age - 4.80)
-    ca, cdy = data_reveal(cta_age if cta_age > 0 else age, delay=0.1, dur=0.48, offset_y=32.0)
     pw, ph = 880, 380
     portal = Image.new("RGBA", (pw, ph), (0, 0, 0, 0))
     pd = ImageDraw.Draw(portal)
@@ -859,8 +1052,18 @@ def render_act6_cta(t: float) -> Image.Image:
     bb_sub = pd.textbbox((0, 0), sub_cta, font=f_sub)
     pd.text(((pw - (bb_sub[2] - bb_sub[0])) // 2, 288), sub_cta, font=f_sub, fill=(255, 255, 255, 255))
 
-    warped_p = warp_plane_3d(portal, rx_deg=4.5 * math.sin(t * 1.4), ry_deg=4.5 * math.cos(t * 1.1), scale=0.96)
-    canvas.alpha_composite(warped_p, ((W - pw) // 2, int(905 + cdy)))
+    composite_hero_card_3layers(
+        canvas,
+        portal,
+        (W - pw) // 2,
+        905,
+        cta_age if cta_age > 0 else age,
+        delay=0.10,
+        dur=0.45,
+        rx_deg=4.5 * math.sin(t * 1.4),
+        ry_deg=4.5 * math.cos(t * 1.1),
+        arc_px=12.0,
+    )
 
     if t < 57.80:
         draw_kinetic_caption_stack(canvas, age, "GAGNER DU TEMPS CHAQUE MOIS", "VIDÉOS DE QUALITÉ", "ET DÉVELOPPER TON IMAGE", cy=1460, accent=C_CYAN)
@@ -965,6 +1168,27 @@ def build_master_audio():
             sfx_l[i0:i1] += w_sig
             sfx_r[i0:i1] += w_sig
 
+    # Synchronized UI Micro-Pop & Chime Transients (`klik-anim/references/music-motion.md`)
+    pop_times = [
+        0.15, 2.30, 4.55, 9.10, 9.17, 9.24, 9.31,
+        14.30, 14.70, 15.50, 15.68, 15.86,
+        20.15, 25.50, 25.58, 25.66,
+        29.05, 30.35, 32.90,
+        36.85, 38.20, 39.90, 43.30, 47.25,
+        53.05, 54.65, 56.40, 57.85,
+    ]
+    for pt in pop_times:
+        i0 = int(pt * sr)
+        dur_p = int(0.085 * sr)
+        i1 = min(total_samples, i0 + dur_p)
+        if i1 > i0:
+            lt = np.linspace(0.0, 1.0, i1 - i0, dtype=np.float32)
+            env = np.exp(-28.0 * lt)
+            freq = 660.0 if int(pt * 10) % 2 == 0 else 880.0
+            chime = 0.032 * np.sin(2 * np.pi * freq * lt * 0.085) * env
+            sfx_l[i0:i1] += chime
+            sfx_r[i0:i1] += chime
+
     mix_l = np.clip(vo_l + pad_l + sfx_l, -0.98, 0.98)
     mix_r = np.clip(vo_r + pad_r + sfx_r, -0.98, 0.98)
     stereo_int16 = (np.stack([mix_l, mix_r], axis=-1) * 32767.0).astype(np.int16)
@@ -974,6 +1198,10 @@ def build_master_audio():
         wf.setsampwidth(2)
         wf.setframerate(sr)
         wf.writeframes(stereo_int16.tobytes())
+
+
+def _render_frame_bytes(fi: int) -> bytes:
+    return render_frame(fi / FPS).tobytes()
 
 
 # ---------------------------------------------------------------------------
@@ -1006,6 +1234,7 @@ def main():
         print(f"Saved preview contact sheet to {args.preview}")
         return
 
+    from concurrent.futures import ProcessPoolExecutor
     import imageio_ffmpeg
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
     os.makedirs(FILM_DIR, exist_ok=True)
@@ -1031,9 +1260,9 @@ def main():
         "-c:v",
         "libx264",
         "-preset",
-        "ultrafast",
+        "veryfast",
         "-crf",
-        "18",
+        "20",
         "-pix_fmt",
         "yuv420p",
         "-c:a",
@@ -1045,13 +1274,12 @@ def main():
         "+faststart",
         OUT_MP4,
     ]
-    proc_out = subprocess.Popen(encode_cmd, stdin=subprocess.PIPE)
-    for fi in range(TOTAL_FRAMES):
-        t = fi / FPS
-        out_rgb = render_frame(t)
-        proc_out.stdin.write(out_rgb.tobytes())
-        if (fi + 1) % 240 == 0 or fi == TOTAL_FRAMES - 1:
-            print(f"Rendered {fi + 1}/{TOTAL_FRAMES} frames ({(fi + 1) / TOTAL_FRAMES * 100:.1f}%)")
+    proc_out = subprocess.Popen(encode_cmd, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    with ProcessPoolExecutor(max_workers=2) as pool:
+        for fi, raw_bytes in enumerate(pool.map(_render_frame_bytes, range(TOTAL_FRAMES), chunksize=24)):
+            proc_out.stdin.write(raw_bytes)
+            if (fi + 1) % 240 == 0 or fi == TOTAL_FRAMES - 1:
+                print(f"Rendered {fi + 1}/{TOTAL_FRAMES} frames ({(fi + 1) / TOTAL_FRAMES * 100:.1f}%)", flush=True)
     proc_out.stdin.close()
     ret = proc_out.wait()
     if ret != 0:
