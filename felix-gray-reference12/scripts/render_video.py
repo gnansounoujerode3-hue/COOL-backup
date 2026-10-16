@@ -402,10 +402,9 @@ def render_cutaway_1_heartbreak(t: float) -> Image.Image:
     # Front glossy crimson face
     d.text((hx, hy), hero_txt, font=f_hero, fill=(*C_CRIMSON, int(255 * hero_p)))
 
-    # Top-left & Bottom-right framing labels matching "cross / 10K / followers mark," at t=6.4s
-    f_sub = get_font(INTER_REG, 38)
-    d.text((hx + 8, hy + bb[1] - 52), "let the pain", font=f_sub, fill=(*C_CHARCOAL, int(245 * hero_p)))
-    d.text((hx + tw - 210, hy + bb[3] + 18), "you open.", font=f_sub, fill=(*C_MUTED_INK, int(245 * hero_p)))
+    # Strict 2-line maximum: Line 1 = "BREAK" (3D hero), Line 2 = "you open."
+    f_sub = get_font(INTER_REG, 42)
+    d.text((hx + tw - 215, hy + bb[3] + 22), "you open.", font=f_sub, fill=(*C_MUTED_INK, int(245 * hero_p)))
     return canvas
 
 
@@ -499,26 +498,26 @@ def render_cutaway_2_pan_and_icon(t: float) -> Image.Image:
     d.ellipse([mg_x - 48, mg_y - 48, mg_x + 48, mg_y + 48], fill=(255, 244, 210, int(140 * ic_p)), outline=(198, 132, 18, int(255 * ic_p)), width=16)
     d.ellipse([mg_x - 44, mg_y - 44, mg_x + 44, mg_y + 44], outline=(*C_GOLD, int(255 * ic_p)), width=10)
 
-    # 2. Crimson Red Bar: "buries it" (`y=985`)
+    # 2. Line 1 (Crimson Red Bar): "It just buries it" (`y=980`)
     draw_crimson_bar_word(
         canvas,
-        "buries it",
+        "It just buries it",
         cx=W // 2,
-        cy=985,
+        cy=980,
         age=age,
         delay=0.06,
-        font_size=78,
+        font_size=70,
         half_height=False,
         on_white_paper=True,
     )
 
-    # 3. Clean charcoal subtitle below red bar: "It just ... a little deeper." (`t=17.6s` style)
+    # 3. Line 2 (Clean charcoal subtitle below red bar): "a little deeper." (Strict 2-line max)
     draw_shadowed_text_centered(
         canvas,
-        "It just buries it a little deeper.",
+        "a little deeper.",
         cx=W // 2,
         cy=1075,
-        font=get_font(INTER_REG, 40),
+        font=get_font(INTER_REG, 44),
         fill_rgb=C_CHARCOAL,
         age=age,
         delay=0.12,
@@ -530,172 +529,215 @@ def render_cutaway_2_pan_and_icon(t: float) -> Image.Image:
 def render_cutaway_3_after_breaking(t: float) -> Image.Image:
     """
     Beat 9 (22.08s - 25.48s): "Because the version of you that comes after breaking..."
-    Exact match to `t=27.6s` of `reference (2).mp4` ("rewrite / in a / simple way / that actually works."):
-    - Top: Calligraphic script (`Great Vibes`, charcoal ink): "the version"
-    - Upper-mid: Regular sans (`Inter Regular`): "of you that comes"
-    - Center Hero: Bold white text on Crimson Red Bar (`#D61C1C`) with 45° drop shadow: "after breaking"
-    - Bottom: Regular sans (`Inter Regular`): "is finally reborn."
+    Split into two 2-line sub-beats so there are NEVER more than 2 lines of subtitle at once:
+    - Phase A (22.08s - 23.75s):
+      Line 1 (Script `Great Vibes`): "the version of you"
+      Line 2 (Sans `Inter Regular`): "that comes"
+    - Phase B (23.75s - 25.48s):
+      Line 1 (Sans `Inter Regular`): "right after"
+      Line 2 (Half-Height Crimson Red Bar): "breaking"
     """
-    age = t - 22.08
-    canvas = get_sunlit_gobo_paper_canvas(t, age=age)
+    if t < 23.75:
+        age = t - 22.08
+        canvas = get_sunlit_gobo_paper_canvas(t, age=age)
+        draw_shadowed_text_centered(
+            canvas,
+            "the version of you",
+            cx=W // 2,
+            cy=885,
+            font=get_font(GREAT_VIBES, 94),
+            fill_rgb=C_CHARCOAL,
+            age=age,
+            delay=0.02,
+            on_white_paper=True,
+        )
+        draw_shadowed_text_centered(
+            canvas,
+            "that comes",
+            cx=W // 2,
+            cy=985,
+            font=get_font(INTER_REG, 46),
+            fill_rgb=C_CHARCOAL,
+            age=age,
+            delay=0.08,
+            on_white_paper=True,
+        )
+        return canvas
 
+    age = t - 23.75
+    canvas = get_sunlit_gobo_paper_canvas(t, age=age)
     draw_shadowed_text_centered(
         canvas,
-        "the version",
+        "right after",
         cx=W // 2,
-        cy=805,
-        font=get_font(GREAT_VIBES, 92),
+        cy=865,
+        font=get_font(INTER_REG, 44),
         fill_rgb=C_CHARCOAL,
         age=age,
         delay=0.02,
         on_white_paper=True,
     )
-    draw_shadowed_text_centered(
-        canvas,
-        "of you that comes",
-        cx=W // 2,
-        cy=885,
-        font=get_font(INTER_REG, 40),
-        fill_rgb=C_CHARCOAL,
-        age=age,
-        delay=0.07,
-        on_white_paper=True,
-    )
     draw_crimson_bar_word(
         canvas,
-        "after breaking",
+        "breaking",
         cx=W // 2,
-        cy=975,
+        cy=970,
         age=age,
-        delay=0.12,
-        font_size=76,
+        delay=0.07,
+        font_size=88,
         half_height=True,
-        on_white_paper=True,
-    )
-    draw_shadowed_text_centered(
-        canvas,
-        "is the one that heals.",
-        cx=W // 2,
-        cy=1065,
-        font=get_font(INTER_REG, 40),
-        fill_rgb=C_MUTED_INK,
-        age=age,
-        delay=0.18,
         on_white_paper=True,
     )
     return canvas
 
 
 # ---------------------------------------------------------------------------
-# 5. Chest-Level Multi-Font Overlays on Dark-Studio Speaker A-Roll
+# 5. Chest-Level Multi-Font Overlays on Dark-Studio Speaker A-Roll (MAX 2 LINES)
 # ---------------------------------------------------------------------------
 def overlay_speaker_typography(canvas: Image.Image, t: float):
     d = ImageDraw.Draw(canvas)
 
-    if t < 1.44:
-        # Beat 1 (0.00s - 1.44s): "Sometimes you need / to get over / your ex." (Matches `t=1.2s` of reference!)
+    if t < 0.72:
+        # Beat 1A (0.00s - 0.72s): 2 lines max ("Sometimes you need" / "to get over")
         age = t
         draw_shadowed_text_centered(
-            canvas, "Sometimes you need", W // 2, 1210, get_font(JAKARTA_EBOLD, 64), (255, 255, 255), age, delay=0.02
+            canvas, "Sometimes you need", W // 2, 1235, get_font(JAKARTA_EBOLD, 64), (255, 255, 255), age, delay=0.02
         )
         draw_shadowed_text_centered(
-            canvas, "to get over", W // 2, 1295, get_font(INTER_REG, 44), (240, 242, 246), age, delay=0.07
+            canvas, "to get over", W // 2, 1325, get_font(INTER_REG, 46), (240, 242, 246), age, delay=0.07
         )
-        draw_red_brush_underline(d, W // 2, 1335, 220, (age - 0.10) / 0.28)
+        draw_red_brush_underline(d, W // 2, 1368, 230, (age - 0.10) / 0.25)
+
+    elif t < 1.44:
+        # Beat 1B (0.72s - 1.44s): 2 lines max ("to get over" / "your ex.")
+        age = t - 0.72
         draw_shadowed_text_centered(
-            canvas, "your ex.", W // 2, 1395, get_font(GREAT_VIBES, 104), (255, 255, 255), age, delay=0.12
+            canvas, "to get over", W // 2, 1235, get_font(INTER_REG, 46), (240, 242, 246), age, delay=0.0
+        )
+        draw_shadowed_text_centered(
+            canvas, "your ex.", W // 2, 1345, get_font(GREAT_VIBES, 108), (255, 255, 255), age, delay=0.03
         )
 
-    elif t < 3.44:
-        # Beat 2 (1.44s - 3.44s): "So let me tell you / the best way / to do it." (Matches `t=3.8s` asymmetric lockup!)
+    elif t < 2.44:
+        # Beat 2A (1.44s - 2.44s): 2 lines max ("So let me tell you" / "the best way")
         age = t - 1.44
         draw_shadowed_text_centered(
-            canvas, "So let me tell you", W // 2 + 85, 1195, get_font(INTER_REG, 42), (235, 238, 245), age, delay=0.02
+            canvas, "So let me tell you", W // 2 + 65, 1225, get_font(INTER_REG, 44), (235, 238, 245), age, delay=0.02
         )
         draw_shadowed_text_centered(
-            canvas, "the best way", W // 2 - 35, 1280, get_font(JAKARTA_EBOLD, 76), (255, 255, 255), age, delay=0.07
+            canvas, "the best way", W // 2 - 20, 1315, get_font(JAKARTA_EBOLD, 76), (255, 255, 255), age, delay=0.07
         )
-        draw_red_brush_underline(d, W // 2 + 70, 1355, 210, (age - 0.11) / 0.28)
+        draw_red_brush_underline(d, W // 2 + 55, 1385, 240, (age - 0.10) / 0.26)
+
+    elif t < 3.44:
+        # Beat 2B (2.44s - 3.44s): 2 lines max ("the best way" / "to do it.")
+        age = t - 2.44
         draw_shadowed_text_centered(
-            canvas, "to do it.", W // 2 + 65, 1395, get_font(GREAT_VIBES, 96), (255, 255, 255), age, delay=0.12
+            canvas, "the best way", W // 2 - 20, 1230, get_font(JAKARTA_EBOLD, 74), (255, 255, 255), age, delay=0.0
+        )
+        draw_shadowed_text_centered(
+            canvas, "to do it.", W // 2 + 55, 1345, get_font(GREAT_VIBES, 100), (255, 255, 255), age, delay=0.03
         )
 
     elif 5.92 <= t < 6.76:
-        # Beat 4A (5.92s - 6.76s): "Feel it."
+        # Beat 4A (5.92s - 6.76s): 1 line ("Feel it.")
         age = t - 5.92
         draw_crimson_bar_word(canvas, "Feel it.", cx=W // 2, cy=1290, age=age, delay=0.02, font_size=84)
 
-    elif 6.76 <= t < 8.44:
-        # Beat 4B (6.76s - 8.44s): "Let it knock / the wind / out of you." (Matches `t=11.4s` "$15,000 / journey"!)
+    elif 6.76 <= t < 7.60:
+        # Beat 4B-1 (6.76s - 7.60s): 2 lines max ("Let it knock" / "the wind")
         age = t - 6.76
         draw_shadowed_text_centered(
-            canvas, "Let it knock", W // 2, 1195, get_font(INTER_REG, 44), (240, 242, 248), age, delay=0.02
+            canvas, "Let it knock", W // 2, 1220, get_font(INTER_REG, 46), (240, 242, 248), age, delay=0.02
         )
-        draw_crimson_bar_word(canvas, "the wind", cx=W // 2, cy=1285, age=age, delay=0.06, font_size=76)
+        draw_crimson_bar_word(canvas, "the wind", cx=W // 2, cy=1320, age=age, delay=0.06, font_size=78)
+
+    elif 7.60 <= t < 8.44:
+        # Beat 4B-2 (7.60s - 8.44s): 2 lines max ("the wind" / "out of you.")
+        age = t - 7.60
+        draw_crimson_bar_word(canvas, "the wind", cx=W // 2, cy=1235, age=age + 0.35, delay=0.0, font_size=76)
         draw_shadowed_text_centered(
-            canvas, "out of you.", W // 2, 1390, get_font(GREAT_VIBES, 98), (255, 255, 255), age, delay=0.11
+            canvas, "out of you.", W // 2, 1350, get_font(GREAT_VIBES, 100), (255, 255, 255), age, delay=0.03
         )
 
-    elif 8.44 <= t < 10.56:
-        # Beat 5 (8.44s - 10.56s): "Let it hurt in the / places / you've been avoiding." (Matches `t=13.2s`!)
+    elif 8.44 <= t < 9.45:
+        # Beat 5A (8.44s - 9.45s): 2 lines max ("Let it hurt in the" / "places")
         age = t - 8.44
         draw_shadowed_text_centered(
-            canvas, "Let it hurt in the", W // 2, 1195, get_font(INTER_REG, 42), (240, 242, 248), age, delay=0.02
+            canvas, "Let it hurt in the", W // 2, 1225, get_font(INTER_REG, 44), (240, 242, 248), age, delay=0.02
         )
         draw_shadowed_text_centered(
-            canvas, "places", W // 2, 1280, get_font(JAKARTA_EBOLD, 78), (255, 255, 255), age, delay=0.06
+            canvas, "places", W // 2, 1315, get_font(JAKARTA_EBOLD, 80), (255, 255, 255), age, delay=0.06
         )
-        draw_red_brush_underline(d, W // 2, 1335, 240, (age - 0.09) / 0.28)
+        draw_red_brush_underline(d, W // 2, 1372, 240, (age - 0.09) / 0.25)
+
+    elif 9.45 <= t < 10.56:
+        # Beat 5B (9.45s - 10.56s): 2 lines max ("that you've been" / "avoiding.")
+        age = t - 9.45
         draw_shadowed_text_centered(
-            canvas, "you've been avoiding.", W // 2, 1395, get_font(GREAT_VIBES, 86), (255, 255, 255), age, delay=0.11
+            canvas, "that you've been", W // 2, 1225, get_font(INTER_REG, 44), (240, 242, 248), age, delay=0.02
+        )
+        draw_shadowed_text_centered(
+            canvas, "avoiding.", W // 2, 1335, get_font(GREAT_VIBES, 98), (255, 255, 255), age, delay=0.05
         )
 
     elif 14.96 <= t < 16.92:
-        # Beat 7 (14.96s - 16.92s): "And the only way is / to go through it." (Matches `t=19.2s` "Even if you have / the idea,"!)
+        # Beat 7 (14.96s - 16.92s): 2 lines ("And the only way is" / "to go through it.")
         age = t - 14.96
         draw_shadowed_text_centered(
             canvas, "And the only way is", W // 2, 1225, get_font(INTER_REG, 44), (240, 242, 248), age, delay=0.02
         )
         draw_shadowed_text_centered(
-            canvas, "to go through it.", W // 2, 1310, get_font(JAKARTA_EBOLD, 72), (255, 255, 255), age, delay=0.07
+            canvas, "to go through it.", W // 2, 1315, get_font(JAKARTA_EBOLD, 72), (255, 255, 255), age, delay=0.07
         )
-        draw_red_brush_underline(d, W // 2, 1368, 360, (age - 0.10) / 0.30)
+        draw_red_brush_underline(d, W // 2, 1372, 360, (age - 0.10) / 0.30)
 
-    elif 16.92 <= t < 19.68:
-        # Beat 8A (16.92s - 19.68s): "So cry and / let it grieve / like you thought it wouldn't."
+    elif 16.92 <= t < 18.25:
+        # Beat 8A-1 (16.92s - 18.25s): 2 lines max ("So cry and" / "let it grieve")
         age = t - 16.92
         draw_shadowed_text_centered(
-            canvas, "So cry and", W // 2, 1195, get_font(INTER_REG, 44), (240, 242, 248), age, delay=0.02
+            canvas, "So cry and", W // 2, 1220, get_font(INTER_REG, 46), (240, 242, 248), age, delay=0.02
         )
-        draw_crimson_bar_word(canvas, "let it grieve", cx=W // 2, cy=1285, age=age, delay=0.06, font_size=74)
+        draw_crimson_bar_word(canvas, "let it grieve", cx=W // 2, cy=1320, age=age, delay=0.06, font_size=76)
+
+    elif 18.25 <= t < 19.68:
+        # Beat 8A-2 (18.25s - 19.68s): 2 lines max ("like you thought" / "it wouldn't.")
+        age = t - 18.25
         draw_shadowed_text_centered(
-            canvas, "like you thought it wouldn't.", W // 2, 1390, get_font(GREAT_VIBES, 82), (255, 255, 255), age, delay=0.11
+            canvas, "like you thought", W // 2, 1225, get_font(INTER_REG, 44), (240, 242, 248), age, delay=0.02
+        )
+        draw_shadowed_text_centered(
+            canvas, "it wouldn't.", W // 2, 1335, get_font(GREAT_VIBES, 98), (255, 255, 255), age, delay=0.05
         )
 
-    elif 19.68 <= t < 22.08:
-        # Beat 8B (19.68s - 22.08s): "And let it / ruin a night / if it has to." (Matches `t=26.0s` "I will take / one script,"!)
+    elif 19.68 <= t < 20.88:
+        # Beat 8B-1 (19.68s - 20.88s): 2 lines max ("And let it" / "ruin a night")
         age = t - 19.68
         draw_shadowed_text_centered(
-            canvas, "And let it", W // 2, 1205, get_font(INTER_REG, 44), (240, 242, 248), age, delay=0.02
+            canvas, "And let it", W // 2, 1225, get_font(INTER_REG, 46), (240, 242, 248), age, delay=0.02
         )
         draw_shadowed_text_centered(
-            canvas, "ruin a night", W // 2, 1290, get_font(JAKARTA_EBOLD, 76), (255, 255, 255), age, delay=0.06
+            canvas, "ruin a night", W // 2, 1315, get_font(JAKARTA_EBOLD, 76), (255, 255, 255), age, delay=0.06
         )
-        draw_red_brush_underline(d, W // 2, 1345, 280, (age - 0.09) / 0.28)
+        draw_red_brush_underline(d, W // 2, 1372, 280, (age - 0.09) / 0.26)
+
+    elif 20.88 <= t < 22.08:
+        # Beat 8B-2 (20.88s - 22.08s): 2 lines max ("ruin a night" / "if it has to.")
+        age = t - 20.88
         draw_shadowed_text_centered(
-            canvas, "if it has to.", W // 2, 1405, get_font(GREAT_VIBES, 90), (255, 255, 255), age, delay=0.11
+            canvas, "ruin a night", W // 2, 1230, get_font(JAKARTA_EBOLD, 74), (255, 255, 255), age, delay=0.0
+        )
+        draw_shadowed_text_centered(
+            canvas, "if it has to.", W // 2, 1345, get_font(GREAT_VIBES, 96), (255, 255, 255), age, delay=0.03
         )
 
     elif t >= 25.48:
-        # Beat 10 (25.48s - 27.98s): "is the one that finally / knows peace." (Matches `t=33.2s` "Don't forget to / follow"!)
+        # Beat 10 (25.48s - 27.98s): 2 lines max ("is the one that finally" / "knows peace.")
         age = t - 25.48
         draw_shadowed_text_centered(
-            canvas, "is the one that finally", W // 2, 1200, get_font(INTER_REG, 44), (240, 242, 248), age, delay=0.02
+            canvas, "is the one that finally", W // 2, 1225, get_font(INTER_REG, 44), (240, 242, 248), age, delay=0.02
         )
-        draw_crimson_bar_word(canvas, "knows peace.", cx=W // 2, cy=1295, age=age, delay=0.06, font_size=80)
-        draw_shadowed_text_centered(
-            canvas, "healing.", W // 2, 1400, get_font(GREAT_VIBES, 88), (255, 255, 255), age, delay=0.12
-        )
+        draw_crimson_bar_word(canvas, "knows peace.", cx=W // 2, cy=1325, age=age, delay=0.06, font_size=80)
 
 
 # ---------------------------------------------------------------------------
