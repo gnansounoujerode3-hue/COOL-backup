@@ -1,62 +1,87 @@
 ---
 name: creative-director
-description: |
-  Senior Creative Director skill with 20+ ideation methodologies (SIT, TRIZ, SCAMPER,
-  Bisociation, Synectics) and a 3-axis evaluation framework calibrated against
-  Cannes Lions, D&AD, and HumanKind award standards.
-triggers:
-  - "creative director"
-  - "creative strategy"
-  - "ideation"
-  - "campaign concept"
-  - "creative brief"
-  - "SCAMPER"
-  - "TRIZ"
-das:
-  category: design-review
-  upstream: "https://github.com/smixs/creative-director-skill"
-  upstream_path: "creative-director/SKILL.md"
-  version: latest
-  install: true
+description: Use when overseeing animation vision, setting creative direction for motion, or guiding teams on animation quality and consistency.
 ---
 
-# creative-director
+# Creative Director: Animation Vision & Leadership
 
-> Catalogue stub — full skill: [smixs/creative-director-skill](https://github.com/smixs/creative-director-skill)
+You are a creative director setting vision and standards for animation across projects. Apply Disney's 12 principles to lead teams toward excellent motion design.
 
-## Decision tree
+## The 12 Principles for Creative Leadership
 
-1. **Is the full skill already installed?**
-   Check whether the skill at this location still has a `das:` block:
-   - Global: `grep -q "^das:" ~/.agents/skills/creative-director/SKILL.md 2>/dev/null && echo "pointer" || echo "installed"`
-   - Project: `grep -q "^das:" .agents/skills/creative-director/SKILL.md 2>/dev/null && echo "pointer" || echo "installed"`
-   - No `das:` block → full skill installed, invoke it and proceed
-   - `das:` block present → go to step 2
+### 1. Squash and Stretch
+**Creative Direction**: Define the elasticity range for your project. How much life do we give objects? What's our physics reality?
+**Vision Question**: "On a spectrum from rigid to rubbery, where does our world live?"
 
-2. **Detect scope, then install:**
+### 2. Anticipation
+**Creative Direction**: Establish anticipation as a pacing tool. Are we building tension or moving quickly? Anticipation is your dramatic control.
+**Vision Question**: "Do we let moments breathe, or do we punch through?"
 
-   To detect scope:
-   ```bash
-   [ -e ~/.agents/skills/creative-director ] && echo "global" || echo "project"
-   ```
+### 3. Staging
+**Creative Direction**: Visual hierarchy is storytelling. Review compositions for clarity. If staging requires explanation, it's not working.
+**Vision Question**: "Does the eye know where to go? Does the motion tell the story?"
 
-   **Global** (installed with `-g`):
-   ```bash
-   npx skills add smixs/creative-director-skill --skill creative-director -g -y
-   ```
+### 4. Straight Ahead vs Pose to Pose
+**Creative Direction**: Production approach impacts feel. Commission straight ahead for organic warmth, pose to pose for controlled precision.
+**Vision Question**: "What production approach serves this creative vision?"
 
-   **Project** (installed without `-g`):
-   ```bash
-   npx skills add smixs/creative-director-skill --skill creative-director -y
-   ```
-   > **Claude Code:** send either command as a chat message starting with `!` to run it without leaving the conversation.
+### 5. Follow Through and Overlapping Action
+**Creative Direction**: Follow-through is where craft shows. This is the layer that separates amateur from professional. Invest here.
+**Vision Question**: "Have we earned the details? Does the craft match the ambition?"
 
+### 6. Slow In and Slow Out
+**Creative Direction**: Easing is the signature. Define your curves and protect them. Inconsistent easing breaks the world.
+**Vision Question**: "What does our motion feel like? Do we have a recognizable rhythm?"
 
-## Invoke after install
+### 7. Arc
+**Creative Direction**: Movement paths define spatial philosophy. Organic worlds arc. Mechanical worlds line. Establish the rule, then break it intentionally.
+**Vision Question**: "What kind of space are we creating? How do things move through it?"
 
-- Skill name: `creative-director`
-- Trigger phrases: "creative director", "creative strategy", "ideation", "campaign concept"
+### 8. Secondary Action
+**Creative Direction**: The delight layer. This is where personality lives. Allocate time for secondary action—it's not polish, it's character.
+**Vision Question**: "What small moments will make people love this?"
 
-## What it does
+### 9. Timing
+**Creative Direction**: Timing is tone. Fast and snappy vs slow and weighty. Establish timing frameworks early—retrofitting timing is expensive.
+**Vision Question**: "What's the tempo of this experience?"
 
-Applies senior creative director thinking with 20+ proven ideation methodologies including SIT, TRIZ, Bisociation, SCAMPER, and Synectics. Evaluates ideas on a 3-axis framework (originality, relevance, craft) calibrated against Cannes Lions, D&AD, and HumanKind award standards. Useful for campaign strategy, brand positioning, and breaking out of generic creative solutions.
+### 10. Exaggeration
+**Creative Direction**: Exaggeration calibration sets genre. Too little = boring. Too much = cartoon. Find your specific sweet spot.
+**Vision Question**: "How stylized is our reality? Where's our line?"
+
+### 11. Solid Drawing
+**Creative Direction**: Spatial coherence across all animation. Different animators must produce consistent spatial logic. Define the rules.
+**Vision Question**: "Would animation from different artists feel like one world?"
+
+### 12. Appeal
+**Creative Direction**: The sum of all principles. Appeal is the emotional response to everything working together. This is what you're ultimately responsible for.
+**Vision Question**: "Do people want to keep watching? Does it feel like us?"
+
+## Leadership Responsibilities
+
+### Vision Setting
+- Create motion mood boards and reference libraries
+- Define the "feel" in communicable terms
+- Make early animation tests before full production
+
+### Quality Standards
+- Establish review checkpoints
+- Create do/don't reference guides
+- Define minimum quality thresholds
+
+### Team Guidance
+- Protect animator creative ownership within bounds
+- Balance consistency with individual expression
+- Know when to push and when to accept
+
+### Stakeholder Communication
+- Translate animation quality to business value
+- Defend craft time in production schedules
+- Present work in context of vision
+
+## Review Checklist
+
+- Does it match the established motion language?
+- Does it serve the story/user need?
+- Is the craft level consistent with project standards?
+- Would I put my name on this?

@@ -1,11 +1,30 @@
-# COOL — Master Claude Code Registry (206 Skills: Motion-Design Code Harvesting, 3D Rendering & B-Roll Fetching)
+# COOL — Master Claude Code Registry (502 Skills: Animation Design Rules, Motion-Design Code Harvesting, 3D Rendering & B-Roll Fetching)
 
-This repository contains **206 specialized Claude Code skills** under `.claude/skills/` organized into 5 pillars:
+This repository contains **502 specialized Claude Code skills** under `.claude/skills/` organized into 6 pillars:
+0. **Animation Design Rules & Principles (`animation-design-rules`, `disney-animation-rule-skill`, 144 Disney Principle skills from `dylantarre/animation-principles`, `design-motion-principles`, `lottiefiles-motion-design`, `klik-anim`, `klik-cam`, `klik-remotion-method`, `ui-animation`, `web-animation-design`, `animate`, `emil-design-eng`, `impeccable`, `detail-design`)**.
 1. **Motion-Design Website Scraping & Animation Code Harvesting** (`motion-code-harvester`, `website-to-hyperframes`, `design-mirror`, `ux-extract`, `extract-design-system`, `extract-design-md`, `video-clone`, `cut-the-curve`, `seam-craft`, `motion-doctrine`, `embedded-captions`, `emil-design-eng`, `gsap-*`, `framer-motion`, `lottie-bodymovin`, `hyperframes-*`).
 2. **B-Roll Video & Image Downloading for Video Montage** (`broll-media-fetcher`, `videographer-broll`, `assetseeker`, `stock-sourcing`, `video-download`, `video-resource-finder`, `montage-studio`, `05-image-sourcing`, `asset-source`, `pexels-media`, `licensed-media-finder`, `media-use`, `paper-cut-motion`, `remove-background`, `speaker-cutout`, `video-spotlight`, `scavenger`, `archivist`).
-3. **High-End 3D Rendering & Shader Pipelines** (`threejs-*`, `threejs-webgl-shaders`, `threejs-tsl-shaders`, `r3f-best-practices`, `blender-product-film`).
-4. **Remotion 3D & Programmatic Video Editing** (`remotion-best-practices`, `remotion-render`, `remotion-to-hyperframes`).
+3. **High-End 3D Rendering & Shader Pipelines** (`threejs-*`, `threejs-webgl-shaders`, `threejs-tsl-shaders`, `r3f-best-practices`, `blender-product-film`, `3d-cloth-material` .. `3d-wood-material`).
+4. **Remotion 3D & Programmatic Video Editing** (`remotion-best-practices`, `remotion-render`, `remotion-to-hyperframes`, `remotion-motion-graphics`, `anything2explainer`).
 5. **3D Camera Choreography & Voiceover-Driven Motion Direction** (`shotcraft-*`, `talkcraft-*`, `howseen-*`, `systo-*`, `MOTION-DESIGN.md`).
+
+---
+
+## 0. Animation Design Rules & Principles Suite (296 Skills)
+
+- **`.claude/skills/animation-design-rules/SKILL.md` + `scripts/animation_rules_engine.py`**
+  - **Master Rulebook & Executable Python Engine**: Consolidates the 10 Non-Negotiable Animation Design Laws and provides frame-accurate functions (`emil_ease_out`, `emil_ease_in_out`, `emil_drawer_ease`, `md3_emphasized_decelerate`, `md3_emphasized_accelerate`, `disney_overshoot_ease`, `disney_squash_stretch`, `disney_anticipation_launch`, `disney_arc_position`, `disney_follow_through_layers`, `counter_motion_ambient`, `audit_animation_spec`).
+- **Disney's 12 Principles of Animation (145 Skills — `dylantarre/animation-principles` + `vibe-motion/disney-animation-rule-skill`)**:
+  - **12 Principle Mastery Skills**: `squash-stretch-mastery`, `anticipation-mastery`, `staging-mastery`, `straight-ahead-pose-mastery`, `follow-through-overlapping`, `slow-in-out-mastery`, `arc-mastery`, `secondary-action-mastery`, `timing-principle-mastery`, `exaggeration-mastery`, `solid-drawing-mastery`, `appeal-mastery`, `disney-animation-rule-skill`.
+  - **12 Domain, Thinking Style, Persona, Time-Scale, Emotion & UI Element Categories**: `video-motion-graphics`, `web-motion-design`, `3d-spatial`, `micro-interactions`, `page-transitions`, `rhythm-pacing`, `timing-mastery`, `physics-intuition`, `anticipation-payoff`, `attention-direction`, `orchestrated-sequences`, `instant-0-100ms` .. `dramatic-2000ms-plus`.
+- **Emil Kowalski, Jakub Krehel & Jhey Tompkins UI Animation Rules (`emilkowalski/skills`, `kylezantos/design-motion-principles`, `vercel-labs/web-animation-design`, `mblode/ui-animation`)**:
+  - `.claude/skills/design-motion-principles/` (`SKILL.md` + `references/emil-kowalski.md`, `jakub-krehel.md`, `jhey-tompkins.md`, `motion-cookbook.md`, `anti-checklist.md`, `audit-checklist.md`, `creation-gotchas.md`)
+  - `.claude/skills/animate/`, `.claude/skills/emil-design-eng/`, `.claude/skills/web-animation-design/`, `.claude/skills/ui-animation/` (14 reference guides: `spring-animations.md`, `choreography.md`, `decision-framework.md`, `transition-recipes.md`, `clip-path-techniques.md`, `review-format.md`)
+  - `.claude/skills/animation-performance/`, `.claude/skills/animation-vocabulary/`, `.claude/skills/find-animation-opportunities/`, `.claude/skills/improve-animations/`, `.claude/skills/review-animations/`
+- **LottieFiles Universal Motion Design Rules & Klik Animation Craft Bible**:
+  - `.claude/skills/lottiefiles-motion-design/` & `.claude/skills/motion-design/` (`director/disney-principles.md`, `director/choreography.md`, `director/core-philosophy.md`, `director/decision-framework.md`, `director/emotion-mapping.md`, `reference/timing-easing-tables.md`, `reference/quality-checklist.md`)
+  - `.claude/skills/klik-anim/`, `.claude/skills/klik-cam/`, `.claude/skills/klik-remotion-method/` (`references/kinetic-type.md`, `references/motion-library.md`, `references/music-motion.md`, `references/camera-moves.md`, `scripts/lint-motion.mjs`)
+  - `.claude/skills/impeccable/` (`reference/animate.md`, `reference/craft.md`, `reference/delight.md`, `reference/polish.md`) & `.claude/skills/detail-design/`
 
 ---
 

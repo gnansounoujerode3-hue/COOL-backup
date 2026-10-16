@@ -1,0 +1,134 @@
+<!doctype html>
+<!-- <project_name>_storyboard.html — the visual storyboard the user approves.
+     HOW THIS FILE IS USED (agent instructions — keep this comment):
+     · One SCENE CARD per row of the SSOT §6 scene table (incl. visual-only
+       scenes). One smaller TRANSITION CARD between every pair of scene cards.
+     · DRAFT stage: card visuals are HTML/CSS mockups built with real frontend
+       craft, using the SSOT brand tokens — cheap to iterate.
+     · APPROVAL stage: every card visual is replaced by a real Remotion still
+       (`npx remotion still` → boards/scene-NN.png) from the posed comps, and
+       you have viewed each still yourself (bible §A9) before showing the user.
+       The user approves PIXELS, not prose. Then data-status → "approved".
+     · Transition previews: default is the text spec on the card. Offer the
+       user a real rendered preview clip (boards/previews/t-NN.mp4, <video>
+       swap below) — say it costs extra tokens BEFORE rendering any.
+     · Copy on scene cards is VERBATIM from SSOT §6 (bible §A8) — bold marks
+       emphasis words. References the user supplies go in the refs strip.
+     · This file is also read by the execution-plan and build agents: keep the
+       data-* attributes and structure intact. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storyboard — PROJECT_NAME</title>
+<style>
+  :root{
+    --bg:#17191d; --card:#212429; --line:#3a3f46; --ink:#e8e9eb; --ink2:#9aa0a8;
+    --transition-border:#d99a2b;         /* transition cards — distinct color */
+    --ok:#4cb782; --draft:#7f8791;
+    /* project brand tokens (from SSOT §4) — used INSIDE card mockups only: */
+    --brand-accent:#______; --brand-bg:#______; --brand-ink:#______;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:var(--bg);color:var(--ink);
+       font:15px/1.5 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+       padding:32px 40px 64px}
+  header{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:baseline;margin-bottom:8px}
+  h1{font-size:22px;letter-spacing:-.01em}
+  .status{font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.08em;
+          padding:5px 10px;border-radius:3px;border:1px solid var(--draft);color:var(--draft)}
+  .status.approved{border-color:var(--ok);color:var(--ok)}
+  .spec{color:var(--ink2);font-size:13px}
+  .legend{color:var(--ink2);font-size:12.5px;margin:4px 0 28px}
+  .legend b{color:var(--transition-border);font-weight:600}
+
+  .board{display:flex;flex-wrap:wrap;align-items:center;gap:18px}
+
+  .scene{width:430px;background:var(--card);border:1.5px solid var(--line);border-radius:6px;overflow:hidden}
+  .scene .frame{aspect-ratio:16/9;background:#000;display:block;width:100%;object-fit:contain}
+  .scene .mock{aspect-ratio:16/9;background:var(--brand-bg);display:flex;
+               align-items:center;justify-content:center;text-align:center;padding:24px}
+  .meta{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px}
+  .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .tag{font:600 11px/1 ui-monospace,Menlo,monospace;color:var(--ink2);letter-spacing:.06em}
+  .copy{font-size:14px} .copy b{color:var(--brand-accent)}
+  .desc{font-size:12.5px;color:var(--ink2)}
+  .refs{display:flex;gap:6px;flex-wrap:wrap}
+  .refs img{height:44px;border:1px solid var(--line);border-radius:3px}
+  .refs .add{height:44px;min-width:64px;border:1px dashed var(--line);border-radius:3px;
+             display:flex;align-items:center;justify-content:center;color:var(--ink2);font-size:11px}
+
+  .transition{width:230px;background:var(--card);border:1.5px dashed var(--transition-border);
+              border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:7px;
+              align-self:center}
+  .transition .tag{color:var(--transition-border)}
+  .transition .desc{font-size:12px}
+  .transition video{width:100%;border-radius:3px;background:#000}
+  .t-spec{font-size:11.5px;color:var(--ink2);display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
+  .t-spec dt{font-weight:600;color:var(--ink)}
+  .pill{font:600 10px/1 ui-monospace,Menlo,monospace;padding:3px 7px;border-radius:3px;
+        border:1px solid var(--draft);color:var(--draft);width:max-content}
+  .pill.ok{border-color:var(--ok);color:var(--ok)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PROJECT_NAME — storyboard</h1>
+  <span class="status" data-board-status="draft">DRAFT</span>
+  <span class="spec">1920×1080 · 30fps · 600f (20s) · camera C0=<N> · pacing C0.5=<N></span>
+</header>
+<p class="legend">Big cards = scenes (one still each). <b>Dashed amber cards</b> =
+the transition between the scenes either side of them — fill every one in.
+Approve when what you see is what you want built.</p>
+
+<div class="board">
+
+  <!-- ============ SCENE CARD (repeat per SSOT §6 scene) ============ -->
+  <article class="scene" data-scene="1" data-frames="0-84" data-status="draft">
+    <!-- DRAFT: styled mockup. AT APPROVAL replace with:
+         <img class="frame" src="boards/scene-01.png" alt="Scene 1 still">   -->
+    <div class="mock" style="color:var(--brand-ink)">
+      <span style="font-size:28px;font-weight:700">mockup of scene 1</span>
+    </div>
+    <div class="meta">
+      <div class="row"><span class="tag">SCENE 1 · f0–84</span><span class="pill" data-role="status">DRAFT</span></div>
+      <p class="copy">Exact line(s) from SSOT §6 — <b>emphasis</b> stays bold.</p>
+      <p class="desc">Visual: what is on screen and what moves (one or two lines).</p>
+      <div class="refs">
+        <!-- user-supplied reference screenshots: <img src="refs/xx.png"> -->
+        <span class="add">+ your refs</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- ============ TRANSITION CARD (between every pair) ============ -->
+  <aside class="transition" data-transition="1→2" data-status="draft">
+    <span class="tag">TRANSITION 1 → 2</span>
+    <p class="desc">Named motif + one-line mechanics, verbatim once agreed.</p>
+    <dl class="t-spec">
+      <dt>Duration</dt><dd><N>f</dd>
+      <dt>Speed/curve</dt><dd><!-- pacing note, e.g. "brisk, hard peak" --></dd>
+      <dt>Camera</dt><dd><!-- push / hold / none --></dd>
+    </dl>
+    <!-- If the user opts into a rendered preview (extra tokens — ask first):
+    <video src="boards/previews/t-01.mp4" muted loop autoplay playsinline></video> -->
+    <span class="pill" data-role="status">TEXT SPEC</span>
+  </aside>
+
+  <article class="scene" data-scene="2" data-frames="85-190" data-status="draft">
+    <div class="mock" style="color:var(--brand-ink)">
+      <span style="font-size:28px;font-weight:700">mockup of scene 2</span>
+    </div>
+    <div class="meta">
+      <div class="row"><span class="tag">SCENE 2 · f85–190</span><span class="pill" data-role="status">DRAFT</span></div>
+      <p class="copy">…</p>
+      <p class="desc">…</p>
+      <div class="refs"><span class="add">+ your refs</span></div>
+    </div>
+  </article>
+
+</div>
+
+</body>
+</html>
