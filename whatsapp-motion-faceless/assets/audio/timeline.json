@@ -1,0 +1,41 @@
+{
+  "total_duration": 63.95,
+  "segments": [
+    {
+      "file": "whatsapp-motion-faceless/assets/audio/seg1_hook_fast.wav",
+      "start": 0.2,
+      "duration": 8.68,
+      "end": 8.88
+    },
+    {
+      "file": "whatsapp-motion-faceless/assets/audio/seg2_branding_fast.wav",
+      "start": 9.1,
+      "duration": 10.84,
+      "end": 19.94
+    },
+    {
+      "file": "whatsapp-motion-faceless/assets/audio/seg3_workflow_fast.wav",
+      "start": 20.16,
+      "duration": 8.68,
+      "end": 28.85
+    },
+    {
+      "file": "whatsapp-motion-faceless/assets/audio/seg4_delivery_fast.wav",
+      "start": 29.07,
+      "duration": 7.58,
+      "end": 36.65
+    },
+    {
+      "file": "whatsapp-motion-faceless/assets/audio/seg5_expertise_fast.wav",
+      "start": 36.87,
+      "duration": 15.99,
+      "end": 52.86
+    },
+    {
+      "file": "whatsapp-motion-faceless/assets/audio/seg6_cta_fast.wav",
+      "start": 53.08,
+      "duration": 10.3,
+      "end": 63.38
+    }
+  ]
+}
