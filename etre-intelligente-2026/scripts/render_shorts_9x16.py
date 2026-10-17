@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """
-Vertical 9:16 (1080x1920, 30fps) Reels / YouTube Shorts / TikTok Generator (v2)
+Vertical 9:16 (1080x1920, 30fps) Reels / YouTube Shorts / TikTok Generator (v3 — Inspired by `reference (2).mp4` in Rose-Pink)
 for: 'Être Intelligente En 2026 Te Dessert'
 
-Updates per user feedback:
-1. Hook Header at start of each Short: NO background box and NO 'REEL #01 • ...' badge — just the bold title directly on the video.
-2. B-Roll Cutaway Cards: NO 'B-ROLL • ...' badge (and no 'ILLUSTRATION' meta-tag on the cutaway icon).
-3. Removed 'ABONNE-TOI • PARTIE X/6' pill from all Shorts.
-4. Subtitles: Removed the framing box around subtitles, added a smooth dark gradient at the bottom of the Reels, and increased subtitle font size (48px ExtraBold with crisp shadow/stroke + Rose highlight pill, max 2 lines).
-5. Pop-ups: Increased the size of the 3D/vector Pop-up Illustrations by ~32% (554x422).
-6. Short #6 starts cleanly on A-Roll at t=224.74s ('Je préfère mille fois écouter une personne qui explique les choses avec simplicité...') through t=270.98s ('parle face cam comme à ta pote, fais exactement la même chose !').
+Visual DNA harvested directly from `reference (2).mp4`, adapted to the original Rose-Pink palette (`#EC4899` / `#9D174D`):
+  1. Clean, clutter-free A-Roll speaker framing with chest-level (`y=1235..1360`) multi-font editorial typography
+     (strictly <= 2 lines at a time) over a subtle lower-chest dark gradient vignette:
+     - Style A: Clean `Inter Regular` + Sharp Rose-Pink (`#EC4899`) rectangular highlight bar with 45° soft blurred drop shadow
+     - Style B: Clean `Inter Regular` + `Plus Jakarta Sans ExtraBold` + Hand-drawn curved Rose-Pink brush-stroke underline
+     - Style C: `Plus Jakarta Sans ExtraBold` / `Inter Regular` + Calligraphic `Great Vibes` script accent
+  2. Full-screen Sunlit Window-Gobo White Paper Cutaways (`#F6F5F2` with diagonal window-blind sunlight/shadow beams & fine grain):
+     - Cutaway 1A (`t=5.2s` style): Top-left offset `Inter Regular` + Half-height Rose-Pink (`#EC4899`) bar lockup with upper-letter shadow
+     - Cutaway 1B (`t=6.4s` `10K` style): Radial Architectural Square Grid + 3D Extruded Glossy Rose-to-Deep-Berry Hero Display Text
+     - Cutaway 2A (`t=14.2s->15.0s` style): Horizontal 3-Phase Nudge Camera Whip-Pan across two Rose-Pink (`#EC4899`) bars
+     - Cutaway 2B (`t=17.6s` style): Floating 3D Tactile Stacked Paper Card & Magnifying Glass Icon above Rose-Pink bar + subtitle
+     - Cutaway 3 (`t=27.6s` style): Calligraphic `Great Vibes` script + `Inter Regular` + Half-height Rose-Pink (`#EC4899`) bar
+  3. Velocity-matched seam transitions (`zoom_through_seam`, `cut_the_curve_seam`, `rack_focus_blur_cut`) + cleaned/EQ'd voice & SFX.
 """
 
 import json
@@ -20,35 +26,40 @@ import sys
 import cv2
 import imageio_ffmpeg
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 from scipy.io import wavfile
 
+REPO_ROOT = "/home/user/COOL-backup"
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(PROJECT_DIR, "scripts"))
+sys.path.insert(0, f"{REPO_ROOT}/.claude/skills/motion-code-harvester/scripts")
+sys.path.insert(0, f"{REPO_ROOT}/.claude/skills/animation-design-rules/scripts")
 
+from motion_engine import (
+    clamp,
+    nudge_curve_3phase,
+    zoom_through_seam,
+    cut_the_curve_seam,
+    rack_focus_blur_cut,
+)
+from animation_rules_engine import (
+    emil_ease_out,
+    emil_ease_in_out,
+    disney_squash_stretch,
+    disney_arc_position,
+    disney_follow_through_layers,
+)
 from render_youtube_edit import (
     CLEAN_FRENCH_OVERRIDES,
-    POPUP_ILLUSTRATIONS,
     EMOTIONAL_PUNCH_WINDOWS,
-    CUTAWAY_WINDOWS,
-    C_ROSE,
-    C_ROSE_LIGHT,
-    C_ROSE_DEEP,
-    C_ROSE_BLUSH,
-    C_CHARCOAL,
-    C_MUTED as C_SLATE,
-    JAKARTA_EBOLD,
-    JAKARTA_BOLD,
+    INTER_REG,
     INTER_MED,
-    INTER_BOLD as INTER_SEMI,
-    GREAT_VIBES as SERIF_ITALIC,
+    INTER_BOLD,
+    JAKARTA_BOLD,
+    JAKARTA_EBOLD,
+    GREAT_VIBES,
     MONO_MED,
     get_font,
-    clamp,
-    ease_out_expo,
-    ease_out_back,
-    ease_in_out_cubic,
-    get_popup_illustration_sprite,
     build_youtube_audio,
 )
 
@@ -56,11 +67,23 @@ CLEAN_VIDEO = os.path.join(PROJECT_DIR, "film", "etre-intelligente-en-2026-sans-
 SEGMENTS_JSON = os.path.join(PROJECT_DIR, "assets", "segments.json")
 SHORTS_DIR = os.path.join(PROJECT_DIR, "shorts")
 
-SW, SH = 1080, 1920
+W, H = 1080, 1920
 FPS = 30.0
 
+# Original Rose-Pink Palette applied to `reference (2).mp4` design system (RGB)
+C_ROSE = (236, 72, 153)         # #EC4899 Primary Rose-Pink bar (replaces crimson red #D61C1C)
+C_ROSE_LIGHT = (244, 114, 182)  # #F472B6 Soft Rose Quartz accent
+C_ROSE_DARK = (157, 23, 77)     # #9D174D Deep Berry 3D extrusion bevel
+C_PAPER = (246, 245, 242)       # #F6F5F2 Sunlit window-gobo paper cutaway background from reference (2).mp4
+C_CHARCOAL = (22, 24, 28)       # Crisp editorial charcoal ink on white paper
+C_MUTED_INK = (72, 76, 84)      # Secondary charcoal subtitle ink
+C_GOLD_ROSE = (238, 174, 42)    # Tactile magnifying glass rim accent (from t=17.6s of reference (2).mp4)
+
+_STATIC_CACHE = {}
+_TRACKED_CX = [920.0]
+
 # ---------------------------------------------------------------------------
-# Definition of the 6 Viral Reels / Shorts / TikToks (9:16, 1080x1920)
+# Definition of the 6 Shorts + their `reference (2).mp4` Cutaway Scenes
 # ---------------------------------------------------------------------------
 SHORTS_SPECS = [
     {
@@ -68,424 +91,506 @@ SHORTS_SPECS = [
         "slug": "short-01-paraitre-intelligente-te-dessert-9x16.mp4",
         "t_start": 0.00,
         "t_end": 38.20,
-        "hook_line1": "VOULOIR PARAÎTRE INTELLIGENTE",
-        "hook_line2": "TE DESSERT PARTOUT",
+        "cutaways": [
+            # Cutaway 1: t=5.2s Half-height Rose bar -> t=6.4s Blueprint Grid + 3D Extruded Rose Hero
+            {
+                "t0": 5.18, "t_mid": 8.10, "t1": 10.10, "type": "grid_3d",
+                "p1_top": "qui te dessert", "p1_bar": "dans ton business,",
+                "p2_top": "qui te dessert", "p2_hero": "PARTOUT", "p2_sub": "absolument partout.",
+            },
+            # Cutaway 2: t=14.2s->15.0s Whip-Pan -> t=17.6s 3D Tactile Icon + Rose Bar
+            {
+                "t0": 18.00, "t_mid": 21.14, "t1": 23.18, "type": "pan_and_icon",
+                "s1_top": "qu'aujourd'hui", "s1_bar": "tu dois performer",
+                "s2_top": "aujourd'hui encore", "s2_bar": "prouver aux autres",
+                "ic_bar": "prouver aux autres,", "ic_sub": "chaque matin.",
+            },
+            # Cutaway 3: t=27.6s Calligraphic Script + Half-height Rose bar
+            {
+                "t0": 32.90, "t_mid": 36.20, "t1": 38.20, "type": "script_and_bar",
+                "p1_script": "je dois prouver", "p1_sub": "que je suis géniale,",
+                "p2_top": "que je suis quelqu'un", "p2_bar": "d'intelligent.",
+            },
+        ],
     },
     {
         "id": 2,
         "slug": "short-02-le-piege-du-perfectionnisme-9x16.mp4",
         "t_start": 38.20,
         "t_end": 75.62,
-        "hook_line1": "POURQUOI TOUT CONTRÔLER",
-        "hook_line2": "CRÉE ENCORE PLUS DE PEUR",
+        "cutaways": [
+            {
+                "t0": 46.88, "t_mid": 48.80, "t1": 51.60, "type": "grid_3d",
+                "p1_top": "et d'être enfin", "p1_bar": "qui tu veux être,",
+                "p2_top": "que vont penser", "p2_hero": "LES GENS", "p2_sub": "chaque matin ?",
+            },
+            {
+                "t0": 59.30, "t_mid": 63.98, "t1": 66.96, "type": "pan_and_icon",
+                "s1_top": "tu veux que tout", "s1_bar": "soit parfait,",
+                "s2_top": "à force d'être", "s2_bar": "perfectionniste,",
+                "ic_bar": "le contrôle absolu,", "ic_sub": "zéro lâcher-prise.",
+            },
+            {
+                "t0": 69.30, "t_mid": 74.02, "t1": 75.62, "type": "script_and_bar",
+                "p1_script": "qui dit résistance,", "p1_sub": "dit encore plus de peur,",
+                "p2_top": "et encore plus", "p2_bar": "d'insécurité.",
+            },
+        ],
     },
     {
         "id": 3,
         "slug": "short-03-percer-sans-tout-calculer-9x16.mp4",
         "t_start": 75.62,
         "t_end": 119.98,
-        "hook_line1": "CEUX QUI NE CALCULENT RIEN",
-        "hook_line2": "PERCENT SUR LES RÉSEAUX",
+        "cutaways": [
+            {
+                "t0": 85.54, "t_mid": 88.22, "t1": 90.22, "type": "grid_3d",
+                "p1_top": "ce sont des personnes", "p1_bar": "qui vivent vraiment,",
+                "p2_top": "qui restent", "p2_hero": "100% VRAIES", "p2_sub": "elles-mêmes.",
+            },
+            {
+                "t0": 95.98, "t_mid": 101.50, "t1": 103.82, "type": "pan_and_icon",
+                "s1_top": "et qui pourtant", "s1_bar": "finissent par réussir",
+                "s2_top": "et par percer avec", "s2_bar": "une vraie visibilité",
+                "ic_bar": "sans tout calculer", "ic_sub": "chaque matin.",
+            },
+            {
+                "t0": 114.54, "t_mid": 116.66, "t1": 119.98, "type": "script_and_bar",
+                "p1_script": "plus tu calcules", "p1_sub": "quelque chose,",
+                "p2_top": "moins tu as l'impression", "p2_bar": "d'être toi.",
+            },
+        ],
     },
     {
         "id": 4,
         "slug": "short-04-parler-avec-le-coeur-vs-etre-lisse-9x16.mp4",
         "t_start": 134.30,
         "t_end": 184.46,
-        "hook_line1": "LES GENS N'AIMENT PAS",
-        "hook_line2": "LES VIDÉOS TROP LISSES",
+        "cutaways": [
+            {
+                "t0": 144.90, "t_mid": 149.06, "t1": 153.26, "type": "grid_3d",
+                "p1_top": "de mon expertise", "p1_bar": "et mon intelligence,",
+                "p2_top": "les gens n'aiment pas", "p2_hero": "TROP LISSE", "p2_sub": "ni trop parfait.",
+            },
+            {
+                "t0": 158.58, "t_mid": 161.34, "t1": 164.78, "type": "pan_and_icon",
+                "s1_top": "parler simplement", "s1_bar": "avec le cœur,",
+                "s2_top": "parce que tu reflètes", "s2_bar": "ta vraie passion,",
+                "ic_bar": "transmettre & échanger", "ic_sub": "tes connaissances.",
+            },
+            {
+                "t0": 175.30, "t_mid": 180.58, "t1": 183.26, "type": "script_and_bar",
+                "p1_script": "la personne authentique", "p1_sub": "aux mots simples et sincères,",
+                "p2_top": "et qui partage", "p2_bar": "son expérience.",
+            },
+        ],
     },
     {
         "id": 5,
         "slug": "short-05-la-vraie-intelligence-emotionnelle-9x16.mp4",
         "t_start": 184.46,
         "t_end": 224.74,
-        "hook_line1": "LA VRAIE INTELLIGENCE",
-        "hook_line2": "EST ÉMOTIONNELLE",
+        "cutaways": [
+            {
+                "t0": 192.66, "t_mid": 196.78, "t1": 199.18, "type": "grid_3d",
+                "p1_top": "tu n'as pas besoin", "p1_bar": "de plaire à tous,",
+                "p2_top": "l'objectif n'est pas", "p2_hero": "TE PERDRE", "p2_sub": "toi-même.",
+            },
+            {
+                "t0": 205.22, "t_mid": 210.18, "t1": 212.30, "type": "pan_and_icon",
+                "s1_top": "elle se traduit par", "s1_bar": "l'émotionnel,",
+                "s2_top": "ton empathie et", "s2_bar": "ce que tu ressens",
+                "ic_bar": "percevoir l'invisible", "ic_sub": "au-delà des mots.",
+            },
+            {
+                "t0": 218.62, "t_mid": 221.38, "t1": 224.74, "type": "script_and_bar",
+                "p1_script": "libère ta parole,", "p1_sub": "viens telle que tu es,",
+                "p2_top": "ce que tu as sur le cœur", "p2_bar": "avec authenticité.",
+            },
+        ],
     },
     {
         "id": 6,
         "slug": "short-06-parle-face-cam-comme-a-ta-pote-9x16.mp4",
         "t_start": 224.74,
         "t_end": 270.98,
-        "hook_line1": "PARLE FACE CAMÉRA",
-        "hook_line2": "COMME À TA MEILLEURE POTE",
+        "cutaways": [
+            {
+                "t0": 236.34, "t_mid": 237.70, "t1": 241.14, "type": "grid_3d",
+                "p1_top": "qui va tout calculer", "p1_bar": "avant de tourner,",
+                "p2_top": "écrire un script", "p2_hero": "MOT À MOT", "p2_sub": "pendant des heures.",
+            },
+            {
+                "t0": 246.86, "t_mid": 250.90, "t1": 254.18, "type": "pan_and_icon",
+                "s1_top": "je prenais", "s1_bar": "1h à 2h de script,",
+                "s2_top": "alors qu'aujourd'hui", "s2_bar": "je parle avec le cœur",
+                "ic_bar": "même si ça dure 5 min", "ic_sub": "en toute simplicité.",
+            },
+            {
+                "t0": 266.18, "t_mid": 269.94, "t1": 270.98, "type": "script_and_bar",
+                "p1_script": "parle face caméra", "p1_sub": "comme à ta meilleure pote,",
+                "p2_top": "fais exactement", "p2_bar": "la même chose !",
+            },
+        ],
     },
 ]
 
-_SHORT_CACHE = {}
-_TRACKED_CX = [920.0]
 
-# Precompute smooth bottom darkening gradient multiplier (1920x1)
-# Slightly darkens y = 1280..1920 so frameless subtitles pop cleanly
-_BOTTOM_GRAD = np.ones((SH, 1, 1), dtype=np.float32)
-_y_idx = np.linspace(0.0, 1.0, SH - 1260, dtype=np.float32)
-_BOTTOM_GRAD[1260:, 0, 0] = 1.0 - 0.52 * (_y_idx ** 1.35)
-
-
-def blend_rgba_onto_bgr(bgr: np.ndarray, sprite_rgba: np.ndarray, x0: int, y0: int, opacity: float = 1.0):
-    """Fast in-place NumPy alpha-blend of an RGBA sprite onto a BGR frame of any resolution."""
-    if opacity <= 0.01:
-        return
-    bh, bw = bgr.shape[:2]
-    sh, sw = sprite_rgba.shape[:2]
-    fx0 = max(0, x0)
-    fy0 = max(0, y0)
-    fx1 = min(bw, x0 + sw)
-    fy1 = min(bh, y0 + sh)
-    if fx1 <= fx0 or fy1 <= fy0:
-        return
-
-    sx0 = fx0 - x0
-    sy0 = fy0 - y0
-    sx1 = sx0 + (fx1 - fx0)
-    sy1 = sy0 + (fy1 - fy0)
-
-    sub_sp = sprite_rgba[sy0:sy1, sx0:sx1]
-    a = sub_sp[:, :, 3:4].astype(np.uint16)
-    if opacity < 0.999:
-        a = (a * int(round(opacity * 256))) >> 8
-    if not np.any(a):
-        return
-
-    dst = bgr[fy0:fy1, fx0:fx1].astype(np.uint16)
-    src_bgr = sub_sp[:, :, [2, 1, 0]].astype(np.uint16)
-    bgr[fy0:fy1, fx0:fx1] = ((src_bgr * a + dst * (256 - a)) >> 8).astype(np.uint8)
+def reveal_state(age: float, delay: float = 0.0, dur: float = 0.32, dy_px: float = 22.0):
+    loc = age - delay
+    if loc <= 0.0:
+        return 0.0, dy_px, 0.95
+    p = emil_ease_out(clamp(loc / max(1e-4, dur)))
+    return p, dy_px * (1.0 - p), 0.95 + 0.05 * p
 
 
-def get_large_popup_sprite(icon_kind: str, label_top: str, label_main: str, scale: float = 1.30) -> np.ndarray:
-    """Returns an enlarged (1.30x = 546x416) 3D/vector Pop-up Illustration sprite for mobile 9:16."""
-    key = ("large_popup_v2", icon_kind, label_top, label_main, round(scale, 2))
-    if key in _SHORT_CACHE:
-        return _SHORT_CACHE[key]
-    base_sp = get_popup_illustration_sprite(icon_kind, label_top, label_main)
-    bh, bw = base_sp.shape[:2]
-    nw, nh = int(round(bw * scale)), int(round(bh * scale))
-    large_sp = cv2.resize(base_sp, (nw, nh), interpolation=cv2.INTER_CUBIC)
-    _SHORT_CACHE[key] = large_sp
-    return large_sp
+# ---------------------------------------------------------------------------
+# 1. Sunlit Window-Gobo White Paper Cutaway Canvas (`reference (2).mp4` style)
+# ---------------------------------------------------------------------------
+def get_sunlit_gobo_paper_canvas() -> Image.Image:
+    if "gobo_base_rose" not in _STATIC_CACHE:
+        base = Image.new("RGBA", (W, H), (*C_PAPER, 255))
+        gobo = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        gd = ImageDraw.Draw(gobo)
+        polygons = [
+            [(380, -100), (1180, 320), (1180, 620), (180, 120)],
+            [(-100, 420), (1180, 1080), (1180, 1420), (-100, 740)],
+            [(-100, 1180), (980, 1780), (760, 1980), (-100, 1480)],
+        ]
+        for poly in polygons:
+            gd.polygon(poly, fill=(198, 192, 195, 105))
+        gobo = gobo.filter(ImageFilter.GaussianBlur(radius=68))
+        base = Image.alpha_composite(base, gobo)
+
+        rng = np.random.default_rng(42)
+        arr = np.array(base, dtype=np.int16)
+        grain = rng.integers(-4, 5, size=(H, W, 1), dtype=np.int16)
+        arr[:, :, :3] = np.clip(arr[:, :, :3] + grain, 0, 255)
+        _STATIC_CACHE["gobo_base_rose"] = Image.fromarray(arr.astype(np.uint8), mode="RGBA")
+
+    return _STATIC_CACHE["gobo_base_rose"].copy()
 
 
-def get_short_paper_bg() -> np.ndarray:
-    if "paper_9x16" in _SHORT_CACHE:
-        return _SHORT_CACHE["paper_9x16"]
-    xx = np.linspace(0.0, 1.0, SW, dtype=np.float32)[None, :]
-    yy = np.linspace(0.0, 1.0, SH, dtype=np.float32)[:, None]
-    diag = np.sin((xx * 2.2 + yy * 3.8) * math.pi) * 0.5 + 0.5
-    blush = np.exp(-((xx - 0.5) ** 2 / 0.25 + (yy - 0.35) ** 2 / 0.25))
-    r = np.clip(250.0 + 4.0 * blush - 6.0 * (1.0 - diag), 0, 255).astype(np.uint8)
-    g = np.clip(244.0 - 8.0 * blush - 8.0 * (1.0 - diag), 0, 255).astype(np.uint8)
-    b = np.clip(248.0 - 3.0 * blush - 5.0 * (1.0 - diag), 0, 255).astype(np.uint8)
-    im = Image.fromarray(np.stack([b, g, r], axis=-1), mode="RGB")
-    d = ImageDraw.Draw(im, "RGBA")
-    for gx in range(90, SW, 90):
-        d.line([(gx, 120), (gx, SH - 120)], fill=(236, 72, 153, 18), width=1)
-    for gy in range(120, SH - 119, 90):
-        d.line([(60, gy), (SW - 60, gy)], fill=(236, 72, 153, 18), width=1)
-    arr = np.array(im, dtype=np.uint8)
-    _SHORT_CACHE["paper_9x16"] = arr
-    return arr
-
-
-def get_short_dark_bg() -> np.ndarray:
-    if "dark_9x16" in _SHORT_CACHE:
-        return _SHORT_CACHE["dark_9x16"]
-    xx = np.linspace(0.0, 1.0, SW, dtype=np.float32)[None, :]
-    yy = np.linspace(0.0, 1.0, SH, dtype=np.float32)[:, None]
-    orb1 = np.exp(-((xx - 0.25) ** 2 / 0.12 + (yy - 0.28) ** 2 / 0.12))
-    orb2 = np.exp(-((xx - 0.78) ** 2 / 0.14 + (yy - 0.72) ** 2 / 0.14))
-    r = np.clip(24.0 + 78.0 * orb1 + 56.0 * orb2, 0, 255).astype(np.uint8)
-    g = np.clip(15.0 + 22.0 * orb1 + 18.0 * orb2, 0, 255).astype(np.uint8)
-    b = np.clip(22.0 + 52.0 * orb1 + 42.0 * orb2, 0, 255).astype(np.uint8)
-    im = Image.fromarray(np.stack([b, g, r], axis=-1), mode="RGB")
-    d = ImageDraw.Draw(im, "RGBA")
-    for gx in range(90, SW, 90):
-        d.line([(gx, 140), (gx, SH - 140)], fill=(244, 114, 182, 22), width=1)
-    for gy in range(140, SH - 139, 90):
-        d.line([(60, gy), (SW - 60, gy)], fill=(244, 114, 182, 22), width=1)
-    arr = np.array(im, dtype=np.uint8)
-    _SHORT_CACHE["dark_9x16"] = arr
-    return arr
-
-
-def get_hook_title_sprite(l1: str, l2: str) -> np.ndarray:
-    """
-    Renders ONLY the 2-line Hook Title directly on the video:
-    - NO dark background box
-    - NO 'REEL #01 • ...' badge
-    """
-    key = ("hook_clean_v2", l1, l2)
-    if key in _SHORT_CACHE:
-        return _SHORT_CACHE[key]
-    cw, ch = 1020, 210
-    im = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-
-    # Line 1: Bold white text with crisp dark stroke + drop shadow directly over the video
-    f_1 = get_font(JAKARTA_EBOLD, 44)
-    w1 = d.textbbox((0, 0), l1, font=f_1)[2]
-    x1 = (cw - w1) // 2
-    y1 = 22
-    d.text((x1, y1 + 4), l1, font=f_1, fill=(16, 10, 16, 180), stroke_width=8, stroke_fill=(16, 10, 16, 180))
-    d.text((x1, y1), l1, font=f_1, fill=(255, 255, 255, 255), stroke_width=5, stroke_fill=(24, 16, 24, 245))
-
-    # Line 2: Glowing Rose #EC4899 pill with bold white text
-    f_2 = get_font(JAKARTA_EBOLD, 44)
-    w2 = d.textbbox((0, 0), l2, font=f_2)[2]
-    px = (cw - w2) // 2
-    py = 96
-    d.rounded_rectangle([px - 26, py + 6, px + w2 + 26, py + 76], radius=22, fill=(16, 10, 16, 110))
-    d.rounded_rectangle([px - 26, py, px + w2 + 26, py + 70], radius=22, fill=(*C_ROSE, 255), outline=(255, 255, 255, 220), width=3)
-    d.text((px, py + 9), l2, font=f_2, fill=(255, 255, 255, 255))
-
-    arr = np.array(im, dtype=np.uint8)
-    _SHORT_CACHE[key] = arr
-    return arr
-
-
-def get_short_subtitle_sprite(seg_idx: int, line1: str, line2: str, hl: str) -> np.ndarray:
-    """
-    Renders strict <= 2-line French subtitle WITHOUT any framing box,
-    in large 48px ExtraBold typography with crisp stroke/drop-shadow and Rose keyword pill.
-    """
-    key = ("sub_frameless_v2", seg_idx, line1, line2, hl)
-    if key in _SHORT_CACHE:
-        return _SHORT_CACHE[key]
-
-    lines = [l for l in [line1.strip(), line2.strip()] if l][:2]
-
-    # Pick largest font size (up to 54px) that fits comfortably within 1000px width
-    font_size = 54
+# ---------------------------------------------------------------------------
+# 2. Signature Typography Primitives from `reference (2).mp4` in Rose-Pink (`#EC4899`)
+# ---------------------------------------------------------------------------
+def fit_font(font_path: str, text: str, target_size: int, max_width: int = 940):
+    sz = target_size
     tmp = Image.new("RGBA", (10, 10))
-    dt = ImageDraw.Draw(tmp)
-    while font_size >= 38:
-        f_test = get_font(JAKARTA_EBOLD, font_size)
-        max_w = max([dt.textbbox((0, 0), l, font=f_test)[2] for l in lines]) if lines else 300
-        if max_w <= 980:
-            break
-        font_size -= 2
-
-    f_sub = get_font(JAKARTA_EBOLD, font_size)
-    cw, ch = SW, 230
-    im = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-
-    line_step = int(round(font_size * 1.40))
-    start_y = 60 if len(lines) == 1 else 24
-
-    for i, line in enumerate(lines):
-        bb = d.textbbox((0, 0), line, font=f_sub)
-        lw = bb[2] - bb[0]
-        lx = (cw - lw) // 2
-        ly = start_y + i * line_step
-
-        # Highlight pill on the keyword of the active last line
-        if i == len(lines) - 1 and hl and hl.lower() in line.lower():
-            idx_pos = line.lower().find(hl.lower())
-            prefix = line[:idx_pos]
-            match_str = line[idx_pos : idx_pos + len(hl)]
-            pw = d.textbbox((0, 0), prefix, font=f_sub)[2] if prefix else 0
-            mw = d.textbbox((0, 0), match_str, font=f_sub)[2]
-            hx0 = lx + pw - 14
-            hy0 = ly - 4
-            hx1 = lx + pw + mw + 14
-            hy1 = ly + int(round(font_size * 1.24))
-            d.rounded_rectangle([hx0, hy0 + 5, hx1, hy1 + 5], radius=16, fill=(0, 0, 0, 120))
-            d.rounded_rectangle([hx0, hy0, hx1, hy1], radius=16, fill=(*C_ROSE, 255))
-
-        # Crisp soft shadow + dark outline stroke so frameless white text pops on any background
-        d.text((lx, ly + 4), line, font=f_sub, fill=(0, 0, 0, 185), stroke_width=7, stroke_fill=(0, 0, 0, 185))
-        d.text((lx, ly), line, font=f_sub, fill=(255, 255, 255, 255), stroke_width=4, stroke_fill=(18, 12, 18, 240))
-
-    arr = np.array(im, dtype=np.uint8)
-    _SHORT_CACHE[key] = arr
-    return arr
+    d = ImageDraw.Draw(tmp)
+    while sz > 32:
+        f = get_font(font_path, sz)
+        w = d.textbbox((0, 0), text, font=f)[2]
+        if w <= max_width:
+            return f
+        sz -= 3
+    return get_font(font_path, sz)
 
 
-def render_vertical_cutaway(t: float, cutaway_id: int) -> np.ndarray:
-    """Renders full-screen 1080x1920 vertical Motion-Design & B-Roll cutaways (NO 'B-ROLL • ...' badge)."""
-    if cutaway_id >= 6:
-        broll_specs = {
-            6: (32.90, "trophy_megaphone", "VALIDATION ?", "APPROBATION", "PROUVER QU'ON EST", "« GÉNIALE »", "Chercher la validation des autres épuise ta confiance"),
-            7: (90.22, "magnet_hearts", "AIMANT NATUREL", "FORCE DU VRAI", "PERCER SANS", "CONCEPT PARFAIT", "Ceux qui restent 100% eux-mêmes attirent l'audience"),
-            8: (141.58, "stiff_robot", "ZÉRO ÉMOTION", "TROP CARRÉ", "LE PIÈGE DES RÉELS", "TROP LISSES", "Un discours robotique coupe toute connexion humaine"),
-            9: (175.30, "flaming_heart_mic", "VRAIE CONNEXION", "AVEC LE CŒUR", "PARTAGER SON VÉCU", "& SA PASSION", "L'audience choisit toujours la sincérité et le vécu"),
-            10: (245.22, "clinking_cups", "5 MIN CHRONO", "SPONTANÉITÉ", "5 MIN SPONTANÉES", "> 2H DE SCRIPT", "Allume ta caméra et parle comme à ta meilleure pote !"),
-        }
-        t0_b, ic_kind, ic_badge, ic_top, hl1, hl2, subline = broll_specs[cutaway_id]
-        age = max(0.0, t - t0_b)
-        bgr = get_short_dark_bg().copy()
-        p = ease_out_expo(age / 0.40)
-
-        # Enlarged 3D Pop-up Medallion above the card
-        sp_ic = get_large_popup_sprite(ic_kind, ic_top, ic_badge, scale=1.28)
-        blend_rgba_onto_bgr(bgr, sp_ic, (SW - sp_ic.shape[1]) // 2, int(210 + 35 * (1.0 - p)), opacity=p)
-
-        # Card WITHOUT 'B-ROLL • ...' top badge
-        card_im = Image.new("RGBA", (940, 480), (0, 0, 0, 0))
-        d = ImageDraw.Draw(card_im)
-        d.rounded_rectangle([0, 0, 939, 479], radius=38, fill=(32, 20, 30, 242), outline=(*C_ROSE, 245), width=3)
-
-        f_h = get_font(JAKARTA_EBOLD, 54)
-        w1 = d.textbbox((0, 0), hl1, font=f_h)[2]
-        w2 = d.textbbox((0, 0), hl2, font=f_h)[2]
-        d.text(((940 - w1) // 2, 68), hl1, font=f_h, fill=(255, 255, 255, 255))
-        d.rounded_rectangle([(940 - w2) // 2 - 24, 146, (940 + w2) // 2 + 24, 220], radius=20, fill=(*C_ROSE, 255))
-        d.text(((940 - w2) // 2, 152), hl2, font=f_h, fill=(255, 255, 255, 255))
-
-        f_s = get_font(INTER_MED, 29)
-        ws = d.textbbox((0, 0), subline, font=f_s)[2]
-        d.text(((940 - ws) // 2, 272), subline, font=f_s, fill=(*C_ROSE_BLUSH, 255))
-
-        bar_w = int(760 * ease_out_expo(max(0.0, age - 0.20) / 0.85))
-        d.rounded_rectangle([90, 374, 850, 408], radius=17, fill=(52, 34, 48, 255))
-        if bar_w > 16:
-            d.rounded_rectangle([90, 374, 90 + bar_w, 408], radius=17, fill=(*C_ROSE, 255))
-
-        blend_rgba_onto_bgr(bgr, np.array(card_im, dtype=np.uint8), (SW - 940) // 2, int(690 + 30 * (1.0 - p)), opacity=p)
-        return bgr
-
-    bgr = get_short_paper_bg().copy()
-    im = Image.fromarray(bgr[:, :, ::-1], mode="RGB").convert("RGBA")
-    d = ImageDraw.Draw(im)
-
-    if cutaway_id == 1:
-        age = max(0.0, t - 5.18)
-        f_sub = get_font(INTER_SEMI, 32)
-        f_big = get_font(JAKARTA_EBOLD, 54)
-        s1 = "Vouloir paraître intelligente"
-        s2 = "TE DESSERT PARTOUT"
-        w1 = d.textbbox((0, 0), s1, font=f_sub)[2]
-        w2 = d.textbbox((0, 0), s2, font=f_big)[2]
-        d.text(((SW - w1) // 2, 210), s1, font=f_sub, fill=(*C_SLATE, 255))
-        d.rounded_rectangle([(SW - w2) // 2 - 24, 268, (SW + w2) // 2 + 24, 346], radius=20, fill=(*C_ROSE, 255))
-        d.text(((SW - w2) // 2, 276), s2, font=f_big, fill=(255, 255, 255, 255))
-
-        cards = [
-            ("01", "DANS TA VIE", "Pression de performer dès le réveil", 0.15),
-            ("02", "DANS TON BUSINESS", "Bloque ton authenticité & tes ventes", 0.85),
-            ("03", "TES RELATIONS", "Empêche d'être aimée pour qui tu es", 1.55),
-        ]
-        for idx, (num, title, desc, delay) in enumerate(cards):
-            p = clamp(ease_out_back((age - delay) / 0.45), 0.0, 1.0)
-            if p <= 0.01:
-                continue
-            cy = int(420 + idx * 280 + 35 * (1.0 - p))
-            d.rounded_rectangle([96, cy + 10, SW - 84, cy + 240], radius=30, fill=(*C_ROSE, int(45 * p)))
-            d.rounded_rectangle([88, cy, SW - 92, cy + 230], radius=30, fill=(255, 255, 255, int(252 * p)), outline=(*C_ROSE, int(245 * p)), width=3)
-            d.rounded_rectangle([128, cy + 34, 210, cy + 84], radius=16, fill=(*C_ROSE, int(255 * p)))
-            d.text((148, cy + 44), num, font=get_font(MONO_MED, 26), fill=(255, 255, 255, int(255 * p)))
-            d.text((238, cy + 40), title, font=get_font(JAKARTA_EBOLD, 36), fill=(*C_CHARCOAL, int(255 * p)))
-            d.text((128, cy + 125), desc, font=get_font(INTER_MED, 28), fill=(*C_SLATE, int(255 * p)))
-
-    elif cutaway_id == 2:
-        age = max(0.0, t - 64.20)
-        f_it = get_font(SERIF_ITALIC, 48)
-        f_big = get_font(JAKARTA_EBOLD, 48)
-        s1 = "Le piège du perfectionnisme"
-        s2 = "LA RÉACTION EN CHAÎNE"
-        w1 = d.textbbox((0, 0), s1, font=f_it)[2]
-        w2 = d.textbbox((0, 0), s2, font=f_big)[2]
-        d.text(((SW - w1) // 2, 185), s1, font=f_it, fill=(*C_ROSE_DEEP, 255))
-        d.text(((SW - w2) // 2, 250), s2, font=f_big, fill=(*C_CHARCOAL, 255))
-
-        chain = [
-            ("ÉTAPE 01", "PERFECTIONNISME", "Tout vouloir carré & lisse", False, 0.15),
-            ("ÉTAPE 02", "CONTRÔLE ABSOLU", "Zéro lâcher-prise", False, 1.35),
-            ("ÉTAPE 03", "RÉSISTANCE", "Tension intérieure permanente", False, 2.85),
-            ("ÉTAPE 04", "PEUR & INSÉCURITÉ", "Paralysie face au regard des autres", True, 4.50),
-        ]
-        for idx, (st, title, sub, is_final, delay) in enumerate(chain):
-            p = clamp(ease_out_back((age - delay) / 0.45), 0.0, 1.0)
-            if p <= 0.01:
-                continue
-            cy = int(350 + idx * 235 + 30 * (1.0 - p))
-            bg_c = (*C_ROSE, int(255 * p)) if is_final else (255, 255, 255, int(252 * p))
-            fg_m = (255, 255, 255, int(255 * p)) if is_final else (*C_CHARCOAL, int(255 * p))
-            fg_s = (255, 235, 245, int(255 * p)) if is_final else (*C_SLATE, int(255 * p))
-            d.rounded_rectangle([88, cy, SW - 88, cy + 200], radius=28, fill=bg_c, outline=(*C_ROSE_DEEP, int(255 * p)), width=3)
-            d.text((128, cy + 26), st, font=get_font(MONO_MED, 21), fill=fg_s)
-            d.text((128, cy + 66), title, font=get_font(JAKARTA_EBOLD, 36), fill=fg_m)
-            d.text((128, cy + 128), sub, font=get_font(INTER_MED, 26), fill=fg_s)
-
-    elif cutaway_id == 3:
-        age = max(0.0, t - 114.54)
-        f_it = get_font(SERIF_ITALIC, 54)
-        s1 = "La loi de l'authenticité"
-        w1 = d.textbbox((0, 0), s1, font=f_it)[2]
-        d.text(((SW - w1) // 2, 220), s1, font=f_it, fill=(*C_ROSE_DEEP, 255))
-
-        p1 = ease_out_expo((age - 0.1) / 0.45)
-        if p1 > 0.01:
-            y1 = int(360 + 30 * (1.0 - p1))
-            d.rounded_rectangle([88, y1, SW - 88, y1 + 370], radius=34, fill=(255, 255, 255, int(252 * p1)), outline=(*C_CHARCOAL, int(220 * p1)), width=3)
-            d.text((135, y1 + 55), "QUAND TU SUR-CALCULES TOUT", font=get_font(MONO_MED, 24), fill=(*C_SLATE, int(255 * p1)))
-            d.text((135, y1 + 130), "+ DE CALCUL ↑", font=get_font(JAKARTA_EBOLD, 64), fill=(*C_CHARCOAL, int(255 * p1)))
-            d.text((135, y1 + 245), "Chaque mot et chaque geste est forcé", font=get_font(INTER_MED, 30), fill=(*C_SLATE, int(255 * p1)))
-
-        p2 = ease_out_expo((age - 1.1) / 0.45)
-        if p2 > 0.01:
-            y2 = int(810 + 30 * (1.0 - p2))
-            d.rounded_rectangle([88, y2, SW - 88, y2 + 370], radius=34, fill=(*C_ROSE, int(252 * p2)), outline=(*C_ROSE_DEEP, int(255 * p2)), width=3)
-            d.text((135, y2 + 55), "LE RÉSULTAT DIRECT", font=get_font(MONO_MED, 24), fill=(255, 235, 245, int(255 * p2)))
-            d.text((135, y2 + 130), "- D'AUTHENTICITÉ ↓", font=get_font(JAKARTA_EBOLD, 60), fill=(255, 255, 255, int(255 * p2)))
-            d.text((135, y2 + 245), "Tu n'as même plus l'impression d'être toi", font=get_font(INTER_MED, 30), fill=(255, 240, 248, int(255 * p2)))
-
-    elif cutaway_id == 4:
-        age = max(0.0, t - 202.38)
-        f_top = get_font(INTER_SEMI, 32)
-        f_big = get_font(JAKARTA_EBOLD, 76)
-        s1 = "En 2026, la vraie intelligence est"
-        s2 = "ÉMOTIONNELLE"
-        w1 = d.textbbox((0, 0), s1, font=f_top)[2]
-        w2 = d.textbbox((0, 0), s2, font=f_big)[2]
-        d.text(((SW - w1) // 2, 230), s1, font=f_top, fill=(*C_SLATE, 255))
-        d.text(((SW - w2) // 2 + 5, 305 + 5), s2, font=f_big, fill=(*C_ROSE_DEEP, 255))
-        d.text(((SW - w2) // 2, 305), s2, font=f_big, fill=(*C_ROSE, 255))
-
-        pills = [
-            ("01 • EMPATHIE PROFONDE", "Ressentir sincèrement les émotions", 0.8),
-            ("02 • PERCEPTION FINE", "Voir ce que les autres ne voient pas", 2.4),
-            ("03 • PAROLE LIBÉRÉE", "Venir telle que tu es, sans masque", 4.0),
-        ]
-        for idx, (lbl, desc, delay) in enumerate(pills):
-            p = clamp(ease_out_back((age - delay) / 0.45), 0.0, 1.0)
-            if p <= 0.01:
-                continue
-            cy = int(470 + idx * 255 + 30 * (1.0 - p))
-            d.rounded_rectangle([88, cy, SW - 88, cy + 210], radius=32, fill=(255, 255, 255, int(252 * p)), outline=(*C_ROSE, int(245 * p)), width=3)
-            d.text((135, cy + 45), lbl, font=get_font(JAKARTA_EBOLD, 36), fill=(*C_ROSE_DEEP, int(255 * p)))
-            d.text((135, cy + 120), desc, font=get_font(INTER_MED, 28), fill=(*C_SLATE, int(255 * p)))
-
-    elif cutaway_id == 5:
-        age = max(0.0, t - 290.22)
-        f_it = get_font(SERIF_ITALIC, 52)
-        f_big = get_font(JAKARTA_EBOLD, 72)
-        s1 = "Tout commence par une"
-        s2 = "ACCEPTATION"
-        w1 = d.textbbox((0, 0), s1, font=f_it)[2]
-        w2 = d.textbbox((0, 0), s2, font=f_big)[2]
-        d.text(((SW - w1) // 2, 340), s1, font=f_it, fill=(*C_SLATE, 255))
-        d.rounded_rectangle([(SW - w2) // 2 - 32, 430, (SW + w2) // 2 + 32, 545], radius=28, fill=(*C_ROSE, 255))
-        d.text(((SW - w2) // 2, 444), s2, font=f_big, fill=(255, 255, 255, 255))
-
-        s3 = "Sois 100% la même personne"
-        s4 = "face caméra et dans la vraie vie."
-        f_m = get_font(JAKARTA_BOLD, 38)
-        w3 = d.textbbox((0, 0), s3, font=f_m)[2]
-        w4 = d.textbbox((0, 0), s4, font=f_m)[2]
-        d.text(((SW - w3) // 2, 650), s3, font=f_m, fill=(*C_CHARCOAL, 255))
-        d.text(((SW - w4) // 2, 710), s4, font=f_m, fill=(*C_ROSE_DEEP, 255))
-
-    rgb = np.array(im.convert("RGB"), dtype=np.uint8)
-    return rgb[:, :, ::-1].copy()
-
-
-def crop_and_grade_9x16(bgr_16x9: np.ndarray, t: float, local_t: float = 10.0, reset_tracker: bool = False) -> tuple:
+def draw_rose_bar_word(
+    canvas: Image.Image,
+    text: str,
+    cx: int,
+    cy: int,
+    age: float,
+    delay: float = 0.04,
+    font_size: int = 74,
+    half_height: bool = False,
+    on_white_paper: bool = False,
+):
     """
-    Crops 1920x1080 source into a vertical 9:16 (1080x1920) frame dynamically centered on the speaker,
-    applying emotional punch-zooms, smooth breathing zoom, and warm Rose LUT.
+    Renders the signature Highlight Bar from `reference (2).mp4` (`t=5.2s`, `11.4s`, `15.0s`, `17.6s`, `27.6s`)
+    in the original Rose-Pink (`#EC4899`) with:
+    - Paired wipe animation (`emil_ease_in_out`)
+    - Disney Follow-Through 45° soft blurred drop shadow (`+50ms` lag)
+    - Optional `half_height=True` (`t=5.2s` `"growing &"` & `t=27.6s` `"simple way"`)
     """
+    layers = disney_follow_through_layers(age - delay, base_dur=0.34)
+    card_p = layers["card"]
+    shadow_p = layers["shadow"]
+    if card_p <= 0.02:
+        return
+
+    f_bold = fit_font(JAKARTA_EBOLD, text, font_size, max_width=920)
+    tmp_d = ImageDraw.Draw(canvas)
+    bb = tmp_d.textbbox((0, 0), text, font=f_bold)
+    tw = bb[2] - bb[0]
+    th = bb[3] - bb[1]
+
+    _, dy_off, _ = reveal_state(age, delay=delay, dur=0.32, dy_px=22.0)
+    tx = cx - tw // 2
+    ty = int(cy - th // 2 + dy_off)
+
+    pad_x = 26
+    bx0 = tx - pad_x
+    bx1_full = tx + tw + pad_x
+    wipe = emil_ease_in_out(clamp((age - delay) / 0.28))
+    bx1 = bx0 + int((bx1_full - bx0) * wipe)
+
+    if half_height:
+        by0 = ty + int(th * 0.36)
+        by1 = ty + th + 14
+    else:
+        by0 = ty - 10
+        by1 = ty + th + 16
+
+    # 45-degree soft drop shadow (+50ms Disney Follow-Through lag)
+    if shadow_p > 0.05 and bx1 > bx0 + 8:
+        sh_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        sh_d = ImageDraw.Draw(sh_layer)
+        sh_alpha = int((125 if on_white_paper else 165) * shadow_p)
+        sh_dx = int(8 * shadow_p)
+        sh_dy = int(18 * shadow_p)
+        sh_d.rounded_rectangle(
+            [bx0 + sh_dx, by0 + sh_dy, bx1 + sh_dx, by1 + sh_dy],
+            radius=4,
+            fill=(18, 12, 18, sh_alpha),
+        )
+        if on_white_paper and half_height:
+            sh_d.text((tx, ty - bb[1] + 2), text, font=f_bold, fill=(14, 12, 16, int(170 * shadow_p)))
+        sh_layer = sh_layer.filter(ImageFilter.GaussianBlur(radius=11))
+        canvas.alpha_composite(sh_layer)
+
+    d = ImageDraw.Draw(canvas)
+    if bx1 > bx0 + 4:
+        d.rounded_rectangle([bx0, by0, bx1, by1], radius=4, fill=(*C_ROSE, int(255 * card_p)))
+
+    d.text((tx, ty - bb[1]), text, font=f_bold, fill=(255, 255, 255, int(255 * card_p)))
+
+
+def draw_rose_brush_underline(
+    d: ImageDraw.ImageDraw, cx: int, y: int, width: int, progress: float, alpha: int = 255
+):
+    """Draws the hand-drawn curved brush stroke from `t=1.2s` & `t=3.8s` of `reference (2).mp4` in Rose-Pink `#EC4899`."""
+    p = emil_ease_out(clamp(progress))
+    if p <= 0.04:
+        return
+    width = min(width, 680)
+    x0 = cx - width // 2
+    cur_w = int(width * p)
+    pts = []
+    for i in range(16):
+        u = i / 15.0
+        px = x0 + int(cur_w * u)
+        py = y - int(7.0 * math.sin(u * math.pi))
+        pts.append((px, py))
+    if len(pts) >= 2:
+        d.line(pts, fill=(*C_ROSE, alpha), width=6)
+
+
+def draw_shadowed_text_centered(
+    canvas: Image.Image,
+    text: str,
+    cx: int,
+    cy: int,
+    font,
+    fill_rgb,
+    age: float,
+    delay: float = 0.0,
+    dur: float = 0.30,
+    on_white_paper: bool = False,
+):
+    a, dy, _ = reveal_state(age, delay=delay, dur=dur, dy_px=20.0)
+    if a <= 0.02:
+        return
+    d = ImageDraw.Draw(canvas)
+    bb = d.textbbox((0, 0), text, font=font)
+    tw = bb[2] - bb[0]
+    th = bb[3] - bb[1]
+    tx = cx - tw // 2
+    ty = int(cy - th // 2 + dy) - bb[1]
+    if not on_white_paper:
+        d.text((tx + 3, ty + 5), text, font=font, fill=(0, 0, 0, int(175 * a)))
+    d.text((tx, ty), text, font=font, fill=(*fill_rgb, int(255 * a)))
+
+
+# ---------------------------------------------------------------------------
+# 3. Cutaway Renderers Matching `reference (2).mp4` (`t=5.2s, 6.4s, 14.2s, 17.6s, 27.6s`)
+# ---------------------------------------------------------------------------
+def render_cutaway_scene(t: float, cw: dict) -> Image.Image:
+    ctype = cw["type"]
+    t0, t_mid, t1 = cw["t0"], cw["t_mid"], cw["t1"]
+
+    if ctype == "grid_3d":
+        # Phase A (t0 .. t_mid): Matches `t=5.2s` ("So as we are / growing &"):
+        # Sunlit gobo paper + top-left offset small sans + Half-Height Rose-Pink bar
+        if t < t_mid:
+            age = t - t0
+            canvas = get_sunlit_gobo_paper_canvas()
+            a1, dy1, _ = reveal_state(age, delay=0.02, dur=0.28, dy_px=20.0)
+            d = ImageDraw.Draw(canvas)
+            f_sm = fit_font(INTER_REG, cw["p1_top"], 44, max_width=860)
+            d.text((195, int(845 + dy1)), cw["p1_top"], font=f_sm, fill=(*C_CHARCOAL, int(255 * a1)))
+            draw_rose_bar_word(
+                canvas,
+                cw["p1_bar"],
+                cx=W // 2,
+                cy=965,
+                age=age,
+                delay=0.07,
+                font_size=82,
+                half_height=True,
+                on_white_paper=True,
+            )
+            return canvas
+
+        # Phase B (t_mid .. t1): Matches `t=6.4s` ("cross / 10K / followers mark,"):
+        # Radial Architectural Square Grid + 3D Extruded Glossy Rose-to-Deep-Berry Hero Text
+        age = t - t_mid
+        canvas = get_sunlit_gobo_paper_canvas()
+        d = ImageDraw.Draw(canvas)
+
+        grid_p = emil_ease_out(clamp(age / 0.35))
+        gx0, gx1, gy0, gy1 = 160, 920, 660, 1260
+        step = 45
+        for gx in range(gx0, gx1 + 1, step):
+            dist_x = abs(gx - W // 2) / 380.0
+            al = int(145 * grid_p * max(0.15, 1.0 - 0.65 * dist_x))
+            d.line([(gx, gy0), (gx, gy1)], fill=(205, 190, 198, al), width=2)
+        for gy in range(gy0, gy1 + 1, step):
+            dist_y = abs(gy - 960) / 300.0
+            al = int(145 * grid_p * max(0.15, 1.0 - 0.65 * dist_y))
+            d.line([(gx0, gy), (gx1, gy)], fill=(205, 190, 198, al), width=2)
+
+        layers = disney_follow_through_layers(age, base_dur=0.38)
+        hero_p = layers["card"]
+        sh_p = layers["shadow"]
+        sx_d, _ = disney_squash_stretch(clamp(age / 0.48), max_deform=0.04)
+        hero_txt = cw["p2_hero"]
+        f_hero = fit_font(JAKARTA_EBOLD, hero_txt, int(round(126 * sx_d)), max_width=900)
+        bb = d.textbbox((0, 0), hero_txt, font=f_hero)
+        tw, th = bb[2] - bb[0], bb[3] - bb[1]
+        hx = (W - tw) // 2
+        hy = int(935 - th // 2 + 24 * (1.0 - hero_p)) - bb[1]
+
+        # Top offset word ("cross" at t=6.4s)
+        f_top = fit_font(INTER_REG, cw["p2_top"], 40, max_width=820)
+        d.text((max(180, hx), int(hy + bb[1] - 58)), cw["p2_top"], font=f_top, fill=(*C_CHARCOAL, int(245 * hero_p)))
+
+        if sh_p > 0.05:
+            sh_im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            sd = ImageDraw.Draw(sh_im)
+            sd.text((hx + 16, hy + 24), hero_txt, font=f_hero, fill=(24, 10, 18, int(135 * sh_p)))
+            sh_im = sh_im.filter(ImageFilter.GaussianBlur(radius=14))
+            canvas.alpha_composite(sh_im)
+            d = ImageDraw.Draw(canvas)
+
+        # 3D Bevel Extrusion layers (Deep Berry-Obsidian -> Bright Rose-Pink `#EC4899`)
+        for depth in range(10, 0, -1):
+            u_d = depth / 10.0
+            r_c = int(75 + 161 * (1.0 - u_d))
+            g_c = int(10 + 62 * (1.0 - u_d))
+            b_c = int(42 + 111 * (1.0 - u_d))
+            d.text((hx + depth, hy + int(depth * 1.2)), hero_txt, font=f_hero, fill=(r_c, g_c, b_c, int(255 * hero_p)))
+
+        d.text((hx, hy), hero_txt, font=f_hero, fill=(*C_ROSE, int(255 * hero_p)))
+        return canvas
+
+    elif ctype == "pan_and_icon":
+        # Phase A (t0 .. t_mid): Horizontal Camera Whip-Pan across two Rose-Pink pills (`t=14.2s -> 15.0s`)
+        if t < t_mid:
+            age = t - t0
+            pan_dur = max(0.5, t_mid - t0)
+            pan_start = pan_dur * 0.42
+            pan_p = nudge_curve_3phase(clamp((age - pan_start) / 0.50))
+            cam_x = int(round(pan_p * 960))
+            canvas = get_sunlit_gobo_paper_canvas()
+            d = ImageDraw.Draw(canvas)
+
+            s1_cx = (W // 2) - cam_x
+            if -540 <= s1_cx <= W + 540:
+                a1, dy1, _ = reveal_state(age, delay=0.02, dur=0.28, dy_px=20.0)
+                f_top = fit_font(INTER_REG, cw["s1_top"], 42, max_width=860)
+                w_t1 = d.textbbox((0, 0), cw["s1_top"], font=f_top)[2]
+                d.text((s1_cx - w_t1 // 2, int(855 + dy1)), cw["s1_top"], font=f_top, fill=(*C_CHARCOAL, int(255 * a1)))
+                draw_rose_bar_word(
+                    canvas, cw["s1_bar"], cx=s1_cx, cy=965, age=age, delay=0.06, font_size=72, half_height=False, on_white_paper=True
+                )
+
+            s2_cx = (W // 2) + 960 - cam_x
+            if -540 <= s2_cx <= W + 540:
+                d = ImageDraw.Draw(canvas)
+                f_top2 = fit_font(INTER_REG, cw["s2_top"], 42, max_width=860)
+                w_t2 = d.textbbox((0, 0), cw["s2_top"], font=f_top2)[2]
+                d.text((s2_cx - w_t2 // 2, 855), cw["s2_top"], font=f_top2, fill=(*C_CHARCOAL, 245))
+                draw_rose_bar_word(
+                    canvas, cw["s2_bar"], cx=s2_cx, cy=965, age=max(0.18, age - pan_start), delay=0.0, font_size=72, half_height=False, on_white_paper=True
+                )
+            return canvas
+
+        # Phase B (t_mid .. t1): Matches `t=17.6s` (3D Tactile Stacked Paper Card + Magnifying Glass + Rose Bar + Subtitle)
+        age = t - t_mid
+        canvas = get_sunlit_gobo_paper_canvas()
+        layers = disney_follow_through_layers(age, base_dur=0.36)
+        ic_p = layers["card"]
+        sh_p = layers["shadow"]
+
+        ax, ay = disney_arc_position(540.0, 795.0, 540.0, 750.0, ic_p, arc_offset_px=12.0)
+        icx, icy = int(round(ax)), int(round(ay))
+
+        if sh_p > 0.05:
+            sh_im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            sd = ImageDraw.Draw(sh_im)
+            sd.rounded_rectangle([icx - 84 + 14, icy - 98 + 22, icx + 84 + 14, icy + 98 + 22], radius=18, fill=(18, 14, 18, int(115 * sh_p)))
+            sh_im = sh_im.filter(ImageFilter.GaussianBlur(radius=14))
+            canvas.alpha_composite(sh_im)
+
+        d = ImageDraw.Draw(canvas)
+        # Back tilted sheet
+        d.rounded_rectangle([icx - 78, icy - 96, icx + 86, icy + 90], radius=16, fill=(232, 224, 228, int(255 * ic_p)), outline=(210, 198, 204, int(255 * ic_p)), width=2)
+        # Front white tactile sheet
+        d.rounded_rectangle([icx - 86, icy - 88, icx + 78, icy + 98], radius=16, fill=(253, 251, 252, int(255 * ic_p)), outline=(220, 210, 215, int(255 * ic_p)), width=2)
+        for li in range(4):
+            ly = icy - 50 + li * 28
+            d.rounded_rectangle([icx - 56, ly, icx + 46, ly + 10], radius=5, fill=(145, 132, 140, int(220 * ic_p)))
+
+        # 3D Rose-Gold Magnifying Glass overlapping the sheet (exact match to `t=17.6s` of `reference (2).mp4`!)
+        mg_x, mg_y = icx - 10, icy + 4
+        d.line([(mg_x - 28, mg_y + 28), (mg_x - 64, mg_y + 74)], fill=(*C_ROSE_DARK, int(255 * ic_p)), width=18)
+        d.line([(mg_x - 28, mg_y + 28), (mg_x - 64, mg_y + 74)], fill=(*C_ROSE, int(255 * ic_p)), width=12)
+        d.ellipse([mg_x - 50, mg_y - 50, mg_x + 50, mg_y + 50], fill=(255, 236, 245, int(155 * ic_p)), outline=(*C_ROSE_DARK, int(255 * ic_p)), width=16)
+        d.ellipse([mg_x - 46, mg_y - 46, mg_x + 46, mg_y + 46], outline=(*C_ROSE, int(255 * ic_p)), width=10)
+
+        draw_rose_bar_word(
+            canvas, cw["ic_bar"], cx=W // 2, cy=980, age=age, delay=0.05, font_size=68, half_height=False, on_white_paper=True
+        )
+        draw_shadowed_text_centered(
+            canvas, cw["ic_sub"], cx=W // 2, cy=1078, font=fit_font(INTER_REG, cw["ic_sub"], 44), fill_rgb=C_CHARCOAL, age=age, delay=0.11, on_white_paper=True
+        )
+        return canvas
+
+    # ctype == "script_and_bar": Matches `t=27.6s` ("rewrite / in a / simple way / that actually")
+    # Split into two 2-line phases so there are NEVER more than 2 lines of text at once
+    if t < t_mid:
+        age = t - t0
+        canvas = get_sunlit_gobo_paper_canvas()
+        draw_shadowed_text_centered(
+            canvas, cw["p1_script"], cx=W // 2, cy=880, font=fit_font(GREAT_VIBES, cw["p1_script"], 98, max_width=920), fill_rgb=C_CHARCOAL, age=age, delay=0.02, on_white_paper=True
+        )
+        f_sub1 = fit_font(INTER_REG, cw["p1_sub"], 46, max_width=900)
+        draw_shadowed_text_centered(
+            canvas, cw["p1_sub"], cx=W // 2, cy=985, font=f_sub1, fill_rgb=C_CHARCOAL, age=age, delay=0.07, on_white_paper=True
+        )
+        d = ImageDraw.Draw(canvas)
+        w_sub1 = d.textbbox((0, 0), cw["p1_sub"], font=f_sub1)[2]
+        draw_rose_brush_underline(d, W // 2, 1032, min(w_sub1, 480), (age - 0.12) / 0.28)
+        return canvas
+
+    age = t - t_mid
+    canvas = get_sunlit_gobo_paper_canvas()
+    draw_shadowed_text_centered(
+        canvas, cw["p2_top"], cx=W // 2, cy=865, font=fit_font(INTER_REG, cw["p2_top"], 44, max_width=900), fill_rgb=C_CHARCOAL, age=age, delay=0.02, on_white_paper=True
+    )
+    draw_rose_bar_word(
+        canvas, cw["p2_bar"], cx=W // 2, cy=970, age=age, delay=0.06, font_size=82, half_height=True, on_white_paper=True
+    )
+    return canvas
+
+
+# ---------------------------------------------------------------------------
+# 4. Speaker A-Roll Frame Preparation + Chest-Level Multi-Font Typography (`reference (2).mp4` style)
+# ---------------------------------------------------------------------------
+def prepare_speaker_frame_9x16(bgr_16x9: np.ndarray, t: float, reset_tracker: bool = False) -> Image.Image:
     h_src, w_src = bgr_16x9.shape[:2]
 
     roi = bgr_16x9[60:640, 520:1440]
@@ -503,24 +608,18 @@ def crop_and_grade_9x16(bgr_16x9: np.ndarray, t: float, local_t: float = 10.0, r
     else:
         _TRACKED_CX[0] = 0.90 * _TRACKED_CX[0] + 0.10 * raw_cx
 
-    cycle = (t % 11.0) / 11.0
-    smooth_wave = math.sin(cycle * math.pi)
-    zoom = 1.00 + 0.035 * ease_in_out_cubic(smooth_wave)
-
-    if local_t >= 3.6:
-        for w_start, w_end, w_zoom in EMOTIONAL_PUNCH_WINDOWS:
-            if w_start <= t <= w_end:
-                p_in = ease_out_expo((t - w_start) / 0.32)
-                p_out = ease_out_expo((w_end - t) / 0.35) if (w_end - t) < 0.35 else 1.0
-                capped_z = min(w_zoom, 1.09)
-                zoom = max(zoom, 1.0 + (capped_z - 1.0) * min(p_in, p_out))
-                break
-    else:
-        # Keep zoom at 1.00 during the opening Hook Title so there is maximum space above her head
-        zoom = 1.00
+    # Continuous micro-dolly push-in (`reference (2).mp4` camera feel) + emotional punch-zooms
+    zoom = 1.015 + 0.028 * math.sin(t * 0.55)
+    for w_start, w_end, w_zoom in EMOTIONAL_PUNCH_WINDOWS:
+        if w_start <= t <= w_end:
+            p_in = emil_ease_out(clamp((t - w_start) / 0.32))
+            p_out = emil_ease_out(clamp((w_end - t) / 0.35)) if (w_end - t) < 0.35 else 1.0
+            capped_z = min(w_zoom, 1.08)
+            zoom = max(zoom, 1.0 + (capped_z - 1.0) * min(p_in, p_out))
+            break
 
     crop_h = int(round(h_src / zoom))
-    crop_w = int(round(crop_h * (SW / SH)))
+    crop_w = int(round(crop_h * (W / H)))
 
     cx = int(round(_TRACKED_CX[0]))
     cy = int(round(h_src * 0.44)) if head_top_y < 230 else int(round(h_src * 0.50))
@@ -529,82 +628,134 @@ def crop_and_grade_9x16(bgr_16x9: np.ndarray, t: float, local_t: float = 10.0, r
     y0 = int(clamp(cy - crop_h // 2, 0, h_src - crop_h))
 
     cropped = bgr_16x9[y0 : y0 + crop_h, x0 : x0 + crop_w]
-    vertical = cv2.resize(cropped, (SW, SH), interpolation=cv2.INTER_CUBIC)
+    vertical = cv2.resize(cropped, (W, H), interpolation=cv2.INTER_CUBIC)
 
-    out = vertical.copy()
-    out[:, :, 2] = cv2.add(out[:, :, 2], 4)
-    out[:, :, 0] = cv2.add(out[:, :, 0], 2)
-    return out, head_top_y
+    rgb = cv2.cvtColor(vertical, cv2.COLOR_BGR2RGB)
+    im = Image.fromarray(rgb)
+    im = ImageEnhance.Contrast(im).enhance(1.08)
+    im = ImageEnhance.Color(im).enhance(1.06)
+    im = im.convert("RGBA")
+
+    # Cached chest-to-bottom gradient vignette (`y=980..1920`) matching `reference (2).mp4`
+    if "chest_vignette_rose" not in _STATIC_CACHE:
+        vig = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        vd = ImageDraw.Draw(vig)
+        for y in range(980, H, 4):
+            u = (y - 980) / float(H - 980)
+            alpha = int(170 * (u ** 1.38))
+            vd.rectangle([0, y, W, y + 4], fill=(10, 8, 12, alpha))
+        _STATIC_CACHE["chest_vignette_rose"] = vig
+
+    im = Image.alpha_composite(im, _STATIC_CACHE["chest_vignette_rose"])
+    return im
+
+
+def overlay_speaker_typography(canvas: Image.Image, t: float, parsed_segments: list):
+    """
+    Renders chest-level (`y=1240..1360`) multi-font editorial typography over A-Roll
+    (strictly <= 2 lines at a time) cycling between the 3 signature lockup styles of `reference (2).mp4`
+    in the original Rose-Pink (`#EC4899`):
+      - Style 0 (Rose Bar Lockup — like `t=11.4s`, `24.5s`, `33.2s` of `reference (2).mp4`):
+        Line 1 in `Inter Regular`, Line 2 inside a sharp Rose-Pink `#EC4899` bar with 45° drop shadow.
+      - Style 1 (Bold Sans + Hand-Drawn Rose Brush Curve — like `t=1.0s`, `3.8s`, `21.6s`):
+        Line 1 in `Inter Regular`, Line 2 in `Plus Jakarta Sans ExtraBold` + curved Rose-Pink brush underline.
+      - Style 2 (Sans + Calligraphic Script — like `t=3.8s`, `9.8s`, `11.4s`):
+        Line 1 in `Plus Jakarta Sans ExtraBold` (or `Inter Regular`), Line 2 in flowing `Great Vibes` script.
+    """
+    active_seg = None
+    for seg in parsed_segments:
+        if seg["t0"] <= t < seg["t1"]:
+            active_seg = seg
+            break
+    if active_seg is None:
+        return
+
+    age = t - active_seg["t0"]
+    idx = active_seg["idx"]
+    l1 = active_seg["line1"].strip()
+    l2 = active_seg["line2"].strip()
+    d = ImageDraw.Draw(canvas)
+
+    # Single-line segment: render as bold Rose-Pink Bar (`reference (2).mp4` single-line punch style)
+    if not l2:
+        draw_rose_bar_word(canvas, l1, cx=W // 2, cy=1485, age=age, delay=0.02, font_size=74)
+        return
+
+    style = idx % 3
+    if style == 0:
+        # Style A: Line 1 = Inter Regular (`y=1425`), Line 2 = Sharp Rose-Pink `#EC4899` Bar (`y=1525`)
+        f1 = fit_font(INTER_REG, l1, 48, max_width=920)
+        draw_shadowed_text_centered(canvas, l1, W // 2, 1425, f1, (244, 242, 246), age, delay=0.02)
+        draw_rose_bar_word(
+            canvas, l2, cx=W // 2, cy=1525, age=age, delay=0.06, font_size=72, half_height=(idx % 6 == 0)
+        )
+    elif style == 1:
+        # Style B: Line 1 = Inter Regular (`y=1425`), Line 2 = ExtraBold Sans (`y=1515`) + Hand-Drawn Rose Brush Underline
+        f1 = fit_font(INTER_REG, l1, 48, max_width=920)
+        f2 = fit_font(JAKARTA_EBOLD, l2, 72, max_width=920)
+        draw_shadowed_text_centered(canvas, l1, W // 2, 1425, f1, (242, 240, 245), age, delay=0.02)
+        draw_shadowed_text_centered(canvas, l2, W // 2, 1515, f2, (255, 255, 255), age, delay=0.06)
+        w2 = d.textbbox((0, 0), l2, font=f2)[2]
+        draw_rose_brush_underline(d, W // 2, 1572, min(w2, 560), (age - 0.09) / 0.25)
+    else:
+        # Style C: Line 1 = ExtraBold Sans (`y=1425`), Line 2 = Calligraphic `Great Vibes` Script (`y=1538`)
+        if len(l2) <= 26:
+            f1 = fit_font(JAKARTA_EBOLD, l1, 64, max_width=920)
+            f2 = fit_font(GREAT_VIBES, l2, 98, max_width=920)
+            draw_shadowed_text_centered(canvas, l1, W // 2, 1425, f1, (255, 255, 255), age, delay=0.02)
+            draw_shadowed_text_centered(canvas, l2, W // 2, 1538, f2, (255, 232, 244), age, delay=0.06)
+        else:
+            f1 = fit_font(INTER_REG, l1, 48, max_width=920)
+            f2 = fit_font(JAKARTA_EBOLD, l2, 70, max_width=920)
+            draw_shadowed_text_centered(canvas, l1, W // 2, 1425, f1, (242, 240, 245), age, delay=0.02)
+            draw_shadowed_text_centered(canvas, l2, W // 2, 1515, f2, (255, 255, 255), age, delay=0.06)
+            w2 = d.textbbox((0, 0), l2, font=f2)[2]
+            draw_rose_brush_underline(d, W // 2, 1572, min(w2, 560), (age - 0.09) / 0.25)
+
+
+# ---------------------------------------------------------------------------
+# 5. Master Frame Compositor with Velocity-Matched Seams (`cut-the-curve`)
+# ---------------------------------------------------------------------------
+def get_active_cutaway(t: float, spec: dict):
+    for cw in spec["cutaways"]:
+        if cw["t0"] <= t < cw["t1"]:
+            return cw
+    return None
+
+
+def render_state_image(bgr_16x9: np.ndarray, t: float, spec: dict, parsed_segments: list, reset_tracker: bool = False) -> Image.Image:
+    cw = get_active_cutaway(t, spec)
+    if cw is not None:
+        return render_cutaway_scene(t, cw)
+    canvas = prepare_speaker_frame_9x16(bgr_16x9, t, reset_tracker=reset_tracker)
+    overlay_speaker_typography(canvas, t, parsed_segments)
+    return canvas
 
 
 def compose_short_frame(bgr_16x9: np.ndarray, t: float, spec: dict, parsed_segments: list, reset_tracker: bool = False) -> np.ndarray:
-    local_t = t - spec["t_start"]
-    short_dur = spec["t_end"] - spec["t_start"]
+    # Check velocity-matched seam transitions (`zoom_through`, `cut_the_curve`, `rack_focus`) around cutaway boundaries
+    half_w = 0.16
+    seam_modes = ["zoom_through", "cut_the_curve", "rack_focus"]
+    for idx_c, cw in enumerate(spec["cutaways"]):
+        mode_in = seam_modes[idx_c % 3]
+        mode_out = seam_modes[(idx_c + 1) % 3]
+        for t_seam, mode in ((cw["t0"], mode_in), (cw["t1"], mode_out)):
+            if abs(t - t_seam) <= half_w:
+                p = clamp((t - (t_seam - half_w)) / (2.0 * half_w))
+                im_a = render_state_image(bgr_16x9, t_seam - half_w - 0.02, spec, parsed_segments, reset_tracker=reset_tracker)
+                im_b = render_state_image(bgr_16x9, t_seam + half_w + 0.02, spec, parsed_segments, reset_tracker=False)
+                if mode == "zoom_through":
+                    out_im = zoom_through_seam(im_a, im_b, p, inverse=False)
+                elif mode == "cut_the_curve":
+                    out_im = cut_the_curve_seam(im_a, im_b, p, direction="left")
+                else:
+                    out_im = rack_focus_blur_cut(im_a, im_b, p)
+                rgb = np.array(out_im.convert("RGB"), dtype=np.uint8)
+                return rgb[:, :, ::-1].copy()
 
-    # 1. Check Full-Screen Vertical 9:16 B-Roll & Illustration Cutaways
-    in_cutaway = False
-    head_top_y = 260
-    for c_start, c_end, cid in CUTAWAY_WINDOWS:
-        if c_start <= t < c_end:
-            out = render_vertical_cutaway(t, cid)
-            in_cutaway = True
-            break
-
-    if not in_cutaway:
-        out, head_top_y = crop_and_grade_9x16(bgr_16x9, t, local_t=local_t, reset_tracker=reset_tracker)
-
-    # 2. Slightly darken the bottom of the Reel (y = 1260..1920) so frameless subtitles pop
-    out[1260:, :, :] = (out[1260:, :, :].astype(np.float32) * _BOTTOM_GRAD[1260:]).astype(np.uint8)
-
-    # 3. Clean Frameless Hook Title during first 3.6s of the Short (NO background box, NO 'REEL #01' badge)
-    if local_t < 3.6 and not in_cutaway:
-        hp_in = ease_out_back(local_t / 0.40, overshoot=1.35)
-        hp_out = ease_out_expo((3.6 - local_t) / 0.30) if (3.6 - local_t) < 0.30 else 1.0
-        hop = clamp(min(local_t / 0.20, hp_out))
-        h_sp = get_hook_title_sprite(spec["hook_line1"], spec["hook_line2"])
-        hy = int(round(105 + 30 * (1.0 - min(1.0, hp_in))))
-        blend_rgba_onto_bgr(out, h_sp, (SW - h_sp.shape[1]) // 2, hy, opacity=hop)
-
-    # 4. Enlarged 3D/Vector Pop-up Metaphor & Humor Illustrations (1.32x larger = 554x422)
-    if not in_cutaway and local_t >= 3.3:
-        for ts, te, side, icon_kind, label_top, label_main in POPUP_ILLUSTRATIONS:
-            if ts <= t < te:
-                age = t - ts
-                rem = te - t
-                p_in = clamp(ease_out_back(age / 0.40, overshoot=1.40), 0.0, 1.12)
-                p_out = ease_out_expo(rem / 0.26) if rem < 0.26 else 1.0
-                opacity = clamp(min(age / 0.20, p_out))
-                sp = get_large_popup_sprite(icon_kind, label_top, label_main, scale=1.32)
-                bob_y = int(round(math.sin(age * 3.5) * 8.0))
-                px = 16
-                py = 995 + bob_y
-                blend_rgba_onto_bgr(out, sp, px, py, opacity=opacity)
-                break
-
-    # 5. Synchronized Frameless <= 2-line Large French Subtitles (y = 1465)
-    for seg in parsed_segments:
-        if seg["t0"] <= t < seg["t1"]:
-            s_age = t - seg["t0"]
-            s_rem = seg["t1"] - t
-            sp_in = ease_out_expo(s_age / 0.14)
-            sp_out = clamp(s_rem / 0.10) if s_rem < 0.10 else 1.0
-            sop = min(sp_in, sp_out)
-            sub_sp = get_short_subtitle_sprite(seg["idx"], seg["line1"], seg["line2"], seg["hl"])
-            sx = (SW - sub_sp.shape[1]) // 2
-            sy = int(round(1465 + 16 * (1.0 - sp_in)))
-            blend_rgba_onto_bgr(out, sub_sp, sx, sy, opacity=sop)
-            break
-
-    # 6. Bottom Rose Progress Bar (y = 1908..1920)
-    prog = clamp(local_t / max(0.1, short_dur))
-    pw = int(round(SW * prog))
-    out[SH - 12 : SH, :, :] = (28, 22, 28)
-    if pw > 0:
-        out[SH - 12 : SH, :pw, 0] = C_ROSE[2]
-        out[SH - 12 : SH, :pw, 1] = C_ROSE[1]
-        out[SH - 12 : SH, :pw, 2] = C_ROSE[0]
-
-    return out
+    out_im = render_state_image(bgr_16x9, t, spec, parsed_segments, reset_tracker=reset_tracker)
+    rgb = np.array(out_im.convert("RGB"), dtype=np.uint8)
+    return rgb[:, :, ::-1].copy()
 
 
 def prepare_parsed_segments() -> list:
@@ -616,7 +767,6 @@ def prepare_parsed_segments() -> list:
             l1, l2, hl = CLEAN_FRENCH_OVERRIDES[idx]
         else:
             l1, l2, hl = seg["text"], "", ""
-        # Clean standalone opening for Short #2 (remove '3° ' prefix so Short #2 opens naturally)
         if idx == 16 and l1.startswith("3° "):
             l1 = l1[3:]
         parsed.append({
@@ -631,18 +781,18 @@ def prepare_parsed_segments() -> list:
 
 
 def generate_preview_grid(preview_path: str):
-    """Generates a 12-panel 9:16 preview grid showing Hook + Mid/Cutaway frames for all 6 Shorts."""
+    """Generates a 12-panel 9:16 preview grid showing A-Roll + Cutaway frames across all 6 Shorts."""
     parsed_segments = prepare_parsed_segments()
     cap = cv2.VideoCapture(CLEAN_VIDEO)
     panels = []
 
     sample_pairs = [
-        (1, 1.4, 34.5),     # Short 1: Hook + B-Roll card (without B-ROLL badge)
-        (2, 39.6, 59.2),    # Short 2: Hook + Large Pop-up
-        (3, 77.0, 94.0),    # Short 3: Hook + B-Roll card
-        (4, 135.7, 165.8),  # Short 4: Hook + Large Pop-up
-        (5, 185.9, 212.8),  # Short 5: Hook + Large Pop-up
-        (6, 226.0, 264.0),  # Short 6: Clean A-Roll Hook at 226.0s + Large Pop-up at 264.0s
+        (1, 3.6, 9.0),      # Short 1: A-Roll Chest Type + 3D Extruded Rose Hero ('PARTOUT') on Square Grid
+        (2, 41.2, 65.2),    # Short 2: A-Roll Chest Type + 3D Tactile Document/Magnifying Glass ('le contrôle absolu')
+        (3, 78.5, 89.2),    # Short 3: A-Roll Chest Type + 3D Extruded Rose Hero ('100% VRAIES')
+        (4, 137.0, 151.0),  # Short 4: A-Roll Chest Type + 3D Extruded Rose Hero ('TROP LISSE')
+        (5, 188.0, 206.5),  # Short 5: A-Roll Chest Type + Whip-Pan Rose Bar ('l'émotionnel,')
+        (6, 227.0, 268.0),  # Short 6: A-Roll Chest Type + Calligraphic Script ('parle face caméra')
     ]
 
     for s_id, t_a, t_b in sample_pairs:
@@ -654,7 +804,7 @@ def generate_preview_grid(preview_path: str):
                 continue
             v_frame = compose_short_frame(bgr, t_s, spec, parsed_segments, reset_tracker=True)
             thumb = cv2.resize(v_frame, (360, 640), interpolation=cv2.INTER_AREA)
-            cv2.rectangle(thumb, (10, 10), (250, 48), (20, 16, 20), -1)
+            cv2.rectangle(thumb, (10, 10), (255, 48), (20, 16, 20), -1)
             cv2.putText(thumb, f"Short #{spec['id']} t={t_s:.1f}s", (18, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (180, 114, 244), 2, cv2.LINE_AA)
             panels.append(thumb)
     cap.release()
@@ -664,7 +814,7 @@ def generate_preview_grid(preview_path: str):
     grid = np.vstack([row1, row2])
     os.makedirs(os.path.dirname(preview_path), exist_ok=True)
     cv2.imwrite(preview_path, grid, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
-    print(f"Saved 6-Shorts v2 preview grid to {preview_path}")
+    print(f"Saved 6-Shorts ref2-Rose preview grid to {preview_path}")
 
 
 def render_all_shorts():
@@ -712,7 +862,7 @@ def render_all_shorts():
             ffmpeg_exe, "-y",
             "-f", "rawvideo",
             "-vcodec", "rawvideo",
-            "-s", f"{SW}x{SH}",
+            "-s", f"{W}x{H}",
             "-pix_fmt", "bgr24",
             "-r", f"{FPS:.2f}",
             "-i", "-",
@@ -749,5 +899,9 @@ def render_all_shorts():
 if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "--preview":
         generate_preview_grid(sys.argv[2])
+    elif len(sys.argv) > 2 and sys.argv[1] == "--only":
+        only_id = int(sys.argv[2])
+        SHORTS_SPECS[:] = [s for s in SHORTS_SPECS if s["id"] == only_id]
+        render_all_shorts()
     else:
         render_all_shorts()
