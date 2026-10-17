@@ -1188,45 +1188,102 @@ def build_youtube_audio(ffmpeg_exe: str, total_dur: float) -> str:
     gate_gain = np.clip((vox_env - 0.004) / 0.012, 0.30, 1.0)[:, None]
     vo_master = np.tanh(vo_eq * gate_gain * 1.32) * 0.88
 
-    # --- B. 3-Mood Emotional Background Music with Automatic Vocal Ducking ---
-    # Chord roots cycling every 4 seconds (Dm9 -> G13 -> Cmaj9 -> Am7)
+    # --- B. Rich, Perceptible Lo-Fi Neo-Soul / Rhodes & Chill Groove Background Music ---
+    # Chord voicings cycling every 2.727s (1 bar at 88 BPM: Dm9 -> G13 -> Cmaj9 -> Am9)
+    bpm = 88.0
+    beat_sec = 60.0 / bpm          # 0.6818s per beat
+    bar_sec = beat_sec * 4.0       # 2.727s per bar
     chord_freqs = [
-        (146.83, 220.00, 261.63, 329.63),  # Dm7/9
-        (196.00, 246.94, 293.66, 349.23),  # G7/13
-        (130.81, 196.00, 246.94, 293.66),  # Cmaj9
-        (110.00, 164.81, 220.00, 261.63),  # Am7
+        (146.83, 293.66, 349.23, 440.00, 523.25, 659.25),  # Dm9 (D3, D4, F4, A4, C5, E5)
+        (196.00, 293.66, 349.23, 440.00, 493.88, 659.25),  # G13 (G3, D4, F4, A4, B4, E5)
+        (130.81, 261.63, 329.63, 392.00, 493.88, 587.33),  # Cmaj9 (C3, C4, E4, G4, B4, D5)
+        (110.00, 220.00, 261.63, 329.63, 392.00, 493.88),  # Am9 (A2, A3, C4, E4, G4, B4)
     ]
     bgm_l = np.zeros(total_samples, dtype=np.float32)
     bgm_r = np.zeros(total_samples, dtype=np.float32)
 
-    bar_len = int(4.0 * sr)
+    bar_len = int(round(bar_sec * sr))
     n_bars = (total_samples + bar_len - 1) // bar_len
+    rng_m = np.random.default_rng(777)
+
     for b_idx in range(n_bars):
         i0 = b_idx * bar_len
         i1 = min(total_samples, i0 + bar_len)
         if i1 <= i0:
             continue
         bt = np.arange(i1 - i0, dtype=np.float32) / float(sr)
-        f1, f2, f3, f4 = chord_freqs[b_idx % 4]
-        env_bar = np.sin(np.pi * bt / 4.0) ** 0.45
+        f_bass, f1, f2, f3, f4, f5 = chord_freqs[b_idx % 4]
 
-        # Warm stereo Rhodes pad
-        pad_l = (0.35 * np.sin(2 * np.pi * f1 * bt) + 0.25 * np.sin(2 * np.pi * f2 * bt) + 0.20 * np.sin(2 * np.pi * f3 * bt)) * env_bar
-        pad_r = (0.35 * np.sin(2 * np.pi * f1 * bt) + 0.25 * np.sin(2 * np.pi * f3 * bt) + 0.20 * np.sin(2 * np.pi * f4 * bt)) * env_bar
+        # 1. Warm Stereo Rhodes Electric Piano Chords with 2nd & 3rd Harmonics (260 Hz - 1950 Hz) + Tremolo
+        env_bar = (np.sin(np.pi * np.clip(bt / bar_sec, 0.0, 1.0)) ** 0.28) * (0.75 + 0.25 * np.exp(-bt * 1.4))
+        trem_l = 0.86 + 0.14 * np.sin(2 * np.pi * 3.2 * bt)
+        trem_r = 0.86 + 0.14 * np.cos(2 * np.pi * 3.2 * bt)
 
-        # Gentle melodic pluck arpeggio (8th notes = 0.5s) adding lightness & rhythm
-        arp_phase = (bt % 0.5) / 0.5
-        arp_env = np.exp(-arp_phase * 5.5)
-        arp_notes = [f2 * 2, f3 * 2, f4 * 2, f3 * 2, f2 * 2, f4 * 2, f3 * 2, f1 * 2]
-        note_idx = np.clip((bt / 0.5).astype(np.int32), 0, 7)
+        def rhodes_tone(freq, t_arr):
+            return (
+                0.62 * np.sin(2 * np.pi * freq * t_arr)
+                + 0.26 * np.sin(2 * np.pi * (freq * 2.0) * t_arr + 0.3) * np.exp(-t_arr * 2.2)
+                + 0.12 * np.sin(2 * np.pi * (freq * 3.0) * t_arr + 0.7) * np.exp(-t_arr * 3.8)
+            )
+
+        pad_l = (0.30 * rhodes_tone(f1, bt) + 0.26 * rhodes_tone(f2, bt) + 0.24 * rhodes_tone(f3, bt) + 0.20 * rhodes_tone(f5, bt)) * env_bar * trem_l
+        pad_r = (0.30 * rhodes_tone(f1, bt) + 0.26 * rhodes_tone(f3, bt) + 0.24 * rhodes_tone(f4, bt) + 0.20 * rhodes_tone(f5, bt)) * env_bar * trem_r
+
+        # 2. Warm Neo-Soul Sub/Mid Bassline (audible on both headphones and small speakers via 2nd/3rd harmonics)
+        beat_pos = (bt % beat_sec) / beat_sec
+        bass_env = np.exp(-beat_pos * 2.8)
+        bass = (
+            0.55 * np.sin(2 * np.pi * f_bass * bt)
+            + 0.32 * np.sin(2 * np.pi * (f_bass * 2.0) * bt)
+            + 0.13 * np.sin(2 * np.pi * (f_bass * 3.0) * bt)
+        ) * bass_env * 0.42
+
+        # 3. Melodic Rhodes/Harp Pluck Arpeggio (8th notes = beat_sec / 2) in the 400-1800 Hz sweet spot
+        eighth_sec = beat_sec * 0.5
+        arp_phase = (bt % eighth_sec) / eighth_sec
+        arp_env = np.exp(-arp_phase * 5.2) * np.minimum(1.0, arp_phase * 35.0)
+        arp_notes = [f2, f3, f4, f5, f4, f3, f5, f4]
+        note_idx = np.clip((bt / eighth_sec).astype(np.int32), 0, 7)
         arp_f = np.choose(note_idx, arp_notes)
-        pluck = np.sin(2 * np.pi * arp_f * bt) * arp_env * 0.16
+        pluck = (
+            0.68 * np.sin(2 * np.pi * arp_f * bt)
+            + 0.24 * np.sin(2 * np.pi * (arp_f * 2.0) * bt) * np.exp(-arp_phase * 8.0)
+            + 0.08 * np.sin(2 * np.pi * (arp_f * 3.0) * bt) * np.exp(-arp_phase * 11.0)
+        ) * arp_env * 0.48
 
-        bgm_l[i0:i1] = pad_l + pluck
-        bgm_r[i0:i1] = pad_r + pluck * 0.85
+        # 4. Subtle Lo-Fi Chill Groove (Soft Kick on beats 1 & 3, Warm Rimshot on beats 2 & 4, Soft Shaker on 8ths)
+        beat_num = np.clip((bt / beat_sec).astype(np.int32), 0, 3)
+        is_kick = (beat_num == 0) | (beat_num == 2)
+        is_rim = (beat_num == 1) | (beat_num == 3)
+        kick_freq = 58.0 + 95.0 * np.exp(-beat_pos * 18.0)
+        kick = np.where(is_kick, np.sin(2 * np.pi * kick_freq * (bt % beat_sec)) * np.exp(-beat_pos * 7.5), 0.0) * 0.35
+        rim_t = bt % beat_sec
+        rim = np.where(
+            is_rim,
+            (np.sin(2 * np.pi * 460.0 * rim_t) + 0.6 * np.sin(2 * np.pi * 920.0 * rim_t)) * np.exp(-beat_pos * 26.0),
+            0.0,
+        ) * 0.22
+        shaker = rng_m.normal(0.0, 1.0, i1 - i0).astype(np.float32) * np.exp(-arp_phase * 14.0) * 0.045
 
-    # Sidechain ducking: music sits softly at ~0.032 when she speaks, swells to 0.055 in pauses
-    duck_gain = np.clip(0.055 - 0.35 * vox_env, 0.026, 0.055)
+        bgm_l[i0:i1] = pad_l + bass + pluck * 1.05 + kick + rim * 0.9 + shaker
+        bgm_r[i0:i1] = pad_r + bass + pluck * 0.85 + kick + rim * 1.1 + shaker
+
+    # Carve a gentle vocal-presence pocket (2.5 kHz - 4.2 kHz) in the music so it can play MUCH louder without masking speech
+    sos_pocket = signal.butter(2, [2500.0 / (sr * 0.5), 4200.0 / (sr * 0.5)], btype="bandstop", output="sos")
+    bgm_l = signal.sosfilt(sos_pocket, bgm_l).astype(np.float32)
+    bgm_r = signal.sosfilt(sos_pocket, bgm_r).astype(np.float32)
+
+    # Normalize music bed RMS to 1.0 so our ducking envelope sets the exact audible dB level
+    bgm_rms = float(np.sqrt(np.mean(0.5 * (bgm_l ** 2 + bgm_r ** 2))) + 1e-6)
+    bgm_l /= bgm_rms
+    bgm_r /= bgm_rms
+
+    # Smooth vocal envelope (250ms window) for natural broadcast sidechain ducking matching `reference (2).mp4`:
+    # - During speech: music sits at 0.072 RMS (-22.8 dBFS, within 4.8 dB of voice RMS just like `reference (2).mp4`)
+    # - During vocal pauses & cutaways: music swells smoothly up to 0.115 RMS (-18.8 dBFS)
+    win_duck = int(0.25 * sr)
+    smooth_vox = np.convolve(mono_abs, np.ones(win_duck, dtype=np.float32) / win_duck, mode="same")
+    duck_gain = np.clip(0.115 - 0.35 * smooth_vox, 0.072, 0.115)
     bgm_l *= duck_gain
     bgm_r *= duck_gain
 
