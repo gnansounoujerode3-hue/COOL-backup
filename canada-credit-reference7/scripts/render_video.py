@@ -1,1066 +1,1524 @@
 #!/usr/bin/env python3
 """
-Master 9:16 (1080x1920, 30fps) Video Editor for:
+Master 1080x1920 (9:16, 30fps) Ultra-Professional Renderer for:
 Raw Video: `imports/AQNIjRAr6B_rpxG_wzm3pn0pqMSSszClolTOsw76yoX7UOh-zXRCqq06eAMqeJpIodAvFY71EYRLXsxIrLyfOJk4v976706AUNDQXx4.mp4`
-Reference: `reference 7.mp4`
-
-Implements all user instructions:
-1. Isolated, noise-free, broadcast-equalized voice slightly accelerated (x1.07) to dynamize pacing (68.50s -> 64.02s).
-2. Motivating, trending 120 BPM dynamic background beat (0.50s per beat, 2.00s per bar) with sidechain ducking.
-3. Subtle, punchy SFX (`whoosh`, `pop`, `click`, `ding`) synced to transitions, text reveals, and zooms.
-4. Progressive Ken Burns zooms + fast transitions (`whip pan`, `RGB glitch`, `zoom-in`).
-5. Beat-locked B-Rolls & B-Roll Overlays snapped to the 120 BPM musical grid (0.50s / 1.00s intervals).
-6. Custom animations directly illustrating what the speaker says (3,000$ Credit Card approval with 0$, multiplying 2,500$ -> 5,000$, Cour des Grands, Repartir de Zéro, Canada Système de Dette vs France Découvert, Credit Score crash: Pas de Maison / Pas de Voiture) in the exact visual language of `reference 7.mp4` (Electric Cobalt Blue `#2558FF`, Crimson `#FF2442`, 3D UI Cards, Dual Neon Circular Badges, Shattering Emblem, and Montserrat + Mr Dafoe script typography, max 2 lines).
+Inspired directly by `reference 7.mp4` and built on the proven 3D compositing engine
+of `felix-gray-reference7/scripts/render_video.py`.
 """
-
 import json
 import math
 import os
 import subprocess
 import sys
-import wave
+import time
 import cv2
 import imageio_ffmpeg
 import numpy as np
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
-from scipy import signal
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from scipy.io import wavfile
+from scipy.signal import butter, lfilter
 
-REPO_ROOT = "/home/user/COOL-backup"
-sys.path.insert(0, f"{REPO_ROOT}/.claude/skills/motion-code-harvester/scripts")
-sys.path.insert(0, f"{REPO_ROOT}/.claude/skills/animation-design-rules/scripts")
-
-from motion_engine import (
-    clamp,
-    zoom_through_seam,
-    cut_the_curve_seam,
-)
-from animation_rules_engine import (
-    emil_ease_out,
-    emil_ease_in_out,
-    disney_overshoot_ease,
-    disney_follow_through_layers,
-)
-
-RAW_MP4 = f"{REPO_ROOT}/imports/AQNIjRAr6B_rpxG_wzm3pn0pqMSSszClolTOsw76yoX7UOh-zXRCqq06eAMqeJpIodAvFY71EYRLXsxIrLyfOJk4v976706AUNDQXx4.mp4"
-SPEED_MP4 = "/tmp/ref7_inspect/raw_107x.mp4"
-PROJECT_DIR = f"{REPO_ROOT}/canada-credit-reference7"
-FILM_DIR = f"{PROJECT_DIR}/film"
-OUT_MP4 = f"{FILM_DIR}/canada-credit-reference7-9x16.mp4"
-
-BROLL_SKYLINE = f"{REPO_ROOT}/felix-gray-reference10/assets/broll/broll_shard_skyline.mp4"
-BROLL_ATRIUM = f"{REPO_ROOT}/felix-gray-reference10/assets/broll/broll_timber_atrium.mp4"
-BROLL_TWILIGHT = f"{REPO_ROOT}/felix-gray-reference10/assets/broll/broll_stage3_twilight_atrium.mp4"
-
+# ---------------------------------------------------------------------------
+# Paths & Constants
+# ---------------------------------------------------------------------------
 W, H = 1080, 1920
 FPS = 30.0
 SPEED_FACTOR = 1.07
 BPM = 120.0
-BEAT_SEC = 60.0 / BPM  # 0.50s exact per beat
+BEAT_SEC = 60.0 / BPM  # 0.50s per beat
 
-FONT_BASE = "/tmp/work_cache/fonts/node_modules/@expo-google-fonts"
-F_MONT_REG = f"{FONT_BASE}/montserrat/400Regular/Montserrat_400Regular.ttf"
-F_MONT_SEMI = f"{FONT_BASE}/montserrat/600SemiBold/Montserrat_600SemiBold.ttf"
-F_MONT_BOLD = f"{FONT_BASE}/montserrat/700Bold/Montserrat_700Bold.ttf"
-F_MONT_EBOLD = f"{FONT_BASE}/montserrat/800ExtraBold/Montserrat_800ExtraBold.ttf"
-F_MONT_BLACK = f"{FONT_BASE}/montserrat/900Black/Montserrat_900Black.ttf"
-F_DAFOE = f"{FONT_BASE}/mr-dafoe/400Regular/MrDafoe_400Regular.ttf"
-F_MONO = f"{FONT_BASE}/dm-mono/500Medium/DMMono_500Medium.ttf"
+REPO_ROOT = "/home/user/COOL-backup"
+RAW_MP4 = f"{REPO_ROOT}/imports/AQNIjRAr6B_rpxG_wzm3pn0pqMSSszClolTOsw76yoX7UOh-zXRCqq06eAMqeJpIodAvFY71EYRLXsxIrLyfOJk4v976706AUNDQXx4.mp4"
+SPEED_MP4 = "/tmp/ref7_inspect/raw_107x.mp4"
+WORDS_JSON = "/tmp/ref7_inspect/words_107x.json"
+MIXED_WAV = "/tmp/ref7_inspect/studio_mixed_v2.wav"
 
-# `reference 7.mp4` Color Palette (RGB)
-C_COBALT = (37, 88, 255)        # #2558FF Electric Cobalt Blue from reference 7.mp4
-C_COBALT_LIGHT = (88, 148, 255) # #5894FF Neon Blue Glow
-C_COBALT_DEEP = (14, 34, 115)   # #0E2273 Deep Royal Blue
-C_CRIMSON = (255, 36, 66)       # #FF2442 Signature Crimson Red from reference 7.mp4 (t=15.3s)
-C_EMERALD = (16, 215, 138)      # #10D78A Bank Approval Green
-C_GOLD = (250, 188, 42)         # #FABC2A Gold Card Chip / Crown
-C_SILVER = (198, 208, 228)      # #C6D0E4 Muted Silver-Blue Subtitle Ink
-C_DARK_BG = (6, 9, 18)          # #060912 Obsidian Studio Background
+OUT_DIR = f"{REPO_ROOT}/canada-credit-reference7/film"
+os.makedirs(OUT_DIR, exist_ok=True)
+OUT_MP4 = os.path.join(OUT_DIR, "canada-credit-reference7-9x16.mp4")
+
+FONT_ROOT = "/tmp/work_cache/fonts/node_modules/@expo-google-fonts"
+F_MONT_LIGHT = f"{FONT_ROOT}/montserrat/300Light/Montserrat_300Light.ttf"
+F_MONT_REG = f"{FONT_ROOT}/montserrat/400Regular/Montserrat_400Regular.ttf"
+F_MONT_MED = f"{FONT_ROOT}/montserrat/500Medium/Montserrat_500Medium.ttf"
+F_MONT_SEMI = f"{FONT_ROOT}/montserrat/600SemiBold/Montserrat_600SemiBold.ttf"
+F_MONT_BOLD = f"{FONT_ROOT}/montserrat/700Bold/Montserrat_700Bold.ttf"
+F_MONT_EBOLD = f"{FONT_ROOT}/montserrat/800ExtraBold/Montserrat_800ExtraBold.ttf"
+F_MONT_BLACK = f"{FONT_ROOT}/montserrat/900Black/Montserrat_900Black.ttf"
+F_MONT_BLACK_IT = f"{FONT_ROOT}/montserrat/900Black_Italic/Montserrat_900Black_Italic.ttf"
+F_DAFOE = f"{FONT_ROOT}/mr-dafoe/400Regular/MrDafoe_400Regular.ttf"
+F_INTER_REG = f"{FONT_ROOT}/inter/400Regular/Inter_400Regular.ttf"
+F_INTER_MED = f"{FONT_ROOT}/inter/500Medium/Inter_500Medium.ttf"
+F_INTER_BOLD = f"{FONT_ROOT}/inter/700Bold/Inter_700Bold.ttf"
+
+# Color Palette (from `reference 7.mp4`)
+C_WHITE = (255, 255, 255)
+C_SILVER = (202, 210, 226)
+C_BLUE = (37, 88, 255)          # #2558FF signature electric cobalt
+C_BLUE_BRIGHT = (78, 138, 255)  # #4E8AFF neon script cobalt
+C_CRIMSON = (255, 36, 66)       # #FF2442 signature crimson script
+C_EMERALD = (24, 218, 142)      # #18DA8E approval highlight
 
 _FONT_CACHE = {}
-_STATIC_CACHE = {}
-_BROLL_CACHE = {}
 
 
-def get_font(path: str, size: int):
-    size = max(12, int(round(size)))
-    key = (path, size)
+def get_font(path, size):
+    key = (path, int(size))
     if key not in _FONT_CACHE:
         try:
-            _FONT_CACHE[key] = ImageFont.truetype(path, size)
+            _FONT_CACHE[key] = ImageFont.truetype(path, int(size))
         except Exception:
             _FONT_CACHE[key] = ImageFont.load_default()
     return _FONT_CACHE[key]
 
 
-def fit_font(path: str, text: str, target_size: int, max_w: int = 940):
-    sz = target_size
-    tmp = Image.new("RGBA", (10, 10))
-    d = ImageDraw.Draw(tmp)
-    while sz > 28:
-        f = get_font(path, sz)
-        if d.textbbox((0, 0), text, font=f)[2] <= max_w:
-            return f
-        sz -= 3
-    return get_font(path, sz)
-
-
 # ---------------------------------------------------------------------------
-# Curated French Subtitles (Strictly <= 2 Lines, locked to 1.07x timeline)
-# Every segment has `style` ('blue_script', 'bold_impact', 'crimson_script')
-# matching `reference 7.mp4` chest-level dual-font typography!
+# Easing & Compositing Helpers
 # ---------------------------------------------------------------------------
-SEGMENTS = [
-    (0.00, 1.50, "C'est quoi le plus fou", "au Canada ?", "blue_script"),
-    (1.50, 3.50, "T'arrives là-bas,", "t'as pas un rond.", "bold_impact"),
-    (3.50, 5.50, "Tu vas à la banque,", "n'importe laquelle,", "blue_script"),
-    (5.50, 7.80, "tu demandes une", "carte de crédit,", "bold_impact"),
-    (7.80, 10.80, "ils te passent direct", "3 000 $ !", "blue_script"),
-    (10.80, 14.80, "Minimum 2 500 $", "sans aucun argent.", "bold_impact"),
-    (14.80, 16.00, "Ils te passent", "la carte.", "blue_script"),
-    (16.00, 18.50, "Si t'es intelligent,", "tu les multiplies !", "blue_script"),
-    (18.50, 21.16, "Dès mes premiers jours", "au Canada,", "bold_impact"),
-    (21.16, 23.50, "j'ai eu 2 500 $,", "je l'ai doublée !", "blue_script"),
-    (23.50, 26.60, "Mon crédit est passé", "de 2 500 à 5 000 $,", "bold_impact"),
-    (26.60, 29.40, "et plus tu gères bien,", "plus ils augmentent.", "blue_script"),
-    (29.40, 31.00, "De l'argent qui", "t'appartient pas,", "bold_impact"),
-    (31.00, 34.00, "et tu rentres dans", "la cour des grands !", "blue_script"),
-    (34.00, 36.60, "Le Canada te permet", "de repartir de zéro,", "crimson_script"),
-    (36.60, 37.80, "même avec", "rien du tout.", "crimson_script"),
-    (37.80, 39.80, "Il y a une vraie", "différence de mentalité :", "bold_impact"),
-    (39.80, 41.40, "Là-bas t'as rien,", "", "bold_impact"),
-    (41.40, 42.50, "mais t'as", "tout !", "blue_script"),
-    (42.50, 44.80, "Ils ont un vrai", "système de dette,", "bold_impact"),
-    (44.80, 46.50, "ils s'enrichissent", "grâce aux dettes,", "blue_script"),
-    (46.50, 49.00, "alors qu'en France,", "c'est le découvert !", "crimson_script"),
-    (49.00, 51.00, "Quand tu viens au Canada", "sans argent,", "bold_impact"),
-    (51.00, 53.20, "va à la banque,", "demande ta carte,", "blue_script"),
-    (53.20, 55.40, "ils te donnent un crédit", "et c'est toi qui gères.", "bold_impact"),
-    (55.40, 56.50, "Mais gère-le", "correctement !", "blue_script"),
-    (56.50, 59.20, "Car si tu gères mal", "et ton crédit baisse :", "crimson_script"),
-    (59.20, 62.20, "pas de maison, pas d'auto,", "t'as tout ruiné.", "crimson_script"),
-    (62.20, 64.02, "Voilà la famille,", "abonnez-vous !", "blue_script"),
-]
-
-# ---------------------------------------------------------------------------
-# Beat-Locked Full-Screen B-Roll & Motion Cutaways (Snapped to 120 BPM = 0.50s grid)
-# ---------------------------------------------------------------------------
-# (t_start, t_end, cutaway_id, transition_in, transition_out)
-CUTAWAY_WINDOWS = [
-    (8.00, 12.00, 1, "zoom_in", "whip_pan"),      # Beats 16..24: 3D Laptop/Bank Card Approval 3,000$ (`reference 7.mp4` t=5.4s style)
-    (21.50, 26.50, 2, "whip_pan", "glitch"),      # Beats 43..53: Skyline B-Roll + 2,500$ -> 5,000$ Doubling Chart
-    (34.00, 38.00, 3, "zoom_in", "whip_pan"),     # Beats 68..76: Crimson Glow 'REPARTIR DE ZÉRO / même avec rien' (`reference 7.mp4` t=15.3s style)
-    (42.50, 49.00, 4, "glitch", "zoom_in"),       # Beats 85..98: Canada Système de Dette (B-Roll) vs France Découvert (Shattering Emblem t=12.9s)
-    (56.50, 62.00, 5, "whip_pan", "glitch"),      # Beats 113..124: Credit Score Plunge + Shattering House & Car Icons (`reference 7.mp4` t=12.9s)
-]
-
-# Beat-Locked B-Roll Overlays on A-Roll (Snapped to 120 BPM = 0.50s grid)
-# Matches `reference 7.mp4` `t=20.3s` Dual Glowing Neon Circular Badges & Floating 3D Cards!
-BROLL_OVERLAY_WINDOWS = [
-    (3.50, 7.50, "bank_card_request"),   # Beats 7..15: Floating 3D Bank & Credit Card Request Overlay
-    (16.00, 18.50, "multiply_badges"),   # Beats 32..37: Dual Neon Circular Badges (`2 500 $` -> `x2 MULTIPLIER`)
-    (31.00, 34.00, "cour_des_grands"),   # Beats 62..68: Dual Neon Circular Badges (`RISQUE BANQUE` -> `COUR DES GRANDS`)
-    (39.80, 42.50, "rien_mais_tout"),    # Beats 80..85: Dual Contrast Badges (`0 $ EN POCHE` -> `100% OPPORTUNITÉ`)
-    (51.00, 56.00, "three_steps_plan"),  # Beats 102..112: Beat-Synced 3-Step Action Pills (`1. BANQUE`, `2. CARTE`, `3. GÉRER`)
-]
-
-# Fast Punch-Zoom Windows on A-Roll
-PUNCH_ZOOM_WINDOWS = [
-    (0.00, 1.50, 1.12),
-    (5.50, 7.80, 1.13),
-    (15.80, 18.50, 1.14),
-    (31.00, 34.00, 1.13),
-    (39.80, 42.50, 1.15),
-    (55.00, 56.50, 1.14),
-    (62.20, 64.02, 1.12),
-]
+def clamp(v, lo=0.0, hi=1.0):
+    return max(lo, min(hi, v))
 
 
-def ensure_speed_video():
-    if os.path.exists(SPEED_MP4) and os.path.getsize(SPEED_MP4) > 1000000:
+def ease_out_cubic(t):
+    t = clamp(t)
+    return 1.0 - (1.0 - t) ** 3
+
+
+def ease_out_back(t, s=1.45):
+    t = clamp(t)
+    t -= 1.0
+    return t * t * ((s + 1.0) * t + s) + 1.0
+
+
+def ease_in_out_cubic(t):
+    t = clamp(t)
+    return 4 * t * t * t if t < 0.5 else 1 - (-2 * t + 2) ** 3 / 2
+
+
+def alpha_composite_roi(dst_rgb, src_rgba, x0=0, y0=0):
+    """Fast ROI alpha compositing of an RGBA PIL image onto a HxWx3 uint8 numpy frame."""
+    sw, sh = src_rgba.size
+    x1, y1 = x0 + sw, y0 + sh
+    cx0, cy0 = max(0, x0), max(0, y0)
+    cx1, cy1 = min(W, x1), min(H, y1)
+    if cx0 >= cx1 or cy0 >= cy1:
         return
-    os.makedirs(os.path.dirname(SPEED_MP4), exist_ok=True)
-    ff = imageio_ffmpeg.get_ffmpeg_exe()
-    subprocess.run(
-        [
-            ff, "-y", "-i", RAW_MP4,
-            "-filter_complex", f"[0:v]setpts=PTS/{SPEED_FACTOR},fps=30[v];[0:a]atempo={SPEED_FACTOR}[a]",
-            "-map", "[v]", "-map", "[a]",
-            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "16",
-            "-c:a", "aac", "-b:a", "192k",
-            SPEED_MP4,
-        ],
-        check=True,
-        capture_output=True,
-    )
-
-
-def get_graded_broll_frame(path: str, local_t: float, tint: str = "cobalt") -> Image.Image:
-    """Loads and grades real HD B-Roll video clips in `reference 7.mp4` Cobalt-Noir or Crimson-Noir LUT with a tiny RAM footprint."""
-    key = (path, tint)
-    if key not in _BROLL_CACHE:
-        frames = []
-        if os.path.exists(path):
-            cap = cv2.VideoCapture(path)
-            step = 0
-            while len(frames) < 40:
-                ok, f = cap.read()
-                if not ok:
-                    break
-                step += 1
-                if step % 2 != 0:
-                    continue
-                fh, fw = f.shape[:2]
-                tw = int(round(fh * (W / H)))
-                if tw <= fw:
-                    x0 = (fw - tw) // 2
-                    f = f[:, x0 : x0 + tw]
-                # Store at 360x640 RGB (~690 KB/frame) and upscale on demand to save 3.6 GB RAM
-                f_res = cv2.resize(f, (360, 640), interpolation=cv2.INTER_AREA)
-                rgb = cv2.cvtColor(f_res, cv2.COLOR_BGR2RGB).astype(np.float32) * 0.38
-                if tint == "cobalt":
-                    rgb[:, :, 0] = np.clip(rgb[:, :, 0] * 0.65 + 6.0, 0, 255)
-                    rgb[:, :, 1] = np.clip(rgb[:, :, 1] * 0.88 + 14.0, 0, 255)
-                    rgb[:, :, 2] = np.clip(rgb[:, :, 2] * 1.45 + 36.0, 0, 255)
-                else:
-                    rgb[:, :, 0] = np.clip(rgb[:, :, 0] * 1.45 + 34.0, 0, 255)
-                    rgb[:, :, 1] = np.clip(rgb[:, :, 1] * 0.65 + 8.0, 0, 255)
-                    rgb[:, :, 2] = np.clip(rgb[:, :, 2] * 0.80 + 14.0, 0, 255)
-                frames.append(rgb.astype(np.uint8))
-            cap.release()
-        _BROLL_CACHE[key] = frames
-
-    frames = _BROLL_CACHE[key]
-    if not frames:
-        return Image.new("RGBA", (W, H), (*C_DARK_BG, 255))
-    idx = int(local_t * 15.0) % len(frames)
-    up = cv2.resize(frames[idx], (W, H), interpolation=cv2.INTER_LINEAR)
-    return Image.fromarray(up, mode="RGB").convert("RGBA")
+    arr = np.asarray(src_rgba)[cy0 - y0 : cy1 - y0, cx0 - x0 : cx1 - x0]
+    a = arr[:, :, 3:4].astype(np.float32) * (1.0 / 255.0)
+    if np.max(a) <= 0.001:
+        return
+    roi = dst_rgb[cy0:cy1, cx0:cx1].astype(np.float32)
+    fg = arr[:, :, :3].astype(np.float32)
+    dst_rgb[cy0:cy1, cx0:cx1] = np.clip(roi * (1.0 - a) + fg * a, 0, 255).astype(np.uint8)
 
 
 # ---------------------------------------------------------------------------
-# 1. `reference 7.mp4` A-Roll Lighting Grade & Progressive Ken Burns Camera
+# Pre-rendered Studio Backgrounds & Vignettes
 # ---------------------------------------------------------------------------
-def get_ref7_grade_overlay() -> Image.Image:
-    if "ref7_grade" in _STATIC_CACHE:
-        return _STATIC_CACHE["ref7_grade"]
+def build_talking_head_grade_overlay():
+    """
+    Creates the `reference 7.mp4` studio atmosphere over talking-head frames:
+    - Subtle dark vignette at the very top ceiling edge (`y = 0..320`) to tone down fluorescent lights
+    - Keeps the speaker's face (`y = 320..1080`) 100% crystal-clear and natural!
+    - Smooth dark lower-chest gradient (`y = 1100..1920`) over the hoodie so typography & 3D orbs pop
+    """
     yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    # Top-center Cobalt-Blue studio ambient glow (`reference 7.mp4` signature)
-    d_top = np.sqrt(((xx - W * 0.50) / 520.0) ** 2 + ((yy - H * 0.20) / 340.0) ** 2)
-    blue_glow = (np.clip(1.0 - d_top, 0.0, 1.0) ** 2.2) * 0.22
 
-    # Smooth dark gradient on lower third (`y=1120..1920`) so chest-level subtitles pop cleanly
-    bottom_dark = (np.clip((yy - H * 0.56) / (H * 0.44), 0.0, 1.0) ** 1.35) * 0.68
-    edge_vig = np.clip(((xx - W * 0.5) / (W * 0.52)) ** 2 + ((yy - H * 0.5) / (H * 0.52)) ** 2 - 0.38, 0.0, 1.0) * 0.28
+    top_vig = np.clip((H * 0.22 - yy) / (H * 0.22), 0, 1) ** 1.6 * 0.38
+    d_chest = np.exp(-((yy - H * 0.72) / 310.0) ** 2) * np.exp(-((xx - W * 0.50) / 560.0) ** 2)
+    bottom_dark = np.clip((yy - H * 0.56) / (H * 0.44), 0, 1) ** 1.35 * 0.62
+    edge_vig = np.clip(((xx - W * 0.5) / (W * 0.54)) ** 2 + ((yy - H * 0.5) / (H * 0.54)) ** 2 - 0.42, 0, 1) * 0.28
 
-    dark_a = np.clip(bottom_dark + edge_vig, 0.0, 0.76)
-    total_a = np.clip(dark_a + blue_glow, 0.001, 0.80)
-    w_blue = blue_glow / total_a
+    dark_alpha = np.clip(top_vig + d_chest * 0.32 + bottom_dark + edge_vig, 0, 0.74)
 
     rgba = np.zeros((H, W, 4), dtype=np.uint8)
-    rgba[:, :, 0] = np.clip(w_blue * 28.0 + (1.0 - w_blue) * 4.0, 0, 255).astype(np.uint8)
-    rgba[:, :, 1] = np.clip(w_blue * 78.0 + (1.0 - w_blue) * 7.0, 0, 255).astype(np.uint8)
-    rgba[:, :, 2] = np.clip(w_blue * 245.0 + (1.0 - w_blue) * 18.0, 0, 255).astype(np.uint8)
-    rgba[:, :, 3] = np.clip(total_a * 255.0, 0, 255).astype(np.uint8)
-
-    im = Image.fromarray(rgba, mode="RGBA")
-    _STATIC_CACHE["ref7_grade"] = im
-    return im
+    rgba[:, :, 0] = 3
+    rgba[:, :, 1] = 6
+    rgba[:, :, 2] = 16
+    rgba[:, :, 3] = np.clip(dark_alpha * 255, 0, 255).astype(np.uint8)
+    return rgba
 
 
-def prepare_aroll_frame(bgr: np.ndarray, t: float) -> Image.Image:
+def build_midnight_blue_bg():
+    """Full-screen deep midnight-blue studio canvas (`#020512` + cobalt radial glow)."""
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    dist = np.sqrt(((xx - W * 0.50) / 520.0) ** 2 + ((yy - H * 0.48) / 560.0) ** 2)
+    glow = np.exp(-(dist ** 1.75) * 1.15)
+    rgb = np.zeros((H, W, 3), dtype=np.uint8)
+    rgb[:, :, 0] = np.clip(2 + glow * 16, 0, 255).astype(np.uint8)
+    rgb[:, :, 1] = np.clip(5 + glow * 44, 0, 255).astype(np.uint8)
+    rgb[:, :, 2] = np.clip(18 + glow * 138, 0, 255).astype(np.uint8)
+    return rgb
+
+
+def build_crimson_vignette_bg():
     """
-    Upscales 720x1280 A-Roll to 1080x1920 with:
-    - Progressive Ken Burns zoom (`1.01x -> 1.09x`) + fast punch-zooms on key beats
-    - Subtle beat-synced micro-pulse on 120 BPM kicks
-    - `reference 7.mp4` Cobalt-Blue studio glow & dark lower-chest vignette
+    Full-screen dark crimson-red radial vignette matching `t=14.80s` of `reference 7.mp4`:
+    Deep near-black center-left (`#080103`) with rich dark crimson glow (`#580615`) at top-right & edges.
     """
-    # Progressive Ken Burns drift + fast punch-zoom windows
-    kb_cycle = (t % 8.0) / 8.0
-    kb_zoom = 1.015 + 0.065 * (kb_cycle if kb_cycle < 0.5 else (1.0 - kb_cycle)) * 2.0
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    d_tr = np.sqrt(((xx - W * 0.78) / 620.0) ** 2 + ((yy - H * 0.28) / 680.0) ** 2)
+    glow_tr = np.exp(-(d_tr ** 1.6) * 0.95)
+    d_bl = np.sqrt(((xx - W * 0.22) / 640.0) ** 2 + ((yy - H * 0.78) / 680.0) ** 2)
+    glow_bl = np.exp(-(d_bl ** 1.7) * 1.25) * 0.55
 
-    for z_start, z_end, z_val in PUNCH_ZOOM_WINDOWS:
-        if z_start <= t <= z_end:
-            p_in = emil_ease_out(clamp((t - z_start) / 0.22))
-            p_out = emil_ease_out(clamp((z_end - t) / 0.25)) if (z_end - t) < 0.25 else 1.0
-            kb_zoom = max(kb_zoom, 1.0 + (z_val - 1.0) * min(p_in, p_out))
-            break
-
-    # Subtle 120 BPM beat pulse (+0.6% on kick)
-    beat_phase = (t % BEAT_SEC) / BEAT_SEC
-    beat_pulse = 0.006 * math.exp(-beat_phase * 9.0)
-    zoom = kb_zoom + beat_pulse
-
-    fh, fw = bgr.shape[:2]
-    ch = int(round(fh / zoom))
-    cw = int(round(fw / zoom))
-    x0 = (fw - cw) // 2
-    y0 = int(round((fh - ch) * 0.42))
-    cropped = bgr[y0 : y0 + ch, x0 : x0 + cw]
-    resized = cv2.resize(cropped, (W, H), interpolation=cv2.INTER_CUBIC)
-
-    rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-    im = Image.fromarray(rgb)
-    im = ImageEnhance.Contrast(im).enhance(1.10)
-    im = ImageEnhance.Color(im).enhance(1.06)
-    im = im.convert("RGBA")
-    im = Image.alpha_composite(im, get_ref7_grade_overlay())
-    return im
+    glow = np.clip(glow_tr + glow_bl, 0, 1.0)
+    rgb = np.zeros((H, W, 3), dtype=np.uint8)
+    rgb[:, :, 0] = np.clip(8 + glow * 88, 0, 255).astype(np.uint8)
+    rgb[:, :, 1] = np.clip(1 + glow * 5, 0, 255).astype(np.uint8)
+    rgb[:, :, 2] = np.clip(3 + glow * 18, 0, 255).astype(np.uint8)
+    return rgb
 
 
 # ---------------------------------------------------------------------------
-# 2. `reference 7.mp4` Chest-Level Dual-Font Subtitles (Strictly <= 2 Lines)
+# Signature Single-Word Kinetic Chest Captions (with Partial Inner Blue Glow)
 # ---------------------------------------------------------------------------
-def draw_glow_text(canvas: Image.Image, text: str, cx: int, cy: int, font, fill_rgb: tuple, glow_rgb: tuple = None, alpha: float = 1.0):
-    if alpha <= 0.02 or not text:
-        return
-    d = ImageDraw.Draw(canvas)
-    bb = d.textbbox((0, 0), text, font=font)
-    tw, th = bb[2] - bb[0], bb[3] - bb[1]
-    tx = cx - tw // 2
-    ty = cy - th // 2 - bb[1]
-
-    if glow_rgb is not None:
-        g_im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        gd = ImageDraw.Draw(g_im)
-        gd.text((tx, ty), text, font=font, fill=(*glow_rgb, int(185 * alpha)), stroke_width=6, stroke_fill=(*glow_rgb, int(145 * alpha)))
-        g_im = g_im.filter(ImageFilter.GaussianBlur(radius=14))
-        canvas.alpha_composite(g_im)
-        d = ImageDraw.Draw(canvas)
-
-    # Crisp dark drop-shadow + stroke
-    d.text((tx + 3, ty + 5), text, font=font, fill=(0, 0, 0, int(195 * alpha)), stroke_width=6, stroke_fill=(0, 0, 0, int(195 * alpha)))
-    d.text((tx, ty), text, font=font, fill=(*fill_rgb, int(255 * alpha)), stroke_width=3, stroke_fill=(8, 12, 24, int(230 * alpha)))
+_WORD_IMG_CACHE = {}
 
 
-def overlay_ref7_subtitles(canvas: Image.Image, t: float, in_cutaway: bool = False):
+def get_word_caption_img(word_text, glow_Style="none"):
     """
-    Renders strict <= 2-line French subtitles in the exact `reference 7.mp4` style:
-    - Line 1: Clean Montserrat SemiBold / ExtraBold
-    - Line 2: Either glowing Electric Cobalt-Blue / Crimson-Red script (`Mr Dafoe`) OR huge `Montserrat Black` with neon glow!
+    Renders a single chest-level word in `Montserrat ExtraBold` (72px) with zero black outline,
+    soft Gaussian drop shadow, and localized radial electric-blue or crimson light bloom on
+    the leading letters (matching `inquiry` and `inconsistent` in `reference 7.mp4`).
     """
-    for t0, t1, l1, l2, style in SEGMENTS:
-        if t0 <= t < t1:
-            age = t - t0
-            rem = t1 - t
-            p_in = emil_ease_out(clamp(age / 0.16))
-            p_out = clamp(rem / 0.10) if rem < 0.10 else 1.0
-            alpha = min(p_in, p_out)
-            dy = int(round(20.0 * (1.0 - p_in)))
+    key = (word_text, glow_Style)
+    if key in _WORD_IMG_CACHE:
+        return _WORD_IMG_CACHE[key]
 
-            base_y = 1525 if in_cutaway else 1445
-            if not l2:
-                f1 = fit_font(F_MONT_BLACK, l1, 68, max_w=940)
-                draw_glow_text(canvas, l1, W // 2, base_y + dy, f1, (255, 255, 255), glow_rgb=C_COBALT, alpha=alpha)
-                return
+    font = get_font(F_MONT_EBOLD, 72)
+    dummy = Image.new("RGBA", (10, 10))
+    d0 = ImageDraw.Draw(dummy)
+    bbox = d0.textbbox((0, 0), word_text, font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
 
-            if style == "blue_script":
-                # Matches `t=17.8s` ("We built the / Revenue / Rhythm") & `t=27.7s` ("Comment / 'Rhythm'"):
-                f1 = fit_font(F_MONT_BOLD, l1, 46, max_w=920)
-                draw_glow_text(canvas, l1, W // 2, base_y - 45 + dy, f1, C_SILVER, alpha=alpha)
-                has_digits = any(ch.isdigit() for ch in l2)
-                if len(l2) <= 20 and not has_digits:
-                    f2 = fit_font(F_DAFOE, l2, 86, max_w=940)
-                    draw_glow_text(canvas, l2, W // 2, base_y + 42 + dy, f2, C_COBALT_LIGHT, glow_rgb=C_COBALT, alpha=alpha)
-                else:
-                    f2 = fit_font(F_MONT_BLACK, l2, 64, max_w=940)
-                    draw_glow_text(canvas, l2, W // 2, base_y + 38 + dy, f2, C_COBALT_LIGHT, glow_rgb=C_COBALT, alpha=alpha)
+    pad_x, pad_y = 90, 75
+    cw, ch = tw + pad_x * 2, th + pad_y * 2
+    tx, ty = pad_x - bbox[0], pad_y - bbox[1]
 
-            elif style == "crimson_script":
-                # Matches `t=15.3s` ("most agencies / can't help" in glowing Crimson Red)
-                f1 = fit_font(F_MONT_BOLD, l1, 46, max_w=920)
-                draw_glow_text(canvas, l1, W // 2, base_y - 45 + dy, f1, (255, 255, 255), alpha=alpha)
-                f2 = fit_font(F_MONT_BLACK, l2, 60, max_w=940)
-                draw_glow_text(canvas, l2, W // 2, base_y + 38 + dy, f2, C_CRIMSON, glow_rgb=C_CRIMSON, alpha=alpha)
+    canvas = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
 
-            else:
-                # 'bold_impact': Matches `t=0.5s` & `t=3.0s` (Clean Silver + Huge White Montserrat Black)
-                f1 = fit_font(F_MONT_SEMI, l1, 44, max_w=920)
-                f2 = fit_font(F_MONT_BLACK, l2, 62, max_w=940)
-                draw_glow_text(canvas, l1, W // 2, base_y - 45 + dy, f1, C_SILVER, alpha=alpha)
-                draw_glow_text(canvas, l2, W // 2, base_y + 38 + dy, f2, (255, 255, 255), glow_rgb=C_COBALT, alpha=alpha)
-            return
+    # 1. Soft dark drop shadow for instant chest contrast (no black stroke outline!)
+    shadow = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    ds = ImageDraw.Draw(shadow)
+    ds.text((tx, ty + 5), word_text, font=font, fill=(0, 0, 0, 195))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=9))
+    canvas = Image.alpha_composite(canvas, shadow)
 
+    # 2. Base text mask
+    mask_im = Image.new("L", (cw, ch), 0)
+    dm = ImageDraw.Draw(mask_im)
+    dm.text((tx, ty), word_text, font=font, fill=255)
+    mask_np = np.asarray(mask_im).astype(np.float32) / 255.0
 
-# ---------------------------------------------------------------------------
-# 3. Beat-Locked B-Roll Overlays on A-Roll (`reference 7.mp4` `t=20.3s` style)
-# ---------------------------------------------------------------------------
-def draw_neon_circle_badge(canvas: Image.Image, cx: int, cy: int, radius: int, icon_type: str, label: str, sub: str, p: float, color: tuple = C_COBALT):
-    """Renders the signature glowing Cobalt-Blue circular neon icon badge from `t=20.3s` of `reference 7.mp4`."""
-    if p <= 0.02:
-        return
-    r = int(round(radius * p))
-    if r < 12:
-        return
+    if glow_Style in ("blue_lead", "crimson_lead"):
+        gx = pad_x + min(tw * 0.26, 75.0)
+        gy = pad_y + th * 0.52
+        yy, xx = np.mgrid[0:ch, 0:cw].astype(np.float32)
+        dist = np.sqrt(((xx - gx) / 68.0) ** 2 + ((yy - gy) / 48.0) ** 2)
 
-    # Outer neon bloom
-    glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glow)
-    gd.ellipse([cx - r - 10, cy - r - 10, cx + r + 10, cy + r + 10], fill=(*color, int(115 * p)), outline=(*color, int(220 * p)), width=6)
-    glow = glow.filter(ImageFilter.GaussianBlur(radius=16))
-    canvas.alpha_composite(glow)
+        amb = np.exp(-(dist ** 1.65) * 1.1)
+        amb_rgba = np.zeros((ch, cw, 4), dtype=np.uint8)
+        if glow_Style == "blue_lead":
+            amb_rgba[:, :, 0] = 30
+            amb_rgba[:, :, 1] = 95
+            amb_rgba[:, :, 2] = 255
+        else:
+            amb_rgba[:, :, 0] = 255
+            amb_rgba[:, :, 1] = 36
+            amb_rgba[:, :, 2] = 68
+        amb_rgba[:, :, 3] = np.clip(amb * 155.0, 0, 255).astype(np.uint8)
+        canvas = Image.alpha_composite(canvas, Image.fromarray(amb_rgba))
 
-    d = ImageDraw.Draw(canvas)
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(10, 18, 42, int(238 * p)), outline=(*color, int(255 * p)), width=4)
-    d.ellipse([cx - r + 8, cy - r + 8, cx + r - 8, cy + r - 8], outline=(255, 255, 255, int(70 * p)), width=2)
+        tint = np.exp(-(dist ** 1.55) * 0.85)
+        fg = np.zeros((ch, cw, 4), dtype=np.uint8)
+        if glow_Style == "blue_lead":
+            fg[:, :, 0] = np.clip(255 - tint * 205, 0, 255).astype(np.uint8)
+            fg[:, :, 1] = np.clip(255 - tint * 115, 0, 255).astype(np.uint8)
+            fg[:, :, 2] = 255
+        else:
+            fg[:, :, 0] = 255
+            fg[:, :, 1] = np.clip(255 - tint * 195, 0, 255).astype(np.uint8)
+            fg[:, :, 2] = np.clip(255 - tint * 170, 0, 255).astype(np.uint8)
+        fg[:, :, 3] = np.clip(mask_np * 255.0, 0, 255).astype(np.uint8)
+        canvas = Image.alpha_composite(canvas, Image.fromarray(fg))
+    else:
+        fg = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+        df = ImageDraw.Draw(fg)
+        df.text((tx, ty), word_text, font=font, fill=(255, 255, 255, 255))
+        canvas = Image.alpha_composite(canvas, fg)
 
-    # Vector Icon inside circle
-    if icon_type == "card":
-        d.rounded_rectangle([cx - 46, cy - 30, cx + 46, cy + 28], radius=10, fill=(*color, int(255 * p)), outline=(255, 255, 255, int(255 * p)), width=3)
-        d.rectangle([cx - 46, cy - 14, cx + 46, cy - 2], fill=(255, 255, 255, int(230 * p)))
-        d.rounded_rectangle([cx - 32, cy + 6, cx - 12, cy + 20], radius=3, fill=(*C_GOLD, int(255 * p)))
-    elif icon_type == "multiply":
-        f_x = get_font(F_MONT_BLACK, 52)
-        bb = d.textbbox((0, 0), "×2", font=f_x)
-        d.text((cx - (bb[2] - bb[0]) // 2, cy - (bb[3] - bb[1]) // 2 - bb[1]), "×2", font=f_x, fill=(*C_EMERALD, int(255 * p)))
-    elif icon_type == "bank":
-        # Classical bank columns + roof triangle
-        d.polygon([(cx, cy - 38), (cx - 46, cy - 12), (cx + 46, cy - 12)], fill=(255, 255, 255, int(255 * p)))
-        for bx in (-30, -10, 10, 30):
-            d.rectangle([cx + bx - 5, cy - 10, cx + bx + 5, cy + 22], fill=(*C_COBALT_LIGHT, int(255 * p)))
-        d.rectangle([cx - 48, cy + 22, cx + 48, cy + 32], fill=(255, 255, 255, int(255 * p)))
-    elif icon_type == "crown":
-        pts = [(cx - 40, cy + 22), (cx - 44, cy - 18), (cx - 18, cy + 2), (cx, cy - 28), (cx + 18, cy + 2), (cx + 44, cy - 18), (cx + 40, cy + 22)]
-        d.polygon(pts, fill=(*C_GOLD, int(255 * p)), outline=(255, 255, 255, int(255 * p)))
-
-    # Label pill below circle
-    f_lbl = get_font(F_MONT_BLACK, 26)
-    f_sub = get_font(F_MONO, 18)
-    w_l = d.textbbox((0, 0), label, font=f_lbl)[2]
-    w_s = d.textbbox((0, 0), sub, font=f_sub)[2]
-    pw = max(w_l, w_s) + 40
-    py0 = cy + r + 14
-    d.rounded_rectangle([cx - pw // 2, py0, cx + pw // 2, py0 + 68], radius=16, fill=(8, 14, 30, int(235 * p)), outline=(*color, int(220 * p)), width=2)
-    d.text((cx - w_l // 2, py0 + 8), label, font=f_lbl, fill=(255, 255, 255, int(255 * p)))
-    d.text((cx - w_s // 2, py0 + 38), sub, font=f_sub, fill=(*C_COBALT_LIGHT, int(255 * p)))
-
-
-def overlay_beat_broll_widgets(canvas: Image.Image, t: float):
-    """Places beat-synced B-Roll overlays on the 120 BPM musical grid (`0.50s` beats)."""
-    for w0, w1, otype in BROLL_OVERLAY_WINDOWS:
-        if w0 <= t < w1:
-            age = t - w0
-            rem = w1 - t
-            p_out = clamp(rem / 0.22) if rem < 0.22 else 1.0
-
-            if otype == "bank_card_request":
-                # Beat 7 (3.50s): Bank badge on left; Beat 11 (5.50s): Credit Card badge on right
-                p1 = disney_overshoot_ease(clamp(age / 0.35)) * p_out
-                draw_neon_circle_badge(canvas, 220, 230, 82, "bank", "BANQUE", "N'IMPORTE LAQUELLE", p1, C_COBALT)
-                if t >= 5.50:
-                    p2 = disney_overshoot_ease(clamp((t - 5.50) / 0.35)) * p_out
-                    draw_neon_circle_badge(canvas, 860, 230, 82, "card", "CARTE CRÉDIT", "DEMANDE DIRECTE", p2, C_EMERALD)
-
-            elif otype == "multiply_badges":
-                # Matches `t=20.3s` of `reference 7.mp4`: Dual Neon Circular Badges popping on Beat 32 (16.0s) & Beat 33 (16.5s)
-                p1 = disney_overshoot_ease(clamp(age / 0.35)) * p_out
-                p2 = disney_overshoot_ease(clamp((age - 0.50) / 0.35)) * p_out
-                draw_neon_circle_badge(canvas, 240, 235, 86, "card", "2 500 $", "CAPITAL DÉPART", p1, C_COBALT)
-                draw_neon_circle_badge(canvas, 840, 235, 86, "multiply", "MULTIPLIE", "EFFET LEVIER", p2, C_EMERALD)
-
-            elif otype == "cour_des_grands":
-                # Beat 62 (31.0s) & Beat 63 (31.5s)
-                p1 = disney_overshoot_ease(clamp(age / 0.35)) * p_out
-                p2 = disney_overshoot_ease(clamp((age - 0.50) / 0.35)) * p_out
-                draw_neon_circle_badge(canvas, 235, 235, 84, "bank", "RISQUE BANQUE", "CONFIANCE ↑", p1, C_COBALT)
-                draw_neon_circle_badge(canvas, 845, 235, 84, "crown", "COUR DES GRANDS", "NIVEAU SUPÉRIEUR", p2, C_GOLD)
-
-            elif otype == "rien_mais_tout":
-                # Beat 80 (40.0s): "Là-bas t'as rien" -> Beat 83 (41.5s): "Mais t'as tout !"
-                p1 = disney_overshoot_ease(clamp(age / 0.32)) * p_out
-                draw_neon_circle_badge(canvas, 230, 235, 82, "card", "0 $ EN POCHE", "AU DÉPART", p1, C_CRIMSON)
-                if t >= 41.40:
-                    p2 = disney_overshoot_ease(clamp((t - 41.40) / 0.32)) * p_out
-                    draw_neon_circle_badge(canvas, 850, 235, 82, "crown", "MAIS T'AS TOUT", "OPPORTUNITÉ 100%", p2, C_EMERALD)
-
-            elif otype == "three_steps_plan":
-                # Beat-synced 3-step pills at top of frame: 51.0s (Beat 102), 52.0s (Beat 104), 53.5s (Beat 107)
-                steps = [
-                    (0.00, "01", "VA À LA BANQUE", C_COBALT),
-                    (1.00, "02", "DEMANDE UNE CARTE DE CRÉDIT", C_COBALT_LIGHT),
-                    (2.50, "03", "GÈRE TON CRÉDIT CORRECTEMENT", C_EMERALD),
-                ]
-                d = ImageDraw.Draw(canvas)
-                for idx_s, (delay_s, num_s, txt_s, col_s) in enumerate(steps):
-                    ps = emil_ease_out(clamp((age - delay_s) / 0.28)) * p_out
-                    if ps <= 0.02:
-                        continue
-                    py = int(105 + idx_s * 86 + 20 * (1.0 - ps))
-                    d.rounded_rectangle([90, py, W - 90, py + 72], radius=20, fill=(8, 14, 30, int(235 * ps)), outline=(*col_s, int(245 * ps)), width=3)
-                    d.rounded_rectangle([110, py + 14, 178, py + 58], radius=12, fill=(*col_s, int(255 * ps)))
-                    d.text((126, py + 21), num_s, font=get_font(F_MONO, 24), fill=(255, 255, 255, int(255 * ps)))
-                    d.text((202, py + 19), txt_s, font=get_font(F_MONT_EBOLD, 27), fill=(255, 255, 255, int(255 * ps)))
-            return
-
-
-# ---------------------------------------------------------------------------
-# 4. Full-Screen Beat-Locked B-Roll & Motion Cutaways (`reference 7.mp4` style)
-# ---------------------------------------------------------------------------
-def render_cutaway_scene(t: float, cid: int) -> Image.Image:
-    if cid == 1:
-        # Cutaway 1 (8.00s - 12.00s, Beats 16..24):
-        # Matches `t=5.4s` of `reference 7.mp4` (Dark 3D Laptop / UI Screen) + Real Graded B-Roll background:
-        # Shows a 3D Canadian Bank Credit Card Approval UI (`3 000 $ APPROUVÉ` while `SOLDE : 0 $`)!
-        age = t - 8.00
-        canvas = get_graded_broll_frame(BROLL_TWILIGHT, age, tint="cobalt")
-        d = ImageDraw.Draw(canvas)
-
-        # Top Cobalt ambient glow
-        p = emil_ease_out(clamp(age / 0.35))
-        uy = int(210 + 35 * (1.0 - p))
-
-        # 3D Glassmorphic Bank Terminal Window (`reference 7.mp4` t=5.4s style)
-        d.rounded_rectangle([70, uy, W - 70, uy + 980], radius=38, fill=(8, 13, 28, int(242 * p)), outline=(*C_COBALT, int(235 * p)), width=3)
-        # Window traffic lights + header bar
-        d.ellipse([115, uy + 36, 135, uy + 56], fill=(255, 95, 86, int(255 * p)))
-        d.ellipse([150, uy + 36, 170, uy + 56], fill=(255, 189, 46, int(255 * p)))
-        d.ellipse([185, uy + 36, 205, uy + 56], fill=(39, 201, 63, int(255 * p)))
-        d.text((235, uy + 31), "BANQUE DU CANADA • DOSSIER CRÉDIT", font=get_font(F_MONO, 22), fill=(*C_SILVER, int(230 * p)))
-
-        # Row 1: Solde Compte Courant = 0 $ (pops on Beat 16 = 8.0s)
-        d.rounded_rectangle([120, uy + 110, W - 120, uy + 235], radius=24, fill=(16, 24, 48, int(255 * p)), outline=(*C_CRIMSON, int(210 * p)), width=2)
-        d.text((160, uy + 132), "ARGENT SUR LE COMPTE", font=get_font(F_MONO, 21), fill=(*C_SILVER, int(240 * p)))
-        d.text((160, uy + 168), "0,00 $ CAD (PAS UN ROND)", font=get_font(F_MONT_BLACK, 36), fill=(*C_CRIMSON, int(255 * p)))
-
-        # Row 2: 3D Glossy Canadian Credit Card (pops on Beat 17 = 8.5s)
-        p_card = disney_overshoot_ease(clamp((age - 0.35) / 0.42))
-        if p_card > 0.02:
-            cy_c = int(uy + 280 + 30 * (1.0 - p_card))
-            # Card glow
-            d.rounded_rectangle([135, cy_c, W - 135, cy_c + 430], radius=34, fill=(*C_COBALT, int(255 * p_card)), outline=(255, 255, 255, int(220 * p_card)), width=3)
-            d.rounded_rectangle([135, cy_c + 215, W - 135, cy_c + 430], radius=34, fill=(*C_COBALT_DEEP, int(210 * p_card)))
-            # Gold EMV Chip
-            d.rounded_rectangle([195, cy_c + 65, 295, cy_c + 140], radius=14, fill=(*C_GOLD, int(255 * p_card)), outline=(255, 255, 255, int(190 * p_card)), width=2)
-            d.text((W - 430, cy_c + 65), " PLATINUM CREDIT", font=get_font(F_MONO, 24), fill=(255, 255, 255, int(230 * p_card)))
-
-            # Animated Credit Limit Counter (2 500 $ -> 3 000 $)
-            val = 3000 if age < 2.8 else 2500
-            lbl_top = "LIMITE DE CRÉDIT ALLOUÉE" if age < 2.8 else "MINIMUM GARANTI DÉBUTANT"
-            d.text((195, cy_c + 175), lbl_top, font=get_font(F_MONO, 22), fill=(*C_SILVER, int(255 * p_card)))
-            d.text((195, cy_c + 215), f"{val:,} $ CAD".replace(",", " "), font=get_font(F_MONT_BLACK, 88), fill=(255, 255, 255, int(255 * p_card)))
-            d.text((195, cy_c + 345), "4519  ••••  ••••  2026", font=get_font(F_MONO, 28), fill=(*C_SILVER, int(245 * p_card)))
-
-        # Row 3: Green Approval Stamp on Beat 19 (9.5s)
-        p_ok = disney_overshoot_ease(clamp((age - 1.0) / 0.35))
-        if p_ok > 0.02:
-            by = uy + 760
-            d.rounded_rectangle([160, by, W - 160, by + 135], radius=26, fill=(10, 42, 32, int(245 * p_ok)), outline=(*C_EMERALD, int(255 * p_ok)), width=3)
-            d.text((205, by + 26), "STATUT : CARTE APPROUVÉE", font=get_font(F_MONT_BLACK, 35), fill=(*C_EMERALD, int(255 * p_ok)))
-            # Custom vector checkmark badge
-            ck_x, ck_y = W - 225, by + 48
-            d.ellipse([ck_x - 24, ck_y - 24, ck_x + 24, ck_y + 24], fill=(*C_EMERALD, int(255 * p_ok)))
-            d.line([(ck_x - 11, ck_y), (ck_x - 3, ck_y + 9), (ck_x + 12, ck_y - 8)], fill=(8, 28, 20, int(255 * p_ok)), width=5)
-            d.text((205, by + 78), "AUCUN HISTORIQUE REQUIS AU DÉPART", font=get_font(F_MONO, 22), fill=(255, 255, 255, int(240 * p_ok)))
-
-        return canvas
-
-    elif cid == 2:
-        # Cutaway 2 (21.50s - 26.50s, Beats 43..53):
-        # Graded Skyline B-Roll + Animated Credit Limit Doubling Chart (2 500 $ -> 5 000 $ -> 10 000 $+)
-        age = t - 21.50
-        canvas = get_graded_broll_frame(BROLL_SKYLINE, age, tint="cobalt")
-        d = ImageDraw.Draw(canvas)
-
-        p = emil_ease_out(clamp(age / 0.35))
-        uy = int(200 + 30 * (1.0 - p))
-        d.rounded_rectangle([70, uy, W - 70, uy + 980], radius=38, fill=(8, 13, 28, int(238 * p)), outline=(*C_COBALT, int(235 * p)), width=3)
-
-        f_hdr = get_font(F_MONT_BLACK, 44)
-        h_txt = "EFFET MULTIPLICATEUR"
-        wh = d.textbbox((0, 0), h_txt, font=f_hdr)[2]
-        d.text(((W - wh) // 2, uy + 52), h_txt, font=f_hdr, fill=(255, 255, 255, int(255 * p)))
-
-        f_scr = get_font(F_DAFOE, 68)
-        s_txt = "Doubler son crédit"
-        ws = d.textbbox((0, 0), s_txt, font=f_scr)[2]
-        d.text(((W - ws) // 2, uy + 108), s_txt, font=f_scr, fill=(*C_COBALT_LIGHT, int(255 * p)))
-
-        # 3 Beat-Locked Escalating Credit Bars (Beat 44=22.0s, Beat 47=23.5s, Beat 50=25.0s)
-        bars = [
-            (0.15, "JOUR 1 • DÉPART", "2 500 $", 0.38, C_COBALT),
-            (1.50, "ÉTAPE 2 • DOUBLÉ (×2)", "5 000 $", 0.68, C_COBALT_LIGHT),
-            (3.00, "ÉTAPE 3 • BONNE GESTION", "10 000 $ +", 1.00, C_EMERALD),
-        ]
-        for idx_b, (delay_b, lbl_b, val_b, frac_b, col_b) in enumerate(bars):
-            pb = emil_ease_out(clamp((age - delay_b) / 0.45))
-            if pb <= 0.02:
-                continue
-            by = uy + 245 + idx_b * 225
-            d.rounded_rectangle([125, by, W - 125, by + 185], radius=26, fill=(14, 22, 46, int(245 * pb)), outline=(*col_b, int(235 * pb)), width=3)
-            d.text((165, by + 26), lbl_b, font=get_font(F_MONO, 23), fill=(*C_SILVER, int(255 * pb)))
-            d.text((165, by + 64), val_b, font=get_font(F_MONT_BLACK, 52), fill=(255, 255, 255, int(255 * pb)))
-            bar_max_w = W - 330
-            cur_w = max(24, int(round(bar_max_w * frac_b * pb)))
-            d.rounded_rectangle([165, by + 136, 165 + bar_max_w, by + 162], radius=13, fill=(28, 38, 68, int(255 * pb)))
-            d.rounded_rectangle([165, by + 136, 165 + cur_w, by + 162], radius=13, fill=(*col_b, int(255 * pb)))
-
-        return canvas
-
-    elif cid == 3:
-        # Cutaway 3 (34.00s - 38.00s, Beats 68..76):
-        # Exact match to `t=15.3s` of `reference 7.mp4` ("and where / most agencies / can't help" on Crimson-Red glow background)!
-        age = t - 34.00
-        canvas = Image.new("RGBA", (W, H), (*C_DARK_BG, 255))
-        yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-        # Left & top-left intense Crimson-Red radial glow (`reference 7.mp4` t=15.3s signature)
-        d_red = np.sqrt(((xx - W * 0.22) / 560.0) ** 2 + ((yy - H * 0.36) / 620.0) ** 2)
-        red_glow = (np.clip(1.0 - d_red, 0.0, 1.0) ** 1.8) * 0.62
-        arr = np.array(canvas, dtype=np.float32)
-        arr[:, :, 0] = np.clip(arr[:, :, 0] + red_glow * 235.0, 0, 255)
-        arr[:, :, 1] = np.clip(arr[:, :, 1] + red_glow * 22.0, 0, 255)
-        arr[:, :, 2] = np.clip(arr[:, :, 2] + red_glow * 48.0, 0, 255)
-        canvas = Image.fromarray(arr.astype(np.uint8), mode="RGBA")
-
-        p1 = emil_ease_out(clamp(age / 0.32))
-        p2 = emil_ease_out(clamp((age - 0.18) / 0.36))
-        p3 = emil_ease_out(clamp((age - 0.45) / 0.42))
-
-        d = ImageDraw.Draw(canvas)
-        f_sm = get_font(F_MONT_BOLD, 44)
-        f_big = get_font(F_MONT_BLACK, 102)
-        f_scr = get_font(F_DAFOE, 112)
-
-        d.text((155, int(680 + 20 * (1.0 - p1))), "L'opportunité de", font=f_sm, fill=(255, 255, 255, int(245 * p1)))
-        d.text((150, int(740 + 24 * (1.0 - p2))), "REPARTIR", font=f_big, fill=(255, 255, 255, int(255 * p2)))
-        d.text((150, int(848 + 24 * (1.0 - p2))), "DE ZÉRO", font=f_big, fill=(255, 255, 255, int(255 * p2)))
-
-        # Glowing Crimson Script "même avec rien" (`t=15.3s` "can't help" style)
-        draw_glow_text(canvas, "même avec rien", W // 2, int(1025 + 24 * (1.0 - p3)), f_scr, C_CRIMSON, glow_rgb=C_CRIMSON, alpha=p3)
-        return canvas
-
-    elif cid == 4:
-        # Cutaway 4 (42.50s - 49.00s, Beats 85..98):
-        # Phase A (42.50s - 46.50s): Canada = Système de Dette (S'enrichir grâce aux dettes)
-        # Phase B (46.50s - 49.00s): France = Le Découvert (Shattering 3D Emblem matching `t=12.9s` of `reference 7.mp4`!)
-        if t < 46.50:
-            age = t - 42.50
-            canvas = get_graded_broll_frame(BROLL_ATRIUM, age, tint="cobalt")
-            p = emil_ease_out(clamp(age / 0.35))
-            d = ImageDraw.Draw(canvas)
-            cy = int(380 + 30 * (1.0 - p))
-            d.rounded_rectangle([80, cy, W - 80, cy + 680], radius=38, fill=(8, 15, 34, int(242 * p)), outline=(*C_EMERALD, int(245 * p)), width=4)
-            d.rounded_rectangle([135, cy + 50, 520, cy + 108], radius=18, fill=(*C_EMERALD, int(255 * p)))
-            d.text((162, cy + 64), "MODÈLE NORD-AMÉRICAIN", font=get_font(F_MONO, 23), fill=(6, 18, 14, int(255 * p)))
-            d.text((135, cy + 145), "SYSTÈME DE DETTE", font=get_font(F_MONT_BLACK, 64), fill=(255, 255, 255, int(255 * p)))
-            d.text((135, cy + 235), "S'enrichir grâce au crédit", font=get_font(F_DAFOE, 72), fill=(*C_COBALT_LIGHT, int(255 * p)))
-
-            # Rising wealth graph inside card
-            pts = [(145, cy + 560), (320, cy + 490), (520, cy + 510), (720, cy + 400), (915, cy + 320)]
-            d.line(pts, fill=(*C_EMERALD, int(255 * p)), width=10)
-            for px, py in pts:
-                d.ellipse([px - 12, py - 12, px + 12, py + 12], fill=(255, 255, 255, int(255 * p)), outline=(*C_EMERALD, int(255 * p)), width=4)
-            return canvas
-
-        # Phase B (46.50s - 49.00s): Shattering 3D Emblem (`reference 7.mp4` t=12.9s style) for "EN FRANCE : LE DÉCOUVERT"
-        age = t - 46.50
-        canvas = Image.new("RGBA", (W, H), (*C_DARK_BG, 255))
-        p = emil_ease_out(clamp(age / 0.35))
-        shatter = emil_ease_out(clamp((age - 0.15) / 0.65))
-
-        # Radial Cobalt/Crimson glow behind shattering sphere
-        glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        gd = ImageDraw.Draw(glow)
-        gd.ellipse([W // 2 - 260, 460, W // 2 + 260, 980], fill=(*C_CRIMSON, int(115 * p)))
-        glow = glow.filter(ImageFilter.GaussianBlur(radius=45))
-        canvas.alpha_composite(glow)
-
-        d = ImageDraw.Draw(canvas)
-        cx, cy = W // 2, 720
-        d.ellipse([cx - 195, cy - 195, cx + 195, cy + 195], fill=(16, 22, 44, int(245 * p)), outline=(*C_CRIMSON, int(245 * p)), width=5)
-
-        # Center broken overdraft gauge (`-450 €`) + lightning crack inside the sphere
-        f_ov = get_font(F_MONT_BLACK, 64)
-        ov_txt = "- 450 €"
-        w_ov = d.textbbox((0, 0), ov_txt, font=f_ov)[2]
-        d.text((cx - w_ov // 2, cy - 42), ov_txt, font=f_ov, fill=(*C_CRIMSON, int(255 * p)))
-        f_fr = get_font(F_MONO, 22)
-        fr_txt = "SOLDE NÉGATIF"
-        w_fr = d.textbbox((0, 0), fr_txt, font=f_fr)[2]
-        d.text((cx - w_fr // 2, cy + 38), fr_txt, font=f_fr, fill=(255, 255, 255, int(235 * p)))
-
-        # Shattering polygon shards radiating outward (`reference 7.mp4` t=12.9s effect!)
-        rng = np.random.default_rng(129)
-        for i in range(18):
-            ang = (i / 18.0) * 2.0 * math.pi
-            dist = 135.0 + shatter * (65.0 + rng.uniform(0, 55))
-            sx = cx + math.cos(ang) * dist
-            sy = cy + math.sin(ang) * dist
-            s_rad = 22.0 * (1.0 - 0.25 * shatter)
-            poly = [
-                (sx + math.cos(ang + 0.2) * s_rad, sy + math.sin(ang + 0.2) * s_rad),
-                (sx + math.cos(ang + 2.1) * s_rad, sy + math.sin(ang + 2.1) * s_rad),
-                (sx + math.cos(ang + 4.2) * s_rad, sy + math.sin(ang + 4.2) * s_rad),
-            ]
-            d.polygon(poly, fill=(255, 255, 255, int(235 * p)), outline=(*C_CRIMSON, int(255 * p)))
-
-        f_ban = get_font(F_MONT_BLACK, 56)
-        txt_b = "LE DÉCOUVERT"
-        wb = d.textbbox((0, 0), txt_b, font=f_ban)[2]
-        d.text(((W - wb) // 2, 1005), txt_b, font=f_ban, fill=(*C_CRIMSON, int(255 * p)))
-        f_s = get_font(F_MONO, 26)
-        ts = "AGIOS • BLOCAGE • PÉNALITÉS"
-        ws = d.textbbox((0, 0), ts, font=f_s)[2]
-        d.text(((W - ws) // 2, 1085), ts, font=f_s, fill=(*C_SILVER, int(245 * p)))
-        return canvas
-
-    # cid == 5 (56.50s - 62.00s, Beats 113..124):
-    # Credit Score Plunge + 3 Beat-Locked Crossed-Out Icons (`PAS DE MAISON`, `PAS DE VOITURE`, `TOUT RUINÉ`)
-    age = t - 56.50
-    canvas = get_graded_broll_frame(BROLL_TWILIGHT, age, tint="crimson")
-    d = ImageDraw.Draw(canvas)
-    p = emil_ease_out(clamp(age / 0.35))
-
-    # Top Credit Score Plunge Card (780 -> 410)
-    score_val = int(round(780 - 370 * emil_ease_in_out(clamp(age / 1.8))))
-    d.rounded_rectangle([80, 175, W - 80, 445], radius=34, fill=(14, 10, 22, int(242 * p)), outline=(*C_CRIMSON, int(245 * p)), width=4)
-    d.text((135, 215), "MAUVAISE GESTION • SCORE EN CHUTE", font=get_font(F_MONO, 23), fill=(*C_CRIMSON, int(255 * p)))
-    d.text((135, 265), f"SCORE : {score_val}", font=get_font(F_MONT_BLACK, 82), fill=(255, 255, 255, int(255 * p)))
-
-    # 3 Beat-Locked Consequence Cards popping on the 120 BPM beat
-    items = [
-        (1.50, "❌  PAS DE MAISON", "Refus immédiat de prêt immobilier"),
-        (2.50, "❌  PAS DE VOITURE", "Aucun financement ni leasing possible"),
-        (3.50, "⚠️  DOSSIER BLOQUÉ", "Ton historique de crédit est ruiné"),
-    ]
-    for idx_i, (delay_i, title_i, sub_i) in enumerate(items):
-        pi = disney_overshoot_ease(clamp((age - delay_i) / 0.36))
-        if pi <= 0.02:
-            continue
-        iy = int(500 + idx_i * 235 + 25 * (1.0 - pi))
-        d.rounded_rectangle([80, iy, W - 80, iy + 195], radius=28, fill=(18, 12, 26, int(244 * pi)), outline=(*C_CRIMSON, int(245 * pi)), width=3)
-        # Draw vector red X badge on left
-        bx, by = 165, iy + 97
-        d.ellipse([bx - 42, by - 42, bx + 42, by + 42], fill=(*C_CRIMSON, int(255 * pi)))
-        d.line([(bx - 18, by - 18), (bx + 18, by + 18)], fill=(255, 255, 255, int(255 * pi)), width=7)
-        d.line([(bx - 18, by + 18), (bx + 18, by - 18)], fill=(255, 255, 255, int(255 * pi)), width=7)
-        clean_title = title_i.split("  ")[-1]
-        d.text((235, iy + 42), clean_title, font=get_font(F_MONT_BLACK, 44), fill=(255, 255, 255, int(255 * pi)))
-        d.text((235, iy + 112), sub_i, font=get_font(F_MONT_SEMI, 26), fill=(*C_SILVER, int(245 * pi)))
-
+    _WORD_IMG_CACHE[key] = canvas
     return canvas
 
 
 # ---------------------------------------------------------------------------
-# 5. Fast Transitions (`whip pan`, `RGB glitch`, `zoom-in`)
+# Stacked Asymmetric Lockups (Strictly <= 2 Lines on A-Roll, Chest Level)
 # ---------------------------------------------------------------------------
-def apply_glitch_seam(im_a: Image.Image, im_b: Image.Image, p: float) -> Image.Image:
-    """Fast RGB Chromatic Aberration + Horizontal Slice Glitch transition."""
-    base = im_a if p < 0.5 else im_b
-    arr = np.array(base.convert("RGB"), dtype=np.uint8)
-    intensity = math.sin(p * math.pi)
-    shift_x = int(round(28 * intensity))
-    out = arr.copy()
-    if shift_x > 0:
-        out[:, shift_x:, 0] = arr[:, :-shift_x, 0]   # Red channel right
-        out[:, :-shift_x, 2] = arr[:, shift_x:, 2]   # Blue channel left
-    # Horizontal glitch slices
-    rng = np.random.default_rng(int(p * 100) + 7)
-    for _ in range(6):
-        y0 = int(rng.integers(100, H - 220))
-        sh = int(rng.integers(25, 95))
-        dx = int(rng.integers(-65, 65) * intensity)
-        out[y0 : y0 + sh] = np.roll(out[y0 : y0 + sh], dx, axis=1)
-    return Image.fromarray(out, mode="RGB").convert("RGBA")
+def render_text_layer(text, font_path, size, color, glow_color=None, glow_radius=16):
+    font = get_font(font_path, size)
+    dummy = Image.new("RGBA", (10, 10))
+    d0 = ImageDraw.Draw(dummy)
+    bbox = d0.textbbox((0, 0), text, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    pad = 55
+    cw, ch = tw + pad * 2, th + pad * 2
+    tx, ty = pad - bbox[0], pad - bbox[1]
+
+    out = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+
+    sh = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    ImageDraw.Draw(sh).text((tx, ty + 5), text, font=font, fill=(0, 0, 0, 185))
+    sh = sh.filter(ImageFilter.GaussianBlur(radius=8))
+    out = Image.alpha_composite(out, sh)
+
+    if glow_color is not None:
+        g1 = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+        ImageDraw.Draw(g1).text((tx, ty), text, font=font, fill=(*glow_color, 190))
+        g1 = g1.filter(ImageFilter.GaussianBlur(radius=glow_radius))
+        out = Image.alpha_composite(out, g1)
+
+        g2 = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+        ImageDraw.Draw(g2).text((tx, ty), text, font=font, fill=(*glow_color, 150))
+        g2 = g2.filter(ImageFilter.GaussianBlur(radius=max(4, glow_radius // 3)))
+        out = Image.alpha_composite(out, g2)
+
+    fg = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    ImageDraw.Draw(fg).text((tx, ty), text, font=font, fill=(*color, 255))
+    out = Image.alpha_composite(out, fg)
+    return out, tw, th, pad
 
 
-def render_base_state(bgr: np.ndarray, t: float) -> Image.Image:
-    for c0, c1, cid, _, _ in CUTAWAY_WINDOWS:
-        if c0 <= t < c1:
-            im = render_cutaway_scene(t, cid)
-            overlay_ref7_subtitles(im, t, in_cutaway=True)
-            return im
+_LOCKUP_LINE_CACHE = {}
 
-    im = prepare_aroll_frame(bgr, t)
-    overlay_beat_broll_widgets(im, t)
-    overlay_ref7_subtitles(im, t, in_cutaway=False)
+
+def get_cached_line(text, font_path, size, color, glow_color=None, glow_radius=16):
+    key = (text, font_path, int(size), color, glow_color, glow_radius)
+    if key not in _LOCKUP_LINE_CACHE:
+        _LOCKUP_LINE_CACHE[key] = render_text_layer(text, font_path, size, color, glow_color, glow_radius)
+    return _LOCKUP_LINE_CACHE[key]
+
+
+def draw_stacked_lockup(frame_rgb, t, lines_spec, anchor_x, anchor_y, align="left", t_end=None):
+    fade_out = 1.0
+    if t_end is not None and t > t_end - 0.16:
+        fade_out = clamp((t_end - t) / 0.16)
+    if fade_out <= 0.01:
+        return
+
+    for appear_t, text, font_path, size, color, glow_color, dx, dy in lines_spec:
+        if t < appear_t:
+            continue
+        dt = t - appear_t
+        p = ease_out_back(clamp(dt / 0.24), s=1.35)
+        alpha_p = ease_out_cubic(clamp(dt / 0.16)) * fade_out
+
+        im, tw, th, pad = get_cached_line(text, font_path, size, color, glow_color)
+        slide_y = int((1.0 - p) * 22.0)
+
+        if align == "center":
+            x0 = int(anchor_x + dx - tw / 2 - pad)
+        else:
+            x0 = int(anchor_x + dx - pad)
+        y0 = int(anchor_y + dy + slide_y - pad)
+
+        if alpha_p < 0.99:
+            arr = np.asarray(im).copy()
+            arr[:, :, 3] = (arr[:, :, 3].astype(np.float32) * alpha_p).astype(np.uint8)
+            im_use = Image.fromarray(arr)
+        else:
+            im_use = im
+
+        alpha_composite_roi(frame_rgb, im_use, x0, y0)
+
+
+# ---------------------------------------------------------------------------
+# 3D Glowing Circular Chest Badges (`reference 7.mp4` t=12.3s, 19.2s, 21.0s)
+# ---------------------------------------------------------------------------
+_BADGE_CACHE = {}
+
+
+def draw_icon_vector(draw, icon_type, cx, cy, r):
+    """Draws crisp white vector iconography inside a 3D circular orb."""
+    w_white = (255, 255, 255, 255)
+    navy_cut = (12, 36, 118, 255)
+    crimson_cut = (95, 12, 28, 255)
+    s = r / 105.0
+
+    if icon_type == "card":
+        # Sleek angled credit card with chip & stripe
+        draw.rounded_rectangle(
+            [cx - 46 * s, cy - 30 * s, cx + 46 * s, cy + 30 * s],
+            radius=int(9 * s),
+            fill=w_white,
+        )
+        draw.rectangle(
+            [cx - 46 * s, cy - 16 * s, cx + 46 * s, cy - 4 * s],
+            fill=navy_cut,
+        )
+        draw.rounded_rectangle(
+            [cx - 34 * s, cy + 4 * s, cx - 14 * s, cy + 19 * s],
+            radius=int(3 * s),
+            fill=navy_cut,
+        )
+        draw.line(
+            [(cx + 6 * s, cy + 14 * s), (cx + 34 * s, cy + 14 * s)],
+            fill=navy_cut,
+            width=max(2, int(5 * s)),
+        )
+
+    elif icon_type == "bank":
+        # Classical bank pediment + columns + base
+        pediment = [
+            (cx, cy - 42 * s),
+            (cx - 46 * s, cy - 14 * s),
+            (cx + 46 * s, cy - 14 * s),
+        ]
+        draw.polygon(pediment, fill=w_white)
+        draw.rectangle([cx - 42 * s, cy - 12 * s, cx + 42 * s, cy - 6 * s], fill=w_white)
+        for bx in (-28, -9, 9, 28):
+            draw.rounded_rectangle(
+                [cx + (bx - 5) * s, cy - 4 * s, cx + (bx + 5) * s, cy + 26 * s],
+                radius=int(2 * s),
+                fill=w_white,
+            )
+        draw.rounded_rectangle(
+            [cx - 46 * s, cy + 26 * s, cx + 46 * s, cy + 38 * s],
+            radius=int(3 * s),
+            fill=w_white,
+        )
+
+    elif icon_type == "handshake":
+        # Exact clasped handshake from reference 7.mp4 (t=12.30s & t=20.60s)
+        cuff_l = [
+            (cx - 56 * s, cy - 8 * s),
+            (cx - 38 * s, cy - 28 * s),
+            (cx - 22 * s, cy - 12 * s),
+            (cx - 40 * s, cy + 10 * s),
+        ]
+        cuff_r = [
+            (cx + 56 * s, cy - 8 * s),
+            (cx + 38 * s, cy - 28 * s),
+            (cx + 22 * s, cy - 12 * s),
+            (cx + 40 * s, cy + 10 * s),
+        ]
+        draw.polygon(cuff_l, fill=w_white)
+        draw.polygon(cuff_r, fill=w_white)
+        palm = [
+            (cx - 32 * s, cy - 8 * s),
+            (cx - 6 * s, cy - 24 * s),
+            (cx + 32 * s, cy - 8 * s),
+            (cx + 26 * s, cy + 18 * s),
+            (cx + 2 * s, cy + 30 * s),
+            (cx - 26 * s, cy + 18 * s),
+        ]
+        draw.polygon(palm, fill=w_white)
+        for i in range(-1, 3):
+            fx = cx + i * 9 * s
+            fy = cy + 12 * s + abs(i) * 2 * s
+            draw.line(
+                [(fx - 6 * s, fy + 10 * s), (fx + 5 * s, fy - 4 * s)],
+                fill=navy_cut,
+                width=max(2, int(4 * s)),
+            )
+        draw.line(
+            [(cx - 14 * s, cy - 6 * s), (cx + 4 * s, cy - 18 * s), (cx + 18 * s, cy - 4 * s)],
+            fill=navy_cut,
+            width=max(2, int(4.5 * s)),
+        )
+
+    elif icon_type == "coin":
+        draw.ellipse(
+            [cx - 44 * s, cy - 44 * s, cx + 44 * s, cy + 44 * s],
+            outline=w_white,
+            width=max(3, int(6 * s)),
+        )
+        f_dlr = get_font(F_MONT_BLACK, int(56 * s))
+        bb = draw.textbbox((0, 0), "$", font=f_dlr)
+        draw.text(
+            (cx - (bb[2] - bb[0]) / 2 - bb[0], cy - (bb[3] - bb[1]) / 2 - bb[1]),
+            "$",
+            font=f_dlr,
+            fill=w_white,
+        )
+
+    elif icon_type == "house_slash":
+        # Minimalist house + crimson slash (for "pas de maison")
+        roof = [(cx, cy - 40 * s), (cx - 44 * s, cy - 6 * s), (cx + 44 * s, cy - 6 * s)]
+        draw.polygon(roof, fill=w_white)
+        draw.rounded_rectangle([cx - 32 * s, cy - 8 * s, cx + 32 * s, cy + 36 * s], radius=int(5 * s), fill=w_white)
+        draw.rounded_rectangle([cx - 10 * s, cy + 10 * s, cx + 10 * s, cy + 36 * s], radius=int(3 * s), fill=crimson_cut)
+        draw.line([(cx - 44 * s, cy + 38 * s), (cx + 44 * s, cy - 38 * s)], fill=(255, 48, 76, 255), width=max(4, int(7 * s)))
+
+    elif icon_type == "car_slash":
+        # Minimalist car silhouette + crimson slash (for "pas de voiture")
+        cabin = [(cx - 24 * s, cy - 22 * s), (cx + 20 * s, cy - 22 * s), (cx + 34 * s, cy - 2 * s), (cx - 34 * s, cy - 2 * s)]
+        draw.polygon(cabin, fill=w_white)
+        draw.rounded_rectangle([cx - 46 * s, cy - 4 * s, cx + 46 * s, cy + 20 * s], radius=int(8 * s), fill=w_white)
+        draw.ellipse([cx - 34 * s, cy + 10 * s, cx - 14 * s, cy + 30 * s], fill=w_white, outline=crimson_cut, width=max(2, int(3 * s)))
+        draw.ellipse([cx + 14 * s, cy + 10 * s, cx + 34 * s, cy + 30 * s], fill=w_white, outline=crimson_cut, width=max(2, int(3 * s)))
+        draw.line([(cx - 44 * s, cy + 38 * s), (cx + 44 * s, cy - 38 * s)], fill=(255, 48, 76, 255), width=max(4, int(7 * s)))
+
+
+def get_3d_badge_img(icon_type, radius=105, tint="blue"):
+    """Pre-renders a 3D glowing circular badge matching `reference 7.mp4` (`t=12.30s`, `19.20s`, `21.00s`)."""
+    key = (icon_type, int(radius), tint)
+    if key in _BADGE_CACHE:
+        return _BADGE_CACHE[key]
+
+    pad = int(radius * 0.65)
+    sz = (radius + pad) * 2
+    cx = cy = radius + pad
+
+    yy, xx = np.mgrid[0:sz, 0:sz].astype(np.float32)
+    dx, dy = xx - cx, yy - cy
+    dist = np.sqrt(dx * dx + dy * dy)
+    norm_r = dist / float(radius)
+
+    rgba = np.zeros((sz, sz, 4), dtype=np.uint8)
+
+    outer_glow = np.exp(-np.maximum(0.0, norm_r - 0.85) * 3.4) * (norm_r > 0.85)
+    edge_aa = np.clip((1.015 - norm_r) / 0.03, 0.0, 1.0)
+    rim_factor = np.clip(norm_r ** 2.2, 0.0, 1.0)
+    top_spec = np.exp(-(((dx + radius * 0.28) / (radius * 0.55)) ** 2 + ((dy + radius * 0.32) / (radius * 0.45)) ** 2))
+
+    if tint == "crimson":
+        r_in = 22 + rim_factor * 165 + top_spec * 45
+        g_in = 4 + rim_factor * 18 + top_spec * 20
+        b_in = 14 + rim_factor * 42 + top_spec * 30
+        gr, gg, gb = 255, 38, 72
+    else:
+        r_in = 5 + rim_factor * 26 + top_spec * 32
+        g_in = 16 + rim_factor * 68 + top_spec * 65
+        b_in = 58 + rim_factor * 172 + top_spec * 48
+        gr, gg, gb = 38, 102, 255
+
+    alpha_in = edge_aa
+    alpha_out = np.clip(outer_glow * 0.62, 0.0, 1.0)
+    tot_a = np.clip(alpha_in + alpha_out * (1.0 - alpha_in), 0.0, 1.0)
+
+    w_in = np.where(tot_a > 1e-4, alpha_in / np.maximum(tot_a, 1e-4), 0.0)
+    rgba[:, :, 0] = np.clip(w_in * r_in + (1.0 - w_in) * gr, 0, 255).astype(np.uint8)
+    rgba[:, :, 1] = np.clip(w_in * g_in + (1.0 - w_in) * gg, 0, 255).astype(np.uint8)
+    rgba[:, :, 2] = np.clip(w_in * b_in + (1.0 - w_in) * gb, 0, 255).astype(np.uint8)
+    rgba[:, :, 3] = np.clip(tot_a * 255.0, 0, 255).astype(np.uint8)
+
+    im = Image.fromarray(rgba)
+    draw = ImageDraw.Draw(im)
+
+    rim_col = (255, 92, 118, 235) if tint == "crimson" else (82, 148, 255, 240)
+    draw.ellipse(
+        [cx - radius, cy - radius, cx + radius, cy + radius],
+        outline=rim_col,
+        width=max(3, int(radius * 0.032)),
+    )
+    inner_col = (255, 160, 180, 90) if tint == "crimson" else (140, 195, 255, 95)
+    r_in_ring = int(radius * 0.93)
+    draw.ellipse(
+        [cx - r_in_ring, cy - r_in_ring, cx + r_in_ring, cy + r_in_ring],
+        outline=inner_col,
+        width=max(1, int(radius * 0.015)),
+    )
+
+    ic_layer = Image.new("RGBA", (sz, sz), (0, 0, 0, 0))
+    ic_draw = ImageDraw.Draw(ic_layer)
+    draw_icon_vector(ic_draw, icon_type, cx, cy, radius)
+
+    ic_shadow = ic_layer.filter(ImageFilter.GaussianBlur(radius=max(3, int(radius * 0.04))))
+    sh_arr = np.asarray(ic_shadow).copy()
+    sh_arr[:, :, 0] = 4
+    sh_arr[:, :, 1] = 12
+    sh_arr[:, :, 2] = 42
+    sh_arr[:, :, 3] = (sh_arr[:, :, 3].astype(np.float32) * 0.65).astype(np.uint8)
+    im = Image.alpha_composite(im, Image.fromarray(sh_arr))
+    im = Image.alpha_composite(im, ic_layer)
+
+    _BADGE_CACHE[key] = im
     return im
 
 
-def compose_frame(bgr: np.ndarray, t: float) -> np.ndarray:
-    half_w = 0.16
-    for c0, c1, _cid, tr_in, tr_out in CUTAWAY_WINDOWS:
-        for t_seam, tr_mode in ((c0, tr_in), (c1, tr_out)):
-            if abs(t - t_seam) <= half_w:
-                p = clamp((t - (t_seam - half_w)) / (2.0 * half_w))
-                im_a = render_base_state(bgr, t_seam - half_w - 0.02)
-                im_b = render_base_state(bgr, t_seam + half_w + 0.02)
-                if tr_mode == "zoom_in":
-                    out = zoom_through_seam(im_a, im_b, p, inverse=False)
-                elif tr_mode == "whip_pan":
-                    out = cut_the_curve_seam(im_a, im_b, p, direction="left")
-                else:
-                    out = apply_glitch_seam(im_a, im_b, p)
-                rgb = np.array(out.convert("RGB"), dtype=np.uint8)
-                return rgb[:, :, ::-1].copy()
+def place_badge(frame_rgb, icon_type, cx, cy, radius, t, t_appear, t_end, tint="blue"):
+    if t < t_appear or t > t_end:
+        return
+    p_in = ease_out_back(clamp((t - t_appear) / 0.26), s=1.5)
+    p_out = clamp((t_end - t) / 0.18) if t > t_end - 0.18 else 1.0
+    scale = max(0.05, p_in * (0.85 + 0.15 * p_out))
+    bob_y = math.sin((t - t_appear) * 3.2) * 5.0
 
-    out = render_base_state(bgr, t)
-    rgb = np.array(out.convert("RGB"), dtype=np.uint8)
-    return rgb[:, :, ::-1].copy()
+    base_im = get_3d_badge_img(icon_type, radius=radius, tint=tint)
+    if abs(scale - 1.0) > 0.015:
+        nw = max(4, int(base_im.width * scale))
+        nh = max(4, int(base_im.height * scale))
+        im = base_im.resize((nw, nh), Image.Resampling.BILINEAR)
+    else:
+        im = base_im
+
+    if p_out < 0.99:
+        arr = np.asarray(im).copy()
+        arr[:, :, 3] = (arr[:, :, 3].astype(np.float32) * p_out).astype(np.uint8)
+        im = Image.fromarray(arr)
+
+    x0 = int(cx - im.width / 2)
+    y0 = int(cy + bob_y - im.height / 2)
+    alpha_composite_roi(frame_rgb, im, x0, y0)
 
 
 # ---------------------------------------------------------------------------
-# 6. Audio Engine: Isolated 1.07x Voice + 120 BPM Motivating Beat + SFX (`whoosh`, `pop`, `click`, `ding`)
+# Cutaway #1 (`7.80s - 11.95s`): 3D Dark MacBook Pro (`BanqueCanada` Credit UI)
+# Directly modeled on `t=5.20s` & `t=7.00s` of `reference 7.mp4`
 # ---------------------------------------------------------------------------
-def build_master_audio() -> str:
-    ensure_speed_video()
-    ff = imageio_ffmpeg.get_ffmpeg_exe()
-    raw_wav = "/tmp/ref7_inspect/voice_107x.wav"
-    mixed_wav = "/tmp/ref7_inspect/master_mix_ref7.wav"
+LAPTOP_CARDS = [
+    {
+        "appear": 7.95,
+        "name": "Banque TD",
+        "age": "1m",
+        "msg1": "Nouveau dossier — Solde compte : 0,00 $.",
+        "msg2": "Carte de crédit 3 000 $ CAD débloquée.",
+        "badge": "3 000 $ CAD",
+        "skeleton": False,
+    },
+    {
+        "appear": 8.65,
+        "name": "RBC Royal Bank",
+        "age": "2m",
+        "msg1": "Demande approuvée sans apport initial.",
+        "msg2": "Plafond actif : 3 000 $ CAD immédiat.",
+        "badge": "APPROUVÉ",
+        "skeleton": False,
+    },
+    {
+        "appear": 9.35,
+        "name": "Scotiabank",
+        "age": "5m",
+        "msg1": "Ouverture nouveau résident validée.",
+        "msg2": "Minimum garanti : 2 500 $ CAD de crédit.",
+        "badge": "2 500 $ MIN",
+        "skeleton": False,
+    },
+    {
+        "appear": 10.05,
+        "name": "BMO Canada",
+        "age": "8m",
+        "msg1": "Carte Platinum émise avec 0 $ sur compte.",
+        "msg2": "Éligible au doublement de limite (×2).",
+        "badge": "ACTIF",
+        "skeleton": False,
+    },
+    {
+        "appear": 10.75,
+        "name": "CIBC Direct",
+        "age": "12m",
+        "msg1": "",
+        "msg2": "",
+        "badge": "",
+        "skeleton": True,
+    },
+]
 
-    subprocess.run([ff, "-y", "-i", SPEED_MP4, "-vn", "-ar", "44100", "-ac", "2", raw_wav], check=True, capture_output=True)
-    with wave.open(raw_wav, "rb") as wf:
-        sr = wf.getframerate()
-        n_f = wf.getnframes()
-        vo = np.frombuffer(wf.readframes(n_f), dtype=np.int16).astype(np.float32).reshape((-1, 2)) / 32768.0
 
-    total_samples = vo.shape[0]
-    t = np.arange(total_samples, dtype=np.float32) / float(sr)
+def render_laptop_cutaway(t, midnight_bg):
+    dur = 11.95 - 7.80
+    u = clamp((t - 7.80) / dur)
+    e_u = ease_out_cubic(u)
 
-    # --- A. Voice Isolation & Studio Clarity EQ ---
-    # 1. High-pass at 95 Hz + Low-pass at 11.5 kHz to remove room rumble & hiss
-    sos_hp = signal.butter(3, 95.0 / (sr * 0.5), btype="highpass", output="sos")
-    sos_lp = signal.butter(3, 11500.0 / (sr * 0.5), btype="lowpass", output="sos")
-    vo_clean = signal.sosfilt(sos_lp, signal.sosfilt(sos_hp, vo, axis=0), axis=0).astype(np.float32)
+    canvas = Image.fromarray(midnight_bg.copy()).convert("RGBA")
+    draw = ImageDraw.Draw(canvas)
 
-    # 2. 3-Band Broadcast Vocal EQ (Warmth 170 Hz + Articulation Presence 3.2 kHz + Air 7.8 kHz)
-    sos_warm = signal.butter(2, [120.0 / (sr * 0.5), 230.0 / (sr * 0.5)], btype="bandpass", output="sos")
-    sos_pres = signal.butter(2, [2400.0 / (sr * 0.5), 4600.0 / (sr * 0.5)], btype="bandpass", output="sos")
-    sos_air = signal.butter(2, 7200.0 / (sr * 0.5), btype="highpass", output="sos")
-    vo_eq = (
-        vo_clean
-        + 0.20 * signal.sosfilt(sos_warm, vo_clean, axis=0)
-        + 0.36 * signal.sosfilt(sos_pres, vo_clean, axis=0)
-        + 0.18 * signal.sosfilt(sos_air, vo_clean, axis=0)
-    ).astype(np.float32)
+    cam_x = int(40 - e_u * 65)
+    cam_y = int(45 - e_u * 55)
 
-    # 3. Smooth downward noise gate to suppress background room noise between words
-    mono_abs = np.abs(vo_eq[:, 0])
-    win_g = int(0.03 * sr)
-    vox_env = np.convolve(mono_abs, np.ones(win_g, dtype=np.float32) / win_g, mode="same")
-    gate = np.clip((vox_env - 0.008) / 0.018, 0.15, 1.0)[:, None]
-    vo_master = np.tanh(vo_eq * gate * 1.38) * 0.88
+    lx0, ly0 = 165 + cam_x, 220 + cam_y
+    lx1, ly1 = 1260 + cam_x, 1525 + cam_y
 
-    # --- B. Motivating 120 BPM Trending Beat (`0.50s` per beat, `2.00s` per bar) ---
-    bar_sec = BEAT_SEC * 4.0  # 2.00s exact
-    chords = [
-        (110.00, 220.00, 261.63, 329.63, 440.00),  # Am
-        (87.31, 174.61, 220.00, 261.63, 349.23),   # Fmaj7
-        (130.81, 261.63, 329.63, 392.00, 523.25),  # C
-        (98.00, 196.00, 246.94, 293.66, 392.00),   # G
-    ]
-    bgm_l = np.zeros(total_samples, dtype=np.float32)
-    bgm_r = np.zeros(total_samples, dtype=np.float32)
-    bar_len = int(round(bar_sec * sr))
-    n_bars = (total_samples + bar_len - 1) // bar_len
-    rng = np.random.default_rng(2026)
+    glow_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow_layer)
+    gd.ellipse([lx0 - 110, ly0 - 90, lx0 + 520, ly0 + 480], fill=(24, 72, 235, 78))
+    glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(radius=65))
+    canvas = Image.alpha_composite(canvas, glow_layer)
+    draw = ImageDraw.Draw(canvas)
 
-    for b_idx in range(n_bars):
-        i0 = b_idx * bar_len
-        i1 = min(total_samples, i0 + bar_len)
-        if i1 <= i0:
+    # Lid body & metallic bezel
+    draw.rounded_rectangle([lx0, ly0, lx1, ly1], radius=38, fill=(10, 12, 16, 255), outline=(44, 50, 66, 255), width=3)
+    sx0, sy0 = lx0 + 28, ly0 + 34
+    sx1, sy1 = lx1 - 28, ly1 - 36
+    draw.rounded_rectangle([sx0, sy0, sx1, sy1], radius=18, fill=(11, 13, 18, 255))
+
+    # Top header inside screen: "CréditBox" (exact match to "Chat Box" in reference 7.mp4)
+    f_light = get_font(F_MONT_LIGHT, 50)
+    f_bold = get_font(F_MONT_BOLD, 50)
+    hx, hy = sx0 + 48, sy0 + 42
+    draw.text((hx, hy), "Crédit", font=f_light, fill=(225, 230, 242, 255))
+    w_part1 = draw.textbbox((0, 0), "Crédit", font=f_light)[2]
+    draw.text((hx + w_part1 + 6, hy), "Canada", font=f_bold, fill=(255, 255, 255, 255))
+    w_part2 = draw.textbbox((0, 0), "Canada", font=f_bold)[2]
+
+    # Status pill next to header
+    px0 = hx + w_part1 + w_part2 + 28
+    py0 = hy + 10
+    draw.rounded_rectangle([px0, py0, px0 + 246, py0 + 42], radius=21, fill=(14, 38, 30, 240), outline=(24, 218, 142, 220), width=2)
+    f_pill = get_font(F_INTER_BOLD, 19)
+    draw.text((px0 + 22, py0 + 9), "3 000 $ APPROUVÉ", font=f_pill, fill=(24, 218, 142, 255))
+
+    # Right-hand detail pane (matching right column in t=5.2s & t=7.0s of reference 7.mp4)
+    rx0 = sx0 + 625
+    ry0 = sy0 + 125
+    rx1 = sx1 - 36
+    ry1 = sy1 - 115
+    draw.rounded_rectangle([rx0, ry0, rx1, ry1], radius=22, fill=(22, 25, 34, 255), outline=(42, 48, 64, 255), width=2)
+
+    f_stat_big = get_font(F_MONT_BLACK, 54)
+    f_stat_sub = get_font(F_INTER_MED, 21)
+    amt_str = "3 000 $" if t < 10.6 else "2 500 $"
+    draw.text((rx0 + 36, ry0 + 44), amt_str, font=f_stat_big, fill=(37, 88, 255, 255))
+    draw.text((rx0 + 36, ry0 + 118), "Carte de crédit allouée", font=f_stat_sub, fill=(190, 198, 214, 255))
+    draw.text((rx0 + 36, ry0 + 148), "avec 0 $ sur le compte", font=f_stat_sub, fill=(24, 218, 142, 255))
+
+    # Bottom right message input bar with blue circular icon (exact match to t=5.2s & t=7.0s)
+    ib_y0 = ry1 + 20
+    ib_y1 = sy1 - 24
+    draw.rounded_rectangle([rx0, ib_y0, rx1, ib_y1], radius=20, fill=(22, 25, 34, 255), outline=(42, 48, 64, 255), width=2)
+    draw.rounded_rectangle([rx0 + 16, ib_y0 + 14, rx0 + 60, ib_y0 + 58], radius=12, fill=(45, 92, 255, 255))
+    draw.ellipse([rx0 + 27, ib_y0 + 25, rx0 + 49, ib_y0 + 47], outline=(255, 255, 255, 255), width=3)
+    draw.text((rx0 + 76, ib_y0 + 24), "Demander une carte...", font=get_font(F_INTER_REG, 21), fill=(130, 138, 158, 255))
+
+    f_name = get_font(F_INTER_BOLD, 21)
+    f_age = get_font(F_INTER_REG, 19)
+    f_msg = get_font(F_INTER_REG, 19)
+    f_b = get_font(F_INTER_BOLD, 15)
+
+    cx0 = sx0 + 48
+    cx1 = sx0 + 598
+    cy_base = sy0 + 125
+    card_h = 148
+    card_gap = 20
+
+    for idx, card in enumerate(LAPTOP_CARDS):
+        if t < card["appear"]:
             continue
-        bt = np.arange(i1 - i0, dtype=np.float32) / float(sr)
-        fb, f1, f2, f3, f4 = chords[b_idx % 4]
+        dt = t - card["appear"]
+        p_in = ease_out_back(clamp(dt / 0.28), s=1.25)
+        alpha_c = int(clamp(dt / 0.18) * (150 if card["skeleton"] else 255))
 
-        # Driving 120 BPM Kick + Sub-Bass on every 0.50s beat
-        beat_pos = (bt % BEAT_SEC) / BEAT_SEC
-        kick_f = 54.0 + 110.0 * np.exp(-beat_pos * 22.0)
-        kick = np.sin(2 * np.pi * kick_f * (bt % BEAT_SEC)) * np.exp(-beat_pos * 6.8) * 0.45
+        cy0 = cy_base + idx * (card_h + card_gap) + int((1.0 - p_in) * 28)
+        cy1 = cy0 + card_h
 
-        # Crisp Clap/Snare on Beats 2 & 4 (0.50s and 1.50s)
-        beat_idx = np.clip((bt / BEAT_SEC).astype(np.int32), 0, 3)
-        is_snare = (beat_idx == 1) | (beat_idx == 3)
-        snare_noise = rng.normal(0.0, 1.0, i1 - i0).astype(np.float32)
-        snare = np.where(is_snare, (snare_noise * 0.55 + np.sin(2 * np.pi * 220.0 * (bt % BEAT_SEC)) * 0.45) * np.exp(-beat_pos * 18.0), 0.0) * 0.28
+        c_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        cd = ImageDraw.Draw(c_layer)
 
-        # 16th-note (0.125s) driving Hi-Hat + Motivating Synth Pluck Arpeggio
-        sixteenth = BEAT_SEC * 0.25
-        s_pos = (bt % sixteenth) / sixteenth
-        hat = rng.normal(0.0, 1.0, i1 - i0).astype(np.float32) * np.exp(-s_pos * 22.0) * 0.06
+        bg_col = (22, 25, 34, alpha_c) if card["skeleton"] else (28, 32, 43, alpha_c)
+        bd_col = (44, 50, 66, alpha_c) if card["skeleton"] else (62, 70, 92, alpha_c)
+        cd.rounded_rectangle([cx0, cy0, cx1, cy1], radius=20, fill=bg_col, outline=bd_col, width=2)
 
-        eighth = BEAT_SEC * 0.50
-        e_pos = (bt % eighth) / eighth
-        arp_notes = [f1, f2, f3, f4, f3, f2, f4, f3]
-        n_idx = np.clip((bt / eighth).astype(np.int32), 0, 7)
-        af = np.choose(n_idx, arp_notes)
-        arp_env = np.exp(-e_pos * 4.5) * (1.0 - 0.35 * np.exp(-beat_pos * 12.0))  # Sidechain pump on kick
-        arp_l = (0.65 * np.sin(2 * np.pi * af * bt) + 0.35 * np.sin(2 * np.pi * (af * 2.0) * bt)) * arp_env * 0.46
-        arp_r = (0.65 * np.sin(2 * np.pi * af * bt + 0.25) + 0.35 * np.sin(2 * np.pi * (af * 2.0) * bt)) * arp_env * 0.46
+        avx, avy, avr = cx0 + 54, cy0 + card_h // 2, 33
+        if card["skeleton"]:
+            cd.ellipse([avx - avr, avy - avr, avx + avr, avy + avr], fill=(60, 66, 82, alpha_c))
+        else:
+            cd.ellipse([avx - avr, avy - avr, avx + avr, avy + avr], fill=(232, 236, 245, alpha_c))
+            cd.ellipse([avx - 11, avy - 18, avx + 11, avy + 4], fill=(52, 58, 74, alpha_c))
+            cd.pieslice([avx - 22, avy + 6, avx + 22, avy + 38], 180, 360, fill=(52, 58, 74, alpha_c))
 
-        # Warm stereo motivating pad
-        pad_pump = 0.35 + 0.65 * (1.0 - np.exp(-beat_pos * 5.0))
-        pad_l = (0.4 * np.sin(2 * np.pi * fb * bt) + 0.35 * np.sin(2 * np.pi * f2 * bt) + 0.25 * np.sin(2 * np.pi * f3 * bt)) * pad_pump * 0.35
-        pad_r = (0.4 * np.sin(2 * np.pi * fb * bt) + 0.35 * np.sin(2 * np.pi * f3 * bt) + 0.25 * np.sin(2 * np.pi * f4 * bt)) * pad_pump * 0.35
+        tx = cx0 + 106
+        ty = cy0 + 24
+        cd.text((tx, ty), card["name"], font=f_name, fill=(255, 255, 255, alpha_c))
+        nw = cd.textbbox((0, 0), card["name"], font=f_name)[2]
+        cd.text((tx + nw + 10, ty + 1), f"•  {card['age']}", font=f_age, fill=(150, 160, 182, alpha_c))
 
-        bgm_l[i0:i1] = kick + snare + hat + arp_l + pad_l
-        bgm_r[i0:i1] = kick + snare + hat + arp_r + pad_r
+        if card["skeleton"]:
+            cd.rounded_rectangle([tx, ty + 38, tx + 210, ty + 54], radius=7, fill=(58, 64, 80, alpha_c))
+        else:
+            bx1 = cx1 - 22
+            bx0 = bx1 - 128
+            by0 = cy0 + 22
+            cd.rounded_rectangle([bx0, by0, bx1, by0 + 28], radius=14, fill=(14, 42, 32, alpha_c), outline=(24, 218, 142, alpha_c), width=1)
+            bb = cd.textbbox((0, 0), card["badge"], font=f_b)
+            cd.text((bx0 + (128 - (bb[2] - bb[0])) / 2, by0 + 5), card["badge"], font=f_b, fill=(24, 218, 142, alpha_c))
 
-    # Carve 2.5 - 4.2 kHz vocal clarity pocket
-    sos_pocket = signal.butter(2, [2500.0 / (sr * 0.5), 4200.0 / (sr * 0.5)], btype="bandstop", output="sos")
-    bgm_l = signal.sosfilt(sos_pocket, bgm_l).astype(np.float32)
-    bgm_r = signal.sosfilt(sos_pocket, bgm_r).astype(np.float32)
+            char_progress = int(clamp((dt - 0.05) / 0.48) * (len(card["msg1"]) + len(card["msg2"])))
+            m1 = card["msg1"][: min(len(card["msg1"]), char_progress)]
+            m2 = card["msg2"][: max(0, char_progress - len(card["msg1"]))]
+            cd.text((tx, ty + 36), m1, font=f_msg, fill=(215, 222, 235, alpha_c))
+            if m2:
+                cd.text((tx, ty + 64), m2, font=f_msg, fill=(182, 190, 208, alpha_c))
 
-    bgm_rms = float(np.sqrt(np.mean(0.5 * (bgm_l ** 2 + bgm_r ** 2))) + 1e-6)
-    bgm_l /= bgm_rms
-    bgm_r /= bgm_rms
+        canvas = Image.alpha_composite(canvas, c_layer)
 
-    win_d = int(0.22 * sr)
-    smooth_vox = np.convolve(mono_abs, np.ones(win_d, dtype=np.float32) / win_d, mode="same")
-    duck_gain = np.clip(0.115 - 0.34 * smooth_vox, 0.072, 0.115)
-    bgm_l *= duck_gain
-    bgm_r *= duck_gain
+    draw = ImageDraw.Draw(canvas)
 
-    # --- C. Synchronized SFX: `whoosh`, `pop`, `click`, `ding` ---
-    sfx_l = np.zeros(total_samples, dtype=np.float32)
-    sfx_r = np.zeros(total_samples, dtype=np.float32)
+    # 3D Laptop Base / Keyboard Deck in perspective below the screen
+    ky0 = ly1 - 4
+    ky1 = ky0 + 245
+    deck_pts = [(lx0 - 10, ky0), (lx1 + 10, ky0), (lx1 + 135, ky1), (lx0 - 135, ky1)]
+    draw.polygon(deck_pts, fill=(38, 43, 54, 255))
+    draw.polygon([(lx0 + 40, ky0), (lx1 - 40, ky0), (lx1 - 30, ky0 + 18), (lx0 + 30, ky0 + 18)], fill=(14, 16, 22, 255))
+    kw_pts = [(lx0 + 30, ky0 + 28), (lx1 - 30, ky0 + 28), (lx1 + 45, ky0 + 168), (lx0 - 45, ky0 + 168)]
+    draw.polygon(kw_pts, fill=(12, 14, 19, 255), outline=(58, 64, 78, 255))
 
-    def add_whoosh(ts: float):
-        i0 = int(ts * sr)
-        dur = int(0.24 * sr)
-        i1 = min(total_samples, i0 + dur)
-        if i1 > i0:
-            lt = np.linspace(0.0, 1.0, i1 - i0, dtype=np.float32)
-            env = np.clip(np.sin(np.pi * lt), 0.0, 1.0) ** 1.4
-            sub = np.sin(2 * np.pi * (120.0 - 65.0 * lt) * lt * 0.24) * np.exp(-lt * 3.5)
-            air = rng.normal(0.0, 1.0, i1 - i0).astype(np.float32) * env
-            sfx_l[i0:i1] += 0.065 * sub + 0.024 * air
-            sfx_r[i0:i1] += 0.065 * sub + 0.024 * air
+    for r_idx in range(5):
+        fr0 = r_idx / 5.0
+        fr1 = (r_idx + 0.78) / 5.0
+        ry_a = (ky0 + 34) + fr0 * 128
+        ry_b = (ky0 + 34) + fr1 * 128
+        xl_a = (lx0 + 38) - fr0 * 68
+        xr_a = (lx1 - 38) + fr0 * 68
+        xl_b = (lx0 + 38) - fr1 * 68
+        xr_b = (lx1 - 38) + fr1 * 68
+        n_keys = 12
+        for k_idx in range(n_keys):
+            u0 = (k_idx + 0.08) / n_keys
+            u1 = (k_idx + 0.88) / n_keys
+            k_pts = [
+                (xl_a + u0 * (xr_a - xl_a), ry_a),
+                (xl_a + u1 * (xr_a - xl_a), ry_a),
+                (xl_b + u1 * (xr_b - xl_b), ry_b),
+                (xl_b + u0 * (xr_b - xl_b), ry_b),
+            ]
+            draw.polygon(k_pts, fill=(24, 28, 36, 255), outline=(48, 54, 68, 200))
 
-    def add_pop(ts: float):
-        i0 = int(ts * sr)
-        dur = int(0.12 * sr)
-        i1 = min(total_samples, i0 + dur)
-        if i1 > i0:
-            lt = np.linspace(0.0, 1.0, i1 - i0, dtype=np.float32)
-            w = np.sin(2 * np.pi * (310.0 + 440.0 * (lt ** 0.65)) * lt * 0.12) * np.exp(-lt * 5.5)
-            sfx_l[i0:i1] += 0.075 * w
-            sfx_r[i0:i1] += 0.075 * w
+    tp_pts = [(lx0 + 310, ky0 + 178), (lx0 + 680, ky0 + 178), (lx0 + 710, ky1 - 8), (lx0 + 280, ky1 - 8)]
+    draw.polygon(tp_pts, fill=(30, 35, 45, 255), outline=(56, 62, 76, 255))
 
-    def add_click(ts: float):
-        i0 = int(ts * sr)
-        dur = int(0.035 * sr)
-        i1 = min(total_samples, i0 + dur)
-        if i1 > i0:
-            lt = np.linspace(0.0, 1.0, i1 - i0, dtype=np.float32)
-            c = np.sin(2 * np.pi * 1650.0 * lt * 0.035) * np.exp(-lt * 16.0)
-            sfx_l[i0:i1] += 0.045 * c
-            sfx_r[i0:i1] += 0.045 * c
+    zoom = 0.95 + 0.09 * e_u
+    cw = int(W / zoom)
+    ch = int(H / zoom)
+    x_crop = (W - cw) // 2
+    y_crop = (H - ch) // 2
+    cropped = canvas.crop((x_crop, y_crop, x_crop + cw, y_crop + ch)).resize((W, H), Image.Resampling.BILINEAR)
+    return np.asarray(cropped.convert("RGB"))
 
-    def add_ding(ts: float):
-        i0 = int(ts * sr)
-        dur = int(0.38 * sr)
-        i1 = min(total_samples, i0 + dur)
-        if i1 > i0:
-            lt = np.linspace(0.0, 1.0, i1 - i0, dtype=np.float32)
-            d_wave = (0.65 * np.sin(2 * np.pi * 1567.98 * lt * 0.38) + 0.35 * np.sin(2 * np.pi * 2349.32 * lt * 0.38)) * np.exp(-lt * 5.2)
-            sfx_l[i0:i1] += 0.065 * d_wave
-            sfx_r[i0:i1] += 0.065 * d_wave
 
-    # Trigger Whooshes on all cutaway transitions & punch zooms
-    for c0, c1, _, _, _ in CUTAWAY_WINDOWS:
-        add_whoosh(c0)
-        add_whoosh(c1)
-    for z0, _, _ in PUNCH_ZOOM_WINDOWS:
-        add_whoosh(z0)
+# ---------------------------------------------------------------------------
+# Cutaways #2 & #3: 3D Badge Shatter -> Crimson Vignette (`reference 7.mp4` t=12.2s -> 14.8s)
+# ---------------------------------------------------------------------------
+def generate_shatter_shards(radius=198, n_rings=5, seed=77):
+    rng = np.random.default_rng(seed)
+    shards = []
+    ring_radii = np.linspace(0, radius, n_rings + 1)
+    for r_i in range(n_rings):
+        r0, r1 = ring_radii[r_i], ring_radii[r_i + 1]
+        n_sec = 10 + r_i * 7
+        angles = np.linspace(0, 2 * math.pi, n_sec + 1) + rng.uniform(-0.08, 0.08, n_sec + 1)
+        angles[-1] = angles[0] + 2 * math.pi
+        for s_i in range(n_sec):
+            a0, a1 = angles[s_i], angles[s_i + 1]
+            am = 0.5 * (a0 + a1)
+            rm = 0.5 * (r0 + r1)
+            cx = math.cos(am) * rm
+            cy = math.sin(am) * rm
+            pts = []
+            for rr, aa in [(r0, a0), (r1, a0), (r1, a1), (r0, a1)]:
+                jit_r = rr + rng.uniform(-5, 5) if rr > 0 else 0
+                jit_a = aa + rng.uniform(-0.04, 0.04)
+                px = math.cos(jit_a) * jit_r - cx
+                py = math.sin(jit_a) * jit_r - cy
+                pts.append((px, py))
 
-    # Trigger Pops on all B-Roll Overlays & step cards
-    for pop_t in [3.50, 5.50, 8.35, 16.00, 16.50, 22.00, 23.50, 31.00, 31.50, 39.80, 41.40, 51.00, 52.00, 53.50, 58.00, 59.00, 60.00]:
-        add_pop(pop_t)
+            speed = rng.uniform(220.0, 680.0) * (0.45 + 0.75 * (rm / radius))
+            v_ang = am + rng.uniform(-0.32, 0.32)
+            vx = math.cos(v_ang) * speed
+            vy = math.sin(v_ang) * speed - rng.uniform(40.0, 180.0)
+            omega_z = rng.uniform(-6.5, 6.5)
+            omega_x = rng.uniform(3.5, 9.5)
+            phase_x = rng.uniform(0, math.pi * 2)
+            is_white = rng.random() < 0.58
+            shards.append({
+                "cx": cx,
+                "cy": cy,
+                "pts": pts,
+                "vx": vx,
+                "vy": vy,
+                "omega_z": omega_z,
+                "omega_x": omega_x,
+                "phase_x": phase_x,
+                "is_white": is_white,
+            })
+    return shards
 
-    # Trigger Dings on money & approval highlights
-    for ding_t in [7.80, 9.00, 10.80, 21.50, 25.00, 34.00, 41.40, 44.80]:
-        add_ding(ding_t)
 
-    # Trigger subtle Clicks on subtitle changes
-    for seg_t0, _, _, _, _ in SEGMENTS[::2]:
-        add_click(seg_t0)
+SHARDS_DATA = generate_shatter_shards(radius=198)
 
-    mix_l = np.clip(vo_master[:, 0] + bgm_l + sfx_l, -0.98, 0.98)
-    mix_r = np.clip(vo_master[:, 1] + bgm_r + sfx_r, -0.98, 0.98)
-    out_i16 = (np.stack([mix_l, mix_r], axis=-1) * 32767.0).astype(np.int16)
 
-    with wave.open(mixed_wav, "wb") as wf:
-        wf.setnchannels(2)
-        wf.setsampwidth(2)
-        wf.setframerate(sr)
-        wf.writeframes(out_i16.tobytes())
-    return mixed_wav
+def render_shatter_and_crimson_cutaway(
+    t,
+    t_start,
+    t_shatter,
+    t_crimson,
+    t_end,
+    icon_type,
+    crimson_lines,
+    midnight_bg,
+    crimson_bg,
+    pre_lockup=None,
+):
+    w_crim = clamp((t - (t_crimson - 0.18)) / 0.42)
+    if w_crim <= 0.001:
+        frame = midnight_bg.copy()
+    elif w_crim >= 0.999:
+        frame = crimson_bg.copy()
+    else:
+        frame = np.clip(
+            midnight_bg.astype(np.float32) * (1.0 - w_crim) + crimson_bg.astype(np.float32) * w_crim,
+            0,
+            255,
+        ).astype(np.uint8)
+
+    cx, cy = W // 2, H // 2 if pre_lockup is None else int(H * 0.62)
+
+    if pre_lockup is not None and t < t_crimson:
+        draw_stacked_lockup(frame, t, pre_lockup, anchor_x=210, anchor_y=640, align="left", t_end=t_crimson)
+
+    if t < t_shatter:
+        dt = t - t_start
+        p_in = ease_out_back(clamp(dt / 0.32), s=1.35)
+        rad = 198 if pre_lockup is None else 145
+        badge_im = get_3d_badge_img(icon_type, radius=rad, tint="blue")
+        sc = max(0.1, p_in)
+        if abs(sc - 1.0) > 0.015:
+            nw, nh = int(badge_im.width * sc), int(badge_im.height * sc)
+            b_use = badge_im.resize((nw, nh), Image.Resampling.BILINEAR)
+        else:
+            b_use = badge_im
+
+        if t > t_shatter - 0.18:
+            b_use = b_use.copy()
+            bd = ImageDraw.Draw(b_use)
+            bcx, bcy = b_use.width // 2, b_use.height // 2
+            crack_p = clamp((t - (t_shatter - 0.18)) / 0.18)
+            for ang in [18, 72, 134, 195, 252, 310]:
+                r_len = rad * 0.95 * crack_p
+                rad_a = math.radians(ang)
+                mx = bcx + math.cos(rad_a + 0.12) * (r_len * 0.5)
+                my = bcy + math.sin(rad_a + 0.12) * (r_len * 0.5)
+                ex = bcx + math.cos(rad_a) * r_len
+                ey = bcy + math.sin(rad_a) * r_len
+                bd.line([(bcx, bcy), (mx, my), (ex, ey)], fill=(210, 235, 255, 255), width=4)
+
+        alpha_composite_roi(frame, b_use, int(cx - b_use.width / 2), int(cy - b_use.height / 2))
+
+    elif t < t_crimson + 0.38:
+        st = t - t_shatter
+        shatter_dur = (t_crimson + 0.38) - t_shatter
+        fade_s = clamp(1.0 - (st / shatter_dur) ** 1.65)
+        overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        od = ImageDraw.Draw(overlay)
+
+        grav = 540.0
+        for sh in SHARDS_DATA:
+            sx = cx + sh["cx"] + sh["vx"] * st
+            sy = cy + sh["cy"] + sh["vy"] * st + 0.5 * grav * (st ** 2)
+            rot_z = sh["omega_z"] * st
+            tilt_x = math.cos(sh["phase_x"] + sh["omega_x"] * st)
+            cz, sz_r = math.cos(rot_z), math.sin(rot_z)
+
+            poly_front = []
+            poly_back = []
+            thickness = 9.0
+            for px, py in sh["pts"]:
+                rx = px * cz - py * sz_r
+                ry = (px * sz_r + py * cz) * tilt_x
+                poly_front.append((sx + rx, sy + ry))
+                poly_back.append((sx + rx + thickness * 0.6, sy + ry + thickness))
+
+            a_val = int(255 * fade_s)
+            if a_val <= 4:
+                continue
+            od.polygon(poly_back, fill=(24, 68, 195, a_val))
+            if sh["is_white"]:
+                lum = int(215 + 40 * abs(tilt_x))
+                od.polygon(poly_front, fill=(lum, lum, min(255, lum + 10), a_val))
+            else:
+                od.polygon(poly_front, fill=(48, 112, 255, a_val))
+
+        alpha_composite_roi(frame, overlay, 0, 0)
+
+    if t >= t_crimson - 0.05:
+        draw_stacked_lockup(frame, t, crimson_lines, anchor_x=215, anchor_y=820, align="left", t_end=t_end)
+
+    return frame
+
+
+# ---------------------------------------------------------------------------
+# Multi-Scale Camera Framing & Ken Burns Schedule for Talking-Head Shots
+# ---------------------------------------------------------------------------
+def get_camera_crop(frame_rgb, t):
+    """
+    Reframes the speaker so his eyes sit at the Rule-of-Thirds upper line (cropping out
+    the empty fluorescent ceiling) and applies multi-scale camera cuts + Ken Burns drift.
+    """
+    if t < 3.44:
+        u = t / 3.44
+        zoom = 1.16 + 0.04 * u
+        cx, cy = 0.50, 0.62
+    elif t < 7.80:
+        u = (t - 3.44) / (7.80 - 3.44)
+        zoom = 1.24 + 0.03 * clamp(u)
+        cx, cy = 0.50, 0.63
+    elif t < 15.80:
+        u = (t - 11.95) / (15.80 - 11.95)
+        zoom = 1.15 + 0.03 * clamp(u)
+        cx, cy = 0.50, 0.61
+    elif t < 21.16:
+        u = (t - 15.80) / (21.16 - 15.80)
+        zoom = 1.26 - 0.03 * clamp(u)
+        cx, cy = 0.50, 0.63
+    elif t < 26.60:
+        u = (t - 21.16) / (26.60 - 21.16)
+        zoom = 1.17 + 0.03 * clamp(u)
+        cx, cy = 0.50, 0.62
+    elif t < 33.80:
+        u = (t - 26.60) / (33.80 - 26.60)
+        zoom = 1.25 + 0.03 * clamp(u)
+        cx, cy = 0.50, 0.63
+    elif t < 41.40:
+        u = (t - 37.80) / (41.40 - 37.80)
+        zoom = 1.15 + 0.03 * clamp(u)
+        cx, cy = 0.50, 0.61
+    elif t < 44.80:
+        u = (t - 41.40) / (44.80 - 41.40)
+        zoom = 1.26 + 0.02 * clamp(u)
+        cx, cy = 0.50, 0.63
+    elif t < 55.40:
+        u = (t - 49.00) / (55.40 - 49.00)
+        zoom = 1.17 + 0.03 * clamp(u)
+        cx, cy = 0.50, 0.62
+    elif t < 62.20:
+        u = (t - 55.40) / (62.20 - 55.40)
+        zoom = 1.24 + 0.03 * clamp(u)
+        cx, cy = 0.50, 0.63
+    else:
+        u = (t - 62.20) / (64.02 - 62.20)
+        zoom = 1.18 - 0.04 * clamp(u)
+        cx, cy = 0.50, 0.61
+
+    sh, sw, _ = frame_rgb.shape
+    cw = sw / zoom
+    ch = sh / zoom
+    x0 = int(clamp(cx * sw - cw / 2, 0, sw - cw))
+    y0 = int(clamp(cy * sh - ch / 2, 0, sh - ch))
+    crop = frame_rgb[y0 : y0 + int(ch), x0 : x0 + int(cw)]
+    resized = cv2.resize(crop, (W, H), interpolation=cv2.INTER_CUBIC)
+    blur = cv2.GaussianBlur(resized, (0, 0), 1.4)
+    sharp = cv2.addWeighted(resized, 1.14, blur, -0.14, 0)
+    return sharp
+
+
+# ---------------------------------------------------------------------------
+# Master 2-Line Chest Lockups on Talking-Head Segments (Strictly <= 2 Lines!)
+# Placed at y=1265 over the dark hoodie, completely below chin & microphone!
+# ---------------------------------------------------------------------------
+TALKING_LOCKUPS = [
+    # 1. Opening Hook (0.00 - 1.48s): "Le plus fou / au Canada ?"
+    {
+        "t_start": 0.00,
+        "t_end": 1.48,
+        "anchor_x": 185,
+        "anchor_y": 1265,
+        "align": "left",
+        "lines": [
+            (0.00, "Le plus fou", F_MONT_BLACK, 82, C_WHITE, None, 0, 0),
+            (0.45, "au Canada ?", F_DAFOE, 118, C_BLUE_BRIGHT, C_BLUE, 14, 68),
+        ],
+    },
+    # 2. Credit Card Request (5.60 - 7.80s): "Une carte / de crédit"
+    {
+        "t_start": 5.60,
+        "t_end": 7.80,
+        "anchor_x": 195,
+        "anchor_y": 1265,
+        "align": "left",
+        "lines": [
+            (5.60, "Une carte", F_MONT_BLACK, 86, C_WHITE, None, 0, 0),
+            (6.15, "de crédit", F_DAFOE, 120, C_BLUE_BRIGHT, C_BLUE, 16, 68),
+        ],
+    },
+    # 3. Multiply 2,500$ (15.80 - 18.48s): "Les 2 500 $ / tu multiplies"
+    {
+        "t_start": 15.80,
+        "t_end": 18.48,
+        "anchor_x": 180,
+        "anchor_y": 1265,
+        "align": "left",
+        "lines": [
+            (15.85, "Les 2 500 $", F_MONT_BLACK, 84, C_WHITE, None, 0, 0),
+            (16.65, "tu multiplies", F_DAFOE, 116, C_BLUE_BRIGHT, C_BLUE, 14, 68),
+        ],
+    },
+    # 4. Doubled in First Days (21.16 - 23.48s): "Carte 2 500 $ / je l'ai doublée"
+    {
+        "t_start": 21.16,
+        "t_end": 23.48,
+        "anchor_x": 175,
+        "anchor_y": 1265,
+        "align": "left",
+        "lines": [
+            (21.18, "Carte 2 500 $", F_MONT_BLACK, 82, C_SILVER, None, 0, 0),
+            (22.05, "je l'ai doublée", F_DAFOE, 116, C_BLUE_BRIGHT, C_BLUE, 14, 68),
+        ],
+    },
+    # 5. Cour des Grands (31.00 - 33.80s): "La cour / des grands"
+    {
+        "t_start": 31.00,
+        "t_end": 33.80,
+        "anchor_x": 195,
+        "anchor_y": 1265,
+        "align": "left",
+        "lines": [
+            (31.05, "La cour", F_MONT_BLACK, 88, C_WHITE, None, 0, 0),
+            (31.85, "des grands", F_DAFOE, 120, C_BLUE_BRIGHT, C_BLUE, 18, 68),
+        ],
+    },
+    # 6. Mindset Shift (39.80 - 42.40s): "T'as rien / mais t'as tout"
+    {
+        "t_start": 39.80,
+        "t_end": 42.40,
+        "anchor_x": 190,
+        "anchor_y": 1265,
+        "align": "left",
+        "lines": [
+            (39.85, "T'as rien,", F_MONT_BLACK, 84, C_SILVER, None, 0, 0),
+            (41.40, "mais t'as tout", F_DAFOE, 118, C_BLUE_BRIGHT, C_BLUE, 14, 68),
+        ],
+    },
+    # 7. Manage Properly (55.40 - 56.40s): "Gère-le / correctement"
+    {
+        "t_start": 55.40,
+        "t_end": 56.40,
+        "anchor_x": 185,
+        "anchor_y": 1265,
+        "align": "left",
+        "lines": [
+            (55.42, "Gère-le", F_MONT_BLACK, 84, C_WHITE, None, 0, 0),
+            (55.72, "correctement", F_DAFOE, 114, C_BLUE_BRIGHT, C_BLUE, 12, 68),
+        ],
+    },
+    # 8. Final Signature CTA Lockup (62.20 - 64.02s): "La famille / 'Abonnez-vous'"
+    {
+        "t_start": 62.20,
+        "t_end": 64.02,
+        "anchor_x": 540,
+        "anchor_y": 1265,
+        "align": "center",
+        "lines": [
+            (62.24, "La famille", F_DAFOE, 96, C_WHITE, None, 0, 0),
+            (62.75, "'Abonnez-vous'", F_MONT_BLACK_IT, 82, C_BLUE_BRIGHT, C_BLUE, 0, 78),
+        ],
+    },
+]
+
+# Cutaway #2 Crimson Reveal (35.40 - 37.80s): "Repartir de zéro / même avec rien" (<= 2 lines)
+CRIMSON_LINES_CUT2 = [
+    (35.45, "Repartir de zéro", F_MONT_BLACK, 82, C_WHITE, None, 0, 0),
+    (36.35, "même avec rien", F_DAFOE, 118, C_CRIMSON, C_CRIMSON, 12, 74),
+]
+
+# Cutaway #3 Pre-Lockup (44.80 - 46.50s) & Crimson Lockup (46.50 - 49.00s) (<= 2 lines)
+PRE_LINES_CUT3 = [
+    (44.85, "S'enrichir", F_MONT_BLACK, 86, C_WHITE, None, 0, 0),
+    (45.40, "grâce aux dettes", F_DAFOE, 112, C_BLUE_BRIGHT, C_BLUE, 12, 72),
+]
+
+CRIMSON_LINES_CUT3 = [
+    (46.55, "En France :", F_MONT_BLACK, 84, C_WHITE, None, 0, 0),
+    (47.10, "le découvert !", F_DAFOE, 120, C_CRIMSON, C_CRIMSON, 12, 74),
+]
+
+BLUE_GLOW_WORDS = {
+    "canada", "banque", "crédit", "3000$", "2500$", "argent",
+    "carte", "intelligent", "multiplies", "premiers", "doublée",
+    "5000$", "gères", "augmentent", "risque", "grands",
+    "opportunité", "zéro", "mentalité", "système", "dette",
+    "s'enrichissent", "dettes", "crédit",
+}
+CRIMSON_GLOW_WORDS = {"rond", "rien", "découvert", "baisse", "maison", "voiture", "ruiné"}
+
+
+# ---------------------------------------------------------------------------
+# Studio Audio Engine: Broadcast Voice EQ + Subtle Dark-Pulse Bed + Studio SFX
+# ---------------------------------------------------------------------------
+SR = 44100
+
+
+def butter_bandpass(lowcut, highcut, fs, order=3):
+    nyq = 0.5 * fs
+    low = max(0.001, min(0.99, lowcut / nyq))
+    high = max(low + 0.001, min(0.999, highcut / nyq))
+    b, a = butter(order, [low, high], btype="band")
+    return b, a
+
+
+def make_whoosh(duration=0.38, low_f=140, high_f=1800, vol=0.10):
+    n = int(SR * duration)
+    t = np.linspace(0, duration, n, endpoint=False)
+    rng = np.random.default_rng(42)
+    noise = rng.standard_normal(n)
+    b, a = butter_bandpass(low_f, high_f, SR, order=2)
+    filtered = lfilter(b, a, noise)
+    env = np.clip(np.sin(np.pi * (t / duration)), 0.0, 1.0) ** 2.2
+    freq = np.linspace(low_f * 1.4, low_f * 0.5, n)
+    phase = 2 * np.pi * np.cumsum(freq) / SR
+    sub = np.sin(phase) * env * 0.45
+    sig = (filtered / (np.max(np.abs(filtered)) + 1e-6) * 0.55 + sub) * env * vol
+    return np.column_stack([sig * 0.95, sig * 1.05])
+
+
+def make_ui_pop(duration=0.09, f0=520, f1=980, vol=0.08):
+    n = int(SR * duration)
+    t = np.linspace(0, duration, n, endpoint=False)
+    freq = np.linspace(f0, f1, n)
+    phase = 2 * np.pi * np.cumsum(freq) / SR
+    env = np.exp(-t * 42.0) * (1.0 - np.exp(-t * 400.0))
+    sig = (np.sin(phase) + 0.3 * np.sin(2 * phase)) * env * vol
+    return np.column_stack([sig, sig])
+
+
+def make_shatter(duration=0.85, vol=0.13):
+    n = int(SR * duration)
+    t = np.linspace(0, duration, n, endpoint=False)
+    rng = np.random.default_rng(107)
+    sub_freq = 110.0 * np.exp(-t * 9.5) + 36.0
+    sub_phase = 2 * np.pi * np.cumsum(sub_freq) / SR
+    sub = np.sin(sub_phase) * np.exp(-t * 6.5) * 0.55
+
+    shards = np.zeros(n)
+    shard_times = [0.00, 0.015, 0.032, 0.055, 0.08, 0.11, 0.145, 0.19, 0.24, 0.31, 0.39]
+    shard_freqs = [2400, 3100, 1950, 3800, 2750, 4200, 2200, 3450, 2900, 3600, 2500]
+    for st, sf in zip(shard_times, shard_freqs):
+        idx = int(st * SR)
+        rem = n - idx
+        if rem <= 0:
+            continue
+        ts = np.linspace(0, rem / SR, rem, endpoint=False)
+        ping = (np.sin(2 * np.pi * sf * ts) + 0.45 * np.sin(2 * np.pi * (sf * 1.414) * ts)) * np.exp(-ts * 28.0)
+        shards[idx:] += ping * 0.18
+
+    burst = rng.standard_normal(n)
+    b, a = butter_bandpass(1200, 7500, SR, order=2)
+    burst_f = lfilter(b, a, burst)
+    burst_env = np.exp(-t * 14.0) * (1.0 - np.exp(-t * 250.0))
+    burst_sig = burst_f / (np.max(np.abs(burst_f)) + 1e-6) * burst_env * 0.35
+
+    sig_l = (sub + shards * 1.08 + burst_sig * 0.92) * vol
+    sig_r = (sub + shards * 0.92 + burst_sig * 1.08) * vol
+    return np.column_stack([sig_l, sig_r])
+
+
+def make_soft_riser(duration=1.2, vol=0.065):
+    n = int(SR * duration)
+    t = np.linspace(0, duration, n, endpoint=False)
+    freq = 110.0 + 110.0 * ((t / duration) ** 2)
+    phase = 2 * np.pi * np.cumsum(freq) / SR
+    env = (t / duration) ** 2 * np.clip(np.sin(np.pi * (t / duration)), 0.0, 1.0)
+    sig = (np.sin(phase) + 0.4 * np.sin(1.5 * phase)) * env * vol
+    return np.column_stack([sig * 0.95, sig * 1.05])
+
+
+def add_at(mix, clip, t_sec):
+    idx = int(t_sec * SR)
+    if idx < 0 or idx >= len(mix):
+        return
+    end = min(len(mix), idx + len(clip))
+    mix[idx:end] += clip[: end - idx]
+
+
+def build_studio_audio():
+    ff = imageio_ffmpeg.get_ffmpeg_exe()
+    clean_vox_wav = "/tmp/ref7_inspect/clean_vox_afftdn.wav"
+    # Use FFmpeg's broadcast FFT spectral denoiser (afftdn) + studio EQ + gentle optical-style compressor
+    subprocess.run(
+        [
+            ff, "-y", "-v", "error", "-i", SPEED_MP4, "-vn",
+            "-af", "highpass=f=85,afftdn=nf=-24,equalizer=f=180:width_type=o:width=1.2:g=1.5,equalizer=f=3400:width_type=o:width=1.4:g=2.0,acompressor=threshold=-18dB:ratio=2.0:attack=15:release=200:makeup=2dB",
+            "-ac", "2", "-ar", str(SR), clean_vox_wav,
+        ],
+        check=True,
+    )
+    _, data = wavfile.read(clean_vox_wav)
+    voice = data.astype(np.float32) / 32768.0
+    if voice.ndim == 1:
+        voice = np.column_stack([voice, voice])
+
+    n_total = len(voice)
+    t_arr = np.arange(n_total, dtype=np.float32) / SR
+
+    # Warm, deep-filtered 120 BPM dark-ambient sub-bass & soft studio pulse (-20 dB under voice)
+    beat_phase = (t_arr % BEAT_SEC) / BEAT_SEC
+    sub_f = 55.0 + 48.0 * np.exp(-beat_phase * 24.0)
+    sub_kick = np.sin(2 * np.pi * sub_f * (t_arr % BEAT_SEC)) * np.exp(-beat_phase * 7.5) * 0.042
+
+    # Warm low-passed minor chord pad (Am -> Fmaj7 -> C -> G, filtered below 380 Hz so it never clashes with speech)
+    bar_idx = ((t_arr / (BEAT_SEC * 4.0)).astype(np.int32)) % 4
+    roots = np.choose(bar_idx, [110.0, 87.31, 130.81, 98.00])
+    thirds = np.choose(bar_idx, [130.81, 110.0, 164.81, 123.47])
+    fifths = np.choose(bar_idx, [164.81, 130.81, 196.00, 146.83])
+    pump = 0.35 + 0.65 * (1.0 - np.exp(-beat_phase * 5.5))
+    pad_l = (0.45 * np.sin(2 * np.pi * roots * t_arr) + 0.30 * np.sin(2 * np.pi * thirds * t_arr) + 0.25 * np.sin(2 * np.pi * fifths * t_arr)) * pump * 0.026
+    pad_r = (0.45 * np.sin(2 * np.pi * roots * t_arr) + 0.30 * np.sin(2 * np.pi * thirds * t_arr + 0.3) + 0.25 * np.sin(2 * np.pi * fifths * t_arr - 0.3)) * pump * 0.026
+
+    mix = voice.copy()
+    mix[:, 0] += sub_kick + pad_l
+    mix[:, 1] += sub_kick + pad_r
+
+    # Studio SFX synced to every cutaway, 3D badge pop, and shatter
+    whoosh_in = make_whoosh(0.36, 150, 1900, vol=0.095)
+    whoosh_out = make_whoosh(0.32, 180, 1500, vol=0.080)
+    for t_in in [0.02, 5.58, 7.75, 15.78, 21.14, 30.98, 33.75, 39.78, 44.75, 55.38, 62.18]:
+        add_at(mix, whoosh_in, t_in)
+    for t_out in [11.88, 37.72, 48.92]:
+        add_at(mix, whoosh_out, t_out)
+
+    # Laptop UI Card Pops (7.80 - 11.95s)
+    for i, t_card in enumerate([7.95, 8.65, 9.35, 10.05]):
+        add_at(mix, make_ui_pop(0.085, 480 + i * 45, 920 + i * 55, vol=0.075), t_card)
+
+    # 3D Circular Chest Badge Pops
+    badge_times = [3.48, 4.50, 12.10, 13.50, 23.60, 26.50, 51.05, 53.00, 59.10, 60.15]
+    for i, tb in enumerate(badge_times):
+        add_at(mix, make_ui_pop(0.095, 420 + (i % 2) * 110, 860 + (i % 2) * 140, vol=0.080), tb)
+
+    # 3D Circle Shatter in Cutaway #2 (34.75s) & Cutaway #3 (46.50s)
+    add_at(mix, make_shatter(0.88, vol=0.125), 34.74)
+    add_at(mix, make_whoosh(0.42, 110, 1200, vol=0.09), 35.42)
+    add_at(mix, make_shatter(0.75, vol=0.105), 46.48)
+    add_at(mix, make_soft_riser(1.1, vol=0.065), 62.00)
+
+    peak = np.max(np.abs(mix))
+    if peak > 0.96:
+        mix = mix * (0.96 / peak)
+
+    out_pcm = np.clip(mix * 32767.0, -32768, 32767).astype(np.int16)
+    wavfile.write(MIXED_WAV, SR, out_pcm)
+    return MIXED_WAV
+
+
+# ---------------------------------------------------------------------------
+# Master Frame Router (Cutaways vs. Talking Head + 3D Chest Badges)
+# ---------------------------------------------------------------------------
+def compose_frame_rgb(raw_rgb, t, words, grade_overlay, midnight_bg, crimson_bg):
+    # Cutaway #1 (7.80 - 11.95s): 3D Dark MacBook Pro (`Crédit Canada` 3,000$ / 2,500$ UI)
+    if 7.80 <= t < 11.95:
+        return render_laptop_cutaway(t, midnight_bg)
+
+    # Cutaway #2 (33.80 - 37.80s): 3D Handshake Badge Shatter -> Crimson Vignette ("Repartir de zéro / même avec rien")
+    if 33.80 <= t < 37.80:
+        return render_shatter_and_crimson_cutaway(
+            t=t,
+            t_start=33.80,
+            t_shatter=34.75,
+            t_crimson=35.45,
+            t_end=37.80,
+            icon_type="handshake",
+            crimson_lines=CRIMSON_LINES_CUT2,
+            midnight_bg=midnight_bg,
+            crimson_bg=crimson_bg,
+            pre_lockup=None,
+        )
+
+    # Cutaway #3 (44.80 - 49.00s): "S'enrichir grâce aux dettes" + 3D $ Badge Shatter -> Crimson "En France : le découvert !"
+    if 44.80 <= t < 49.00:
+        return render_shatter_and_crimson_cutaway(
+            t=t,
+            t_start=44.80,
+            t_shatter=46.15,
+            t_crimson=46.50,
+            t_end=49.00,
+            icon_type="coin",
+            crimson_lines=CRIMSON_LINES_CUT3,
+            midnight_bg=midnight_bg,
+            crimson_bg=crimson_bg,
+            pre_lockup=PRE_LINES_CUT3,
+        )
+
+    # Talking Head with Multi-Scale Camera Framing + Clean Lower-Chest Vignette Grade
+    frame = get_camera_crop(raw_rgb, t)
+    a = grade_overlay[:, :, 3:4].astype(np.float32) * (1.0 / 255.0)
+    frame = np.clip(
+        frame.astype(np.float32) * (1.0 - a) + grade_overlay[:, :, :3].astype(np.float32) * a,
+        0,
+        255,
+    ).astype(np.uint8)
+
+    # 1. Check if inside a 2-tier overlapping chest lockup
+    drew_lockup = False
+    for lk in TALKING_LOCKUPS:
+        if lk["t_start"] <= t < lk["t_end"]:
+            draw_stacked_lockup(
+                frame,
+                t,
+                lk["lines"],
+                anchor_x=lk["anchor_x"],
+                anchor_y=lk["anchor_y"],
+                align=lk["align"],
+                t_end=lk["t_end"],
+            )
+            drew_lockup = True
+            break
+
+    # 2. Otherwise, draw single-word kinetic chest caption with partial inner blue/crimson glow
+    if not drew_lockup:
+        active_w = None
+        for w_item in words:
+            ws, we = w_item["timestamp"]
+            if ws <= t <= we + 0.06:
+                active_w = w_item
+                break
+        if active_w is not None:
+            w_txt = active_w["text"]
+            ws, _ = active_w["timestamp"]
+            dt_w = t - ws
+            p_w = ease_out_back(clamp(dt_w / 0.14), s=1.3)
+            clean_tok = w_txt.lower().strip("?!.,")
+            g_style = (
+                "crimson_lead"
+                if clean_tok in CRIMSON_GLOW_WORDS
+                else ("blue_lead" if clean_tok in BLUE_GLOW_WORDS else "none")
+            )
+            w_im = get_word_caption_img(w_txt, glow_Style=g_style)
+            wy = int(1310 + (1.0 - p_w) * 14 - w_im.height / 2)
+            wx = int(W / 2 - w_im.width / 2)
+            alpha_composite_roi(frame, w_im, wx, wy)
+
+    # 3. Dual 3D Glowing Circular Chest Badges below the words (`reference 7.mp4` t=19.2s & t=21.0s)
+    # Sequence A (3.44 - 5.58s): "Tu vas à la banque..." -> Bank Orb + Credit Card Orb
+    if 3.44 <= t < 5.58:
+        if t < 4.50:
+            place_badge(frame, "bank", cx=540, cy=1505, radius=105, t=t, t_appear=3.48, t_end=5.56)
+        else:
+            slide_p = ease_out_cubic(clamp((t - 4.50) / 0.28))
+            lx = int(540 - slide_p * 138)
+            place_badge(frame, "bank", cx=lx, cy=1505, radius=105, t=t, t_appear=3.48, t_end=5.56)
+            place_badge(frame, "card", cx=678, cy=1505, radius=105, t=t, t_appear=4.50, t_end=5.56)
+
+    # Sequence B (12.00 - 15.75s): "Minimum 2 500 $ dans une carte..." -> Coin ($) Orb + Card Orb
+    if 12.00 <= t < 15.75:
+        if t < 13.50:
+            place_badge(frame, "coin", cx=540, cy=1505, radius=105, t=t, t_appear=12.10, t_end=15.72)
+        else:
+            slide_p = ease_out_cubic(clamp((t - 13.50) / 0.28))
+            lx = int(540 - slide_p * 138)
+            place_badge(frame, "coin", cx=lx, cy=1505, radius=105, t=t, t_appear=12.10, t_end=15.72)
+            place_badge(frame, "card", cx=678, cy=1505, radius=105, t=t, t_appear=13.50, t_end=15.72)
+
+    # Sequence C (23.50 - 29.35s): "Mon crédit est passé de 2 500 $ à 5 000 $... plus ils l'augmentent" -> Card Orb + Handshake Orb
+    if 23.50 <= t < 29.35:
+        if t < 26.50:
+            place_badge(frame, "card", cx=540, cy=1505, radius=105, t=t, t_appear=23.60, t_end=29.32)
+        else:
+            slide_p = ease_out_cubic(clamp((t - 26.50) / 0.28))
+            lx = int(540 - slide_p * 138)
+            place_badge(frame, "card", cx=lx, cy=1505, radius=105, t=t, t_appear=23.60, t_end=29.32)
+            place_badge(frame, "handshake", cx=678, cy=1505, radius=105, t=t, t_appear=26.50, t_end=29.32)
+
+    # Sequence D (51.00 - 55.35s): "va à la banque, demande une carte... ils vont te donner un crédit" -> Bank Orb + Handshake Orb
+    if 51.00 <= t < 55.35:
+        if t < 53.00:
+            place_badge(frame, "bank", cx=540, cy=1505, radius=105, t=t, t_appear=51.05, t_end=55.32)
+        else:
+            slide_p = ease_out_cubic(clamp((t - 53.00) / 0.28))
+            lx = int(540 - slide_p * 138)
+            place_badge(frame, "bank", cx=lx, cy=1505, radius=105, t=t, t_appear=51.05, t_end=55.32)
+            place_badge(frame, "handshake", cx=678, cy=1505, radius=105, t=t, t_appear=53.00, t_end=55.32)
+
+    # Sequence E (59.05 - 62.15s): "pas de maison, pas de voiture, t'as tout ruiné" -> Crimson House-Slash Orb + Crimson Car-Slash Orb
+    if 59.05 <= t < 62.15:
+        if t < 60.15:
+            place_badge(frame, "house_slash", cx=540, cy=1505, radius=105, t=t, t_appear=59.10, t_end=62.12, tint="crimson")
+        else:
+            slide_p = ease_out_cubic(clamp((t - 60.15) / 0.28))
+            lx = int(540 - slide_p * 138)
+            place_badge(frame, "house_slash", cx=lx, cy=1505, radius=105, t=t, t_appear=59.10, t_end=62.12, tint="crimson")
+            place_badge(frame, "car_slash", cx=678, cy=1505, radius=105, t=t, t_appear=60.15, t_end=62.12, tint="crimson")
+
+    return frame
 
 
 def generate_preview(preview_path: str):
-    ensure_speed_video()
+    words = json.load(open(WORDS_JSON))
+    grade_overlay = build_talking_head_grade_overlay()
+    midnight_bg = build_midnight_blue_bg()
+    crimson_bg = build_crimson_vignette_bg()
+
     cap = cv2.VideoCapture(SPEED_MP4)
-    sample_times = [0.8, 4.2, 6.2, 9.2, 11.2, 16.8, 22.8, 25.4, 32.2, 35.5, 41.8, 44.2, 47.6, 54.0, 59.5, 62.8]
+    sample_times = [0.9, 3.8, 4.9, 6.5, 9.2, 11.0, 14.2, 17.2, 22.4, 27.5, 32.2, 35.1, 36.8, 45.6, 47.6, 60.8]
     thumbs = []
     for ts in sample_times:
         cap.set(cv2.CAP_PROP_POS_FRAMES, int(round(ts * FPS)))
         ok, bgr = cap.read()
         if not ok:
             continue
-        frame = compose_frame(bgr, ts)
-        th = cv2.resize(frame, (270, 480), interpolation=cv2.INTER_AREA)
-        cv2.rectangle(th, (8, 8), (155, 42), (10, 14, 28), -1)
-        cv2.putText(th, f"t={ts:4.1f}s", (16, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.62, (255, 190, 80), 2, cv2.LINE_AA)
+        raw_rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        frame_rgb = compose_frame_rgb(raw_rgb, ts, words, grade_overlay, midnight_bg, crimson_bg)
+        frame_bgr = frame_rgb[:, :, ::-1].copy()
+        th = cv2.resize(frame_bgr, (270, 480), interpolation=cv2.INTER_AREA)
+        cv2.putText(th, f"{ts:4.1f}s", (14, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 255), 2, cv2.LINE_AA)
         thumbs.append(th)
     cap.release()
 
     rows = [np.hstack(thumbs[i : i + 4]) for i in range(0, 16, 4)]
     grid = np.vstack(rows)
     os.makedirs(os.path.dirname(preview_path), exist_ok=True)
-    cv2.imwrite(preview_path, grid, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+    cv2.imwrite(preview_path, grid, [int(cv2.IMWRITE_JPEG_QUALITY), 94])
     print(f"Saved 16-frame preview sheet to {preview_path}")
 
 
-def render_full_video():
-    os.makedirs(FILM_DIR, exist_ok=True)
-    ensure_speed_video()
-    mixed_wav = build_master_audio()
+def main():
+    t0 = time.time()
+    words = json.load(open(WORDS_JSON))
+    print(f"Loaded {len(words)} timestamped words.")
 
-    cap = cv2.VideoCapture(SPEED_MP4)
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    build_studio_audio()
+    grade_overlay = build_talking_head_grade_overlay()
+    midnight_bg = build_midnight_blue_bg()
+    crimson_bg = build_crimson_vignette_bg()
+
     ff = imageio_ffmpeg.get_ffmpeg_exe()
+    dec_cmd = [
+        ff, "-v", "error", "-i", SPEED_MP4,
+        "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
+    ]
+    dec_proc = subprocess.Popen(dec_cmd, stdout=subprocess.PIPE, bufsize=720 * 1280 * 3 * 4)
 
-    cmd = [
-        ff, "-y",
-        "-f", "rawvideo",
-        "-vcodec", "rawvideo",
-        "-s", f"{W}x{H}",
-        "-pix_fmt", "bgr24",
-        "-r", f"{FPS:.2f}",
-        "-i", "-",
-        "-i", mixed_wav,
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-crf", "21",
-        "-maxrate", "3200k",
-        "-bufsize", "6400k",
+    enc_cmd = [
+        ff, "-y", "-v", "error",
+        "-f", "rawvideo", "-vcodec", "rawvideo", "-pix_fmt", "rgb24",
+        "-s", f"{W}x{H}", "-r", "30", "-i", "-",
+        "-i", MIXED_WAV,
+        "-c:v", "libx264", "-preset", "fast", "-crf", "19",
+        "-maxrate", "3400k", "-bufsize", "6800k",
         "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        "-movflags", "+faststart",
-        "-shortest",
+        "-c:a", "aac", "-b:a", "192k",
+        "-shortest", "-movflags", "+faststart",
         OUT_MP4,
     ]
-    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    enc_proc = subprocess.Popen(enc_cmd, stdin=subprocess.PIPE, bufsize=W * H * 3 * 2)
 
-    for f_idx in range(total_frames):
-        ok, bgr = cap.read()
-        if not ok:
+    raw_frame_bytes = 720 * 1280 * 3
+    frame_idx = 0
+
+    while True:
+        buf = dec_proc.stdout.read(raw_frame_bytes)
+        if len(buf) < raw_frame_bytes:
             break
-        t = f_idx / FPS
-        frame = compose_frame(bgr, t)
-        proc.stdin.write(frame.tobytes())
-        if (f_idx + 1) % 300 == 0 or (f_idx + 1) == total_frames:
-            print(f"Rendered {f_idx + 1}/{total_frames} frames ({(f_idx + 1) * 100.0 / total_frames:.1f}%)")
+        t = frame_idx / FPS
+        raw_rgb = np.frombuffer(buf, dtype=np.uint8).reshape((1280, 720, 3))
+        frame = compose_frame_rgb(raw_rgb, t, words, grade_overlay, midnight_bg, crimson_bg)
+        enc_proc.stdin.write(frame.tobytes())
+        frame_idx += 1
+        if frame_idx % 300 == 0:
+            el = time.time() - t0
+            print(f"  Rendered {frame_idx}/1921 frames ({frame_idx/el:.1f} fps)...")
 
-    proc.stdin.close()
-    proc.wait()
-    cap.release()
-    mb = os.path.getsize(OUT_MP4) / (1024 * 1024)
-    print(f"Successfully rendered {OUT_MP4} ({mb:.2f} MB)")
+    dec_proc.stdout.close()
+    dec_proc.wait()
+    enc_proc.stdin.close()
+    enc_proc.wait()
+
+    el = time.time() - t0
+    sz_mb = os.path.getsize(OUT_MP4) / (1024 * 1024)
+    print(f"Done! Rendered {frame_idx} frames in {el:.1f}s -> {OUT_MP4} ({sz_mb:.2f} MB)")
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "--preview":
         generate_preview(sys.argv[2])
     else:
-        render_full_video()
+        main()
