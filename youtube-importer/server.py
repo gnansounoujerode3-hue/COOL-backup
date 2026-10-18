@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
 """
-Arena Live Preview — YouTube & Video Importer Studio (v2 — With Permanent Git Persistence)
+Arena Live Preview — YouTube & Video Importer Studio (v3 — YouTube Link + File Dropzone + Permanent Git Persistence)
 Binds to 0.0.0.0:8080, supports iframe embedding and any Host/Origin,
 and uses relative URLs for all browser -> sandbox API requests.
-
-CRITICAL FIX FOR ARENA SANDBOX:
-Because Arena may reset the sandbox container from the last turn-end snapshot or Git branch
-when a new chat message is sent after an idle period, `server.py` automatically persists
-any uploaded video (splitting into 45 MB parts if > 48 MB to stay well below GitHub's 100 MB limit)
-and pushes it to `origin/arena/edaf5d9a-cool-backup` BEFORE returning the final upload confirmation!
 """
 
 import glob
@@ -52,10 +46,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
                   var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 28px 20px 60px;
+      padding: 26px 20px 60px;
     }
     .container { max-width: 780px; margin: 0 auto; }
-    .header { text-align: center; margin-bottom: 24px; }
+    .header { text-align: center; margin-bottom: 22px; }
     .badge {
       display: inline-block;
       background: var(--rose);
@@ -74,8 +68,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
       background: var(--card);
       border: 2px solid var(--border);
       border-radius: 22px;
-      padding: 24px;
-      margin-bottom: 20px;
+      padding: 22px;
+      margin-bottom: 18px;
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
     }
     .step-title {
@@ -98,11 +92,75 @@ HTML_PAGE = r"""<!DOCTYPE html>
       font-size: 13px;
       font-weight: 800;
     }
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    input[type="text"] {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.06);
+      border: 2px solid rgba(255, 255, 255, 0.14);
+      color: #fff;
+      padding: 14px 16px;
+      border-radius: 14px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: var(--rose); }
+    .btn {
+      background: var(--rose);
+      color: #fff;
+      border: none;
+      padding: 14px 22px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.2s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--rose-light); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .btn-helper {
+      background: rgba(236, 72, 153, 0.18);
+      border: 1.5px solid var(--rose);
+      color: #fff;
+      padding: 8px 13px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-helper:hover { background: var(--rose); }
+    .yt-preview {
+      display: none;
+      background: rgba(0, 0, 0, 0.28);
+      border-radius: 16px;
+      padding: 14px;
+      margin-top: 12px;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .yt-preview img {
+      width: 140px;
+      height: 78px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 2px solid var(--rose);
+    }
+    .yt-info h3 { font-size: 15px; margin-bottom: 4px; }
+    .yt-info p { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
     .dropzone {
       border: 2.5px dashed rgba(236, 72, 153, 0.65);
       background: rgba(236, 72, 153, 0.06);
       border-radius: 18px;
-      padding: 36px 20px;
+      padding: 32px 20px;
       text-align: center;
       cursor: pointer;
       transition: all 0.2s;
@@ -112,19 +170,19 @@ HTML_PAGE = r"""<!DOCTYPE html>
       border-color: var(--rose);
     }
     .dropzone-icon {
-      width: 56px;
-      height: 56px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
       background: rgba(236, 72, 153, 0.22);
       color: var(--rose-light);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 800;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
-    .dropzone h3 { font-size: 18px; margin-bottom: 6px; }
+    .dropzone h3 { font-size: 17px; margin-bottom: 6px; }
     .dropzone p { font-size: 13px; color: var(--muted); }
     .progress-wrap { display: none; margin-top: 18px; }
     .progress-bar-bg {
@@ -184,21 +242,43 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <body>
   <div class="container">
     <div class="header">
-      <span class="badge">SAUVEGARDE PERMANENTE ACTIVÉE • STUDIO SHORTS</span>
-      <h1>Importer ta Vidéo pour Découpage en Shorts</h1>
-      <p class="subtitle">Glisse ta vidéo ci-dessous : elle sera automatiquement sauvegardée de façon permanente pour le découpage en Shorts avec sous-titres</p>
+      <span class="badge">SAUVEGARDE PERMANENTE ACTIVÉE • STUDIO YOUTUBE & SHORTS</span>
+      <h1>Importer par Lien YouTube ou Fichier Vidéo</h1>
+      <p class="subtitle">Colle ton lien YouTube à l'étape 1 ou glisse directement le fichier .mp4 à l'étape 2</p>
     </div>
 
+    <!-- Step 1: YouTube Link -->
     <div class="card">
       <div class="step-title">
         <span class="step-num">1</span>
-        <span>Glisser-déposer ou sélectionner ta vidéo (.mp4, .mov, .webm)</span>
+        <span>Importer via un lien YouTube</span>
+      </div>
+      <div class="input-row">
+        <input type="text" id="ytUrl" placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..." />
+        <button class="btn" id="btnAnalyze" onclick="handleYouTubeLink()">Importer le lien</button>
+      </div>
+      <div class="yt-preview" id="ytPreview">
+        <img id="ytThumb" src="" alt="Miniature" />
+        <div class="yt-info" style="flex:1;">
+          <h3 id="ytTitle">Titre de la vidéo</h3>
+          <p id="ytAuthor">Chaîne YouTube</p>
+          <div id="ytStreamStatus" style="font-size:13px; color:#F472B6; font-weight:700; margin-bottom:8px;"></div>
+          <div id="ytHelpers" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: File Dropzone -->
+    <div class="card">
+      <div class="step-title">
+        <span class="step-num">2</span>
+        <span>Glisser-déposer ou sélectionner le fichier vidéo (.mp4, .mov, .webm)</span>
       </div>
       <input type="file" id="fileInput" accept="video/*,.mp4,.mov,.webm,.mkv" style="display:none;" onchange="if(this.files[0]) uploadFileChunked(this.files[0])" />
       <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
         <div class="dropzone-icon">↑</div>
         <h3>Clique ici ou glisse ta vidéo (.mp4)</h3>
-        <p>Transfert rapide par blocs + sauvegarde permanente automatique sur le dépôt</p>
+        <p>Transfert rapide par blocs de 4 Mo + sauvegarde permanente automatique sur Git</p>
       </div>
       <div class="progress-wrap" id="progressWrap">
         <div class="progress-bar-bg">
@@ -226,6 +306,115 @@ HTML_PAGE = r"""<!DOCTYPE html>
       }
     });
 
+    function extractVideoId(url) {
+      const m = url.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([A-Za-z0-9_-]{11})/);
+      return m ? m[1] : '';
+    }
+
+    async function tryBrowserStreamRelay(videoId, title) {
+      const statusEl = document.getElementById('ytStreamStatus');
+      statusEl.textContent = '⏳ Tentative de récupération directe du flux vidéo .mp4 depuis ton navigateur...';
+
+      const pipedApis = [
+        'https://pipedapi.kavin.rocks/streams/' + videoId,
+        'https://pipedapi.tokhmi.xyz/streams/' + videoId,
+        'https://pipedapi.moomoo.me/streams/' + videoId,
+        'https://inv.tux.pizza/api/v1/videos/' + videoId
+      ];
+
+      for (const apiUrl of pipedApis) {
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 5500);
+          const res = await fetch(apiUrl, { signal: ctrl.signal });
+          clearTimeout(timer);
+          if (!res.ok) continue;
+          const data = await res.json();
+
+          let streamUrl = '';
+          if (data.videoStreams && Array.isArray(data.videoStreams)) {
+            const muxed = data.videoStreams.find(s => !s.videoOnly && (s.format === 'MPEG_4' || (s.mimeType && s.mimeType.includes('mp4'))));
+            if (muxed && muxed.url) streamUrl = muxed.url;
+          } else if (data.formatStreams && Array.isArray(data.formatStreams)) {
+            const muxed = data.formatStreams.find(s => s.container === 'mp4' && s.url);
+            if (muxed) streamUrl = muxed.url;
+          }
+
+          if (streamUrl) {
+            statusEl.textContent = '⏳ Flux MP4 trouvé ! Téléchargement et transfert vers le serveur...';
+            const vidRes = await fetch(streamUrl);
+            if (vidRes.ok) {
+              const blob = await vidRes.blob();
+              if (blob.size > 100000) {
+                const file = new File([blob], `youtube_${videoId}.mp4`, { type: 'video/mp4' });
+                await uploadFileChunked(file);
+                statusEl.textContent = '✅ Vidéo YouTube récupérée et sauvegardée automatiquement !';
+                return true;
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      statusEl.textContent = '✅ Lien enregistré ! Si YouTube bloque le flux direct, clique sur un bouton ci-dessous pour récupérer le .mp4 et glisse-le à l\'étape 2 :';
+      return false;
+    }
+
+    async function handleYouTubeLink() {
+      const url = document.getElementById('ytUrl').value.trim();
+      if (!url) return;
+      const btn = document.getElementById('btnAnalyze');
+      btn.disabled = true;
+      btn.textContent = 'Analyse...';
+
+      const vid = extractVideoId(url);
+      let meta = { title: 'Vidéo YouTube', author_name: 'YouTube', thumbnail_url: vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : '' };
+      try {
+        const res = await fetch('https://noembed.com/embed?url=' + encodeURIComponent(url));
+        if (res.ok) {
+          const data = await res.json();
+          if (data.title) meta = data;
+        }
+      } catch (err) {}
+
+      document.getElementById('ytPreview').style.display = 'flex';
+      document.getElementById('ytTitle').textContent = meta.title || url;
+      document.getElementById('ytAuthor').textContent = meta.author_name || 'YouTube';
+      if (meta.thumbnail_url) {
+        document.getElementById('ytThumb').src = meta.thumbnail_url;
+      }
+
+      // Render 1-click download helpers if user needs to grab the MP4
+      const helpers = document.getElementById('ytHelpers');
+      if (vid) {
+        helpers.innerHTML = `
+          <a class="btn-helper" href="https://cobalt.tools/" target="_blank" rel="noopener">⚡ Télécharger MP4 (Cobalt)</a>
+          <a class="btn-helper" href="https://ssyoutube.com/watch?v=${vid}" target="_blank" rel="noopener">📥 Télécharger MP4 (SSYouTube)</a>
+        `;
+      }
+
+      // Persist the YouTube link & metadata to Git on the server immediately
+      await fetch('api/register-youtube', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          youtube_url: url,
+          video_id: vid,
+          title: meta.title || '',
+          author: meta.author_name || '',
+          thumbnail: meta.thumbnail_url || ''
+        })
+      });
+
+      if (vid) {
+        await tryBrowserStreamRelay(vid, meta.title || vid);
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Lien envoyé ✓';
+      refreshState();
+    }
+
     async function uploadFileChunked(file) {
       const wrap = document.getElementById('progressWrap');
       const fill = document.getElementById('progressFill');
@@ -236,7 +425,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
       wrap.style.display = 'block';
       banner.style.display = 'none';
 
-      const chunkSize = 4 * 1024 * 1024; // 4 MB chunks
+      const chunkSize = 4 * 1024 * 1024;
       const totalChunks = Math.ceil(file.size / chunkSize);
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const t0 = performance.now();
@@ -250,7 +439,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         if (isLast) {
           banner.className = 'status-banner saving';
           banner.style.display = 'block';
-          banner.textContent = '⏳ Dernier bloc reçu ! Sauvegarde permanente sur le serveur en cours (patiente 5 à 15 secondes)...';
+          banner.textContent = '⏳ Dernier bloc reçu ! Sauvegarde permanente sur Git en cours (patiente 5 à 15 secondes)...';
         }
 
         const q = new URLSearchParams({
@@ -270,7 +459,6 @@ HTML_PAGE = r"""<!DOCTYPE html>
           banner.textContent = 'Erreur lors du transfert au bloc ' + i;
           return;
         }
-        const resData = await res.json();
 
         const pct = Math.round((end / file.size) * 100);
         const elapsedSec = Math.max(0.1, (performance.now() - t0) / 1000);
@@ -282,7 +470,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         if (isLast) {
           banner.className = 'status-banner';
           banner.style.display = 'block';
-          banner.textContent = `✅ Vidéo "${file.name}" (${(file.size / (1024*1024)).toFixed(1)} Mo) importée ET sauvegardée de façon permanente ! Tu peux maintenant m'écrire "c'est bon" dans le chat.`;
+          banner.textContent = `✅ Vidéo "${file.name}" (${(file.size / (1024*1024)).toFixed(1)} Mo) importée ET sauvegardée de façon permanente ! Tu peux maintenant écrire "c'est bon" dans le chat.`;
         }
       }
 
@@ -293,11 +481,19 @@ HTML_PAGE = r"""<!DOCTYPE html>
       try {
         const res = await fetch('api/status');
         const data = await res.json();
+        if (data.youtube_url && !document.getElementById('ytUrl').value) {
+          document.getElementById('ytUrl').value = data.youtube_url;
+        }
         const container = document.getElementById('filesList');
+        let html = '';
+        if (data.youtube_url) {
+          html += `<div style="margin-bottom:8px;color:#F472B6;font-weight:700;">🔗 Lien YouTube enregistré : ${data.title || data.youtube_url}</div>`;
+        }
         if (data.files && data.files.length > 0) {
-          container.innerHTML = '<div style="margin-bottom:6px;font-weight:700;color:#fff;">Vidéos sauvegardées de façon permanente :</div>' +
+          html += '<div style="margin-bottom:6px;font-weight:700;color:#fff;">Vidéos sauvegardées de façon permanente :</div>' +
             data.files.map(f => `<span class="file-pill">✅ ${f.name} (${f.size_mb} Mo)</span>`).join('');
         }
+        container.innerHTML = html;
       } catch (e) {}
     }
 
@@ -315,7 +511,7 @@ def load_job_state() -> dict:
                 return json.load(f)
         except Exception:
             pass
-    return {"uploaded_files": [], "latest_video": ""}
+    return {"youtube_url": "", "video_id": "", "title": "", "author": "", "uploaded_files": [], "latest_video": ""}
 
 
 def save_job_state(state: dict):
@@ -323,13 +519,19 @@ def save_job_state(state: dict):
         json.dump(state, f, indent=2, ensure_ascii=False)
 
 
-def persist_video_to_git(file_path: str, filename: str) -> bool:
-    """
-    Splits `file_path` into 45 MB chunks inside `imports/persisted/` (so even 300 MB+ videos
-    never hit GitHub's 100 MB per-file limit), commits, and pushes to `origin/arena/edaf5d9a-cool-backup`.
-    """
+def persist_job_metadata_to_git() -> bool:
     try:
-        # Remove old persisted chunks
+        subprocess.run(["git", "add", "-f", JOB_JSON], cwd=REPO_ROOT, check=True)
+        subprocess.run(["git", "commit", "-m", "chore(import): persist YouTube link metadata"], cwd=REPO_ROOT, check=False)
+        subprocess.run(["git", "push", "origin", "HEAD:arena/edaf5d9a-cool-backup"], cwd=REPO_ROOT, check=True)
+        return True
+    except Exception as e:
+        print(f"Git metadata persistence error: {e}", flush=True)
+        return False
+
+
+def persist_video_to_git(file_path: str, filename: str) -> bool:
+    try:
         for old_p in glob.glob(os.path.join(PERSIST_DIR, "*")):
             os.remove(old_p)
 
@@ -363,7 +565,6 @@ def persist_video_to_git(file_path: str, filename: str) -> bool:
 
 
 def restore_persisted_videos_if_needed():
-    """Reassembles any `.part000` files in `imports/persisted/` into `imports/<filename>` on startup."""
     os.makedirs(PERSIST_DIR, exist_ok=True)
     part0_files = sorted(glob.glob(os.path.join(PERSIST_DIR, "*.part000")))
     for p0 in part0_files:
@@ -425,6 +626,32 @@ class ImporterHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         length = int(self.headers.get("Content-Length", "0"))
 
+        if parsed.path.endswith("/api/register-youtube"):
+            raw = self.rfile.read(length) if length > 0 else b"{}"
+            payload = json.loads(raw.decode("utf-8"))
+            state = load_job_state()
+            if payload.get("youtube_url"):
+                state["youtube_url"] = payload["youtube_url"]
+            if payload.get("video_id"):
+                state["video_id"] = payload["video_id"]
+            if payload.get("title"):
+                state["title"] = payload["title"]
+            if payload.get("author"):
+                state["author"] = payload["author"]
+            if payload.get("thumbnail"):
+                state["thumbnail"] = payload["thumbnail"]
+            state["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            save_job_state(state)
+            persist_job_metadata_to_git()
+
+            resp = json.dumps({"ok": True, "state": state}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(resp)
+            return
+
         if parsed.path.endswith("/api/upload-chunk"):
             qs = parse_qs(parsed.query)
             filename = re.sub(r"[^a-zA-Z0-9._-]", "_", qs.get("filename", ["video.mp4"])[0])
@@ -469,5 +696,5 @@ if __name__ == "__main__":
     host = "0.0.0.0"
     port = 8080
     server = ThreadingHTTPServer((host, port), ImporterHandler)
-    print(f"YouTube Importer Studio v2 listening on http://{host}:{port}", flush=True)
+    print(f"YouTube Importer Studio v3 listening on http://{host}:{port}", flush=True)
     server.serve_forever()
