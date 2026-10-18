@@ -2,8 +2,21 @@
 """
 Master 1080x1920 (9:16, 30fps) Ultra-Professional Renderer for:
 Raw Video: `imports/AQNIjRAr6B_rpxG_wzm3pn0pqMSSszClolTOsw76yoX7UOh-zXRCqq06eAMqeJpIodAvFY71EYRLXsxIrLyfOJk4v976706AUNDQXx4.mp4`
-Inspired directly by `reference 7.mp4` and built on the proven 3D compositing engine
-of `felix-gray-reference7/scripts/render_video.py`.
+Inspired directly by `reference 7.mp4`.
+
+Key guarantees:
+1. Cutaway #1 (7.80s - 12.60s): Sleek 3D perspective-tilted Credit Card animation showing
+   `3 000 $` (7.80s - 10.65s) and then flipping in 3D to `2 500 $` (10.65s - 12.60s).
+2. ZERO repeated animations & ZERO repeated 3D icons across the entire video:
+   - Cutaway #1 (7.80s - 12.60s): 3D Perspective Credit Card (`3 000 $` -> `2 500 $`)
+   - Cutaway #2 (23.48s - 26.60s): 3D Perspective Credit Growth Chart (`2 500 $` -> `5 000 $`)
+   - Cutaway #3 (33.80s - 37.80s): Crimson Studio Vignette + Neon Progress Ring (`Repartir de zéro / même avec rien`)
+   - Cutaway #4 (44.80s - 49.00s): 125-Shard 3D Sphere Shatter (`S'enrichir grâce aux dettes` -> `En France : le découvert !`)
+   - Chest Orb Seq 1 (3.44s - 5.58s): `bank` + `key`
+   - Chest Orb Seq 2 (15.80s - 18.48s): `bulb` + `multiply`
+   - Chest Orb Seq 3 (29.40s - 33.75s): `shield` + `crown`
+   - Chest Orb Seq 4 (51.00s - 55.35s): `sliders` + `check`
+   - Chest Orb Seq 5 (59.05s - 62.15s): `house_slash` + `car_slash`
 """
 import json
 import math
@@ -31,7 +44,7 @@ REPO_ROOT = "/home/user/COOL-backup"
 RAW_MP4 = f"{REPO_ROOT}/imports/AQNIjRAr6B_rpxG_wzm3pn0pqMSSszClolTOsw76yoX7UOh-zXRCqq06eAMqeJpIodAvFY71EYRLXsxIrLyfOJk4v976706AUNDQXx4.mp4"
 SPEED_MP4 = "/tmp/ref7_inspect/raw_107x.mp4"
 WORDS_JSON = "/tmp/ref7_inspect/words_107x.json"
-MIXED_WAV = "/tmp/ref7_inspect/studio_mixed_v2.wav"
+MIXED_WAV = "/tmp/ref7_inspect/studio_mixed_v3.wav"
 
 OUT_DIR = f"{REPO_ROOT}/canada-credit-reference7/film"
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -50,6 +63,7 @@ F_DAFOE = f"{FONT_ROOT}/mr-dafoe/400Regular/MrDafoe_400Regular.ttf"
 F_INTER_REG = f"{FONT_ROOT}/inter/400Regular/Inter_400Regular.ttf"
 F_INTER_MED = f"{FONT_ROOT}/inter/500Medium/Inter_500Medium.ttf"
 F_INTER_BOLD = f"{FONT_ROOT}/inter/700Bold/Inter_700Bold.ttf"
+F_MONO = f"{FONT_ROOT}/dm-mono/500Medium/DMMono_500Medium.ttf"
 
 # Color Palette (from `reference 7.mp4`)
 C_WHITE = (255, 255, 255)
@@ -58,6 +72,7 @@ C_BLUE = (37, 88, 255)          # #2558FF signature electric cobalt
 C_BLUE_BRIGHT = (78, 138, 255)  # #4E8AFF neon script cobalt
 C_CRIMSON = (255, 36, 66)       # #FF2442 signature crimson script
 C_EMERALD = (24, 218, 142)      # #18DA8E approval highlight
+C_GOLD = (248, 192, 58)         # #F8C03A metallic gold chip
 
 _FONT_CACHE = {}
 
@@ -118,7 +133,6 @@ def alpha_composite_roi(dst_rgb, src_rgba, x0=0, y0=0):
 def build_talking_head_grade_overlay():
     """
     Creates the `reference 7.mp4` studio atmosphere over talking-head frames:
-    - Subtle dark vignette at the very top ceiling edge (`y = 0..320`) to tone down fluorescent lights
     - Keeps the speaker's face (`y = 320..1080`) 100% crystal-clear and natural!
     - Smooth dark lower-chest gradient (`y = 1100..1920`) over the hoodie so typography & 3D orbs pop
     """
@@ -152,10 +166,7 @@ def build_midnight_blue_bg():
 
 
 def build_crimson_vignette_bg():
-    """
-    Full-screen dark crimson-red radial vignette matching `t=14.80s` of `reference 7.mp4`:
-    Deep near-black center-left (`#080103`) with rich dark crimson glow (`#580615`) at top-right & edges.
-    """
+    """Full-screen dark crimson-red radial vignette matching `t=14.80s` of `reference 7.mp4`."""
     yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
     d_tr = np.sqrt(((xx - W * 0.78) / 620.0) ** 2 + ((yy - H * 0.28) / 680.0) ** 2)
     glow_tr = np.exp(-(d_tr ** 1.6) * 0.95)
@@ -177,11 +188,6 @@ _WORD_IMG_CACHE = {}
 
 
 def get_word_caption_img(word_text, glow_Style="none"):
-    """
-    Renders a single chest-level word in `Montserrat ExtraBold` (72px) with zero black outline,
-    soft Gaussian drop shadow, and localized radial electric-blue or crimson light bloom on
-    the leading letters (matching `inquiry` and `inconsistent` in `reference 7.mp4`).
-    """
     key = (word_text, glow_Style)
     if key in _WORD_IMG_CACHE:
         return _WORD_IMG_CACHE[key]
@@ -199,14 +205,12 @@ def get_word_caption_img(word_text, glow_Style="none"):
 
     canvas = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
 
-    # 1. Soft dark drop shadow for instant chest contrast (no black stroke outline!)
     shadow = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
     ds = ImageDraw.Draw(shadow)
     ds.text((tx, ty + 5), word_text, font=font, fill=(0, 0, 0, 195))
     shadow = shadow.filter(ImageFilter.GaussianBlur(radius=9))
     canvas = Image.alpha_composite(canvas, shadow)
 
-    # 2. Base text mask
     mask_im = Image.new("L", (cw, ch), 0)
     dm = ImageDraw.Draw(mask_im)
     dm.text((tx, ty), word_text, font=font, fill=255)
@@ -334,117 +338,103 @@ def draw_stacked_lockup(frame_rgb, t, lines_spec, anchor_x, anchor_y, align="lef
 
 
 # ---------------------------------------------------------------------------
-# 3D Glowing Circular Chest Badges (`reference 7.mp4` t=12.3s, 19.2s, 21.0s)
+# 3D Glowing Circular Chest Badges — 10 Unique Vector Icons (Never Repeated!)
 # ---------------------------------------------------------------------------
 _BADGE_CACHE = {}
 
 
 def draw_icon_vector(draw, icon_type, cx, cy, r):
-    """Draws crisp white vector iconography inside a 3D circular orb."""
+    """Draws 100% distinct, crisp white vector iconography inside a 3D circular orb."""
     w_white = (255, 255, 255, 255)
     navy_cut = (12, 36, 118, 255)
     crimson_cut = (95, 12, 28, 255)
     s = r / 105.0
 
-    if icon_type == "card":
-        # Sleek angled credit card with chip & stripe
-        draw.rounded_rectangle(
-            [cx - 46 * s, cy - 30 * s, cx + 46 * s, cy + 30 * s],
-            radius=int(9 * s),
-            fill=w_white,
-        )
-        draw.rectangle(
-            [cx - 46 * s, cy - 16 * s, cx + 46 * s, cy - 4 * s],
-            fill=navy_cut,
-        )
-        draw.rounded_rectangle(
-            [cx - 34 * s, cy + 4 * s, cx - 14 * s, cy + 19 * s],
-            radius=int(3 * s),
-            fill=navy_cut,
-        )
-        draw.line(
-            [(cx + 6 * s, cy + 14 * s), (cx + 34 * s, cy + 14 * s)],
-            fill=navy_cut,
-            width=max(2, int(5 * s)),
-        )
-
-    elif icon_type == "bank":
-        # Classical bank pediment + columns + base
-        pediment = [
-            (cx, cy - 42 * s),
-            (cx - 46 * s, cy - 14 * s),
-            (cx + 46 * s, cy - 14 * s),
-        ]
+    if icon_type == "bank":
+        pediment = [(cx, cy - 42 * s), (cx - 46 * s, cy - 14 * s), (cx + 46 * s, cy - 14 * s)]
         draw.polygon(pediment, fill=w_white)
         draw.rectangle([cx - 42 * s, cy - 12 * s, cx + 42 * s, cy - 6 * s], fill=w_white)
         for bx in (-28, -9, 9, 28):
-            draw.rounded_rectangle(
-                [cx + (bx - 5) * s, cy - 4 * s, cx + (bx + 5) * s, cy + 26 * s],
-                radius=int(2 * s),
-                fill=w_white,
-            )
-        draw.rounded_rectangle(
-            [cx - 46 * s, cy + 26 * s, cx + 46 * s, cy + 38 * s],
-            radius=int(3 * s),
-            fill=w_white,
-        )
+            draw.rounded_rectangle([cx + (bx - 5) * s, cy - 4 * s, cx + (bx + 5) * s, cy + 26 * s], radius=int(2 * s), fill=w_white)
+        draw.rounded_rectangle([cx - 46 * s, cy + 26 * s, cx + 46 * s, cy + 38 * s], radius=int(3 * s), fill=w_white)
 
-    elif icon_type == "handshake":
-        # Exact clasped handshake from reference 7.mp4 (t=12.30s & t=20.60s)
-        cuff_l = [
-            (cx - 56 * s, cy - 8 * s),
-            (cx - 38 * s, cy - 28 * s),
-            (cx - 22 * s, cy - 12 * s),
-            (cx - 40 * s, cy + 10 * s),
-        ]
-        cuff_r = [
-            (cx + 56 * s, cy - 8 * s),
+    elif icon_type == "key":
+        # Security account key (angled at -35 deg)
+        draw.ellipse([cx - 42 * s, cy - 36 * s, cx - 2 * s, cy + 4 * s], fill=w_white)
+        draw.ellipse([cx - 30 * s, cy - 24 * s, cx - 14 * s, cy - 8 * s], fill=navy_cut)
+        shaft = [(cx - 6 * s, cy - 12 * s), (cx + 40 * s, cy + 24 * s), (cx + 32 * s, cy + 34 * s), (cx - 14 * s, cy - 2 * s)]
+        draw.polygon(shaft, fill=w_white)
+        tooth1 = [(cx + 16 * s, cy + 18 * s), (cx + 24 * s, cy + 24 * s), (cx + 14 * s, cy + 36 * s), (cx + 6 * s, cy + 30 * s)]
+        tooth2 = [(cx + 28 * s, cy + 28 * s), (cx + 36 * s, cy + 34 * s), (cx + 26 * s, cy + 46 * s), (cx + 18 * s, cy + 40 * s)]
+        draw.polygon(tooth1, fill=w_white)
+        draw.polygon(tooth2, fill=w_white)
+
+    elif icon_type == "bulb":
+        # Intelligence lightbulb + rays (for "si t'es intelligent")
+        draw.ellipse([cx - 28 * s, cy - 36 * s, cx + 28 * s, cy + 16 * s], fill=w_white)
+        draw.rounded_rectangle([cx - 16 * s, cy + 10 * s, cx + 16 * s, cy + 28 * s], radius=int(4 * s), fill=w_white)
+        draw.rounded_rectangle([cx - 11 * s, cy + 32 * s, cx + 11 * s, cy + 40 * s], radius=int(4 * s), fill=w_white)
+        for ang in (-145, -90, -35, 20, 160):
+            ra = math.radians(ang)
+            x1 = cx + math.cos(ra) * 35 * s
+            y1 = (cy - 10 * s) + math.sin(ra) * 35 * s
+            x2 = cx + math.cos(ra) * 47 * s
+            y2 = (cy - 10 * s) + math.sin(ra) * 47 * s
+            draw.line([(x1, y1), (x2, y2)], fill=w_white, width=max(3, int(5 * s)))
+
+    elif icon_type == "multiply":
+        # Bold "×2" inside twin rising rings (for "tu les multiplies")
+        draw.arc([cx - 46 * s, cy - 46 * s, cx + 46 * s, cy + 46 * s], start=210, end=30, fill=w_white, width=max(3, int(6 * s)))
+        draw.arc([cx - 46 * s, cy - 46 * s, cx + 46 * s, cy + 46 * s], start=30, end=210, fill=w_white, width=max(3, int(6 * s)))
+        f_x = get_font(F_MONT_BLACK, int(48 * s))
+        bb = draw.textbbox((0, 0), "×2", font=f_x)
+        draw.text((cx - (bb[2] - bb[0]) / 2 - bb[0], cy - (bb[3] - bb[1]) / 2 - bb[1]), "×2", font=f_x, fill=w_white)
+
+    elif icon_type == "shield":
+        # Bank risk/trust shield with upward arrow (for "plus la banque prend le risque")
+        pts = [
+            (cx, cy - 44 * s),
             (cx + 38 * s, cy - 28 * s),
-            (cx + 22 * s, cy - 12 * s),
-            (cx + 40 * s, cy + 10 * s),
+            (cx + 32 * s, cy + 12 * s),
+            (cx, cy + 44 * s),
+            (cx - 32 * s, cy + 12 * s),
+            (cx - 38 * s, cy - 28 * s),
         ]
-        draw.polygon(cuff_l, fill=w_white)
-        draw.polygon(cuff_r, fill=w_white)
-        palm = [
-            (cx - 32 * s, cy - 8 * s),
-            (cx - 6 * s, cy - 24 * s),
-            (cx + 32 * s, cy - 8 * s),
-            (cx + 26 * s, cy + 18 * s),
-            (cx + 2 * s, cy + 30 * s),
-            (cx - 26 * s, cy + 18 * s),
-        ]
-        draw.polygon(palm, fill=w_white)
-        for i in range(-1, 3):
-            fx = cx + i * 9 * s
-            fy = cy + 12 * s + abs(i) * 2 * s
-            draw.line(
-                [(fx - 6 * s, fy + 10 * s), (fx + 5 * s, fy - 4 * s)],
-                fill=navy_cut,
-                width=max(2, int(4 * s)),
-            )
-        draw.line(
-            [(cx - 14 * s, cy - 6 * s), (cx + 4 * s, cy - 18 * s), (cx + 18 * s, cy - 4 * s)],
-            fill=navy_cut,
-            width=max(2, int(4.5 * s)),
-        )
+        draw.polygon(pts, fill=w_white)
+        draw.line([(cx, cy + 20 * s), (cx, cy - 18 * s)], fill=navy_cut, width=max(3, int(6 * s)))
+        draw.line([(cx - 14 * s, cy - 4 * s), (cx, cy - 18 * s), (cx + 14 * s, cy - 4 * s)], fill=navy_cut, width=max(3, int(6 * s)))
 
-    elif icon_type == "coin":
-        draw.ellipse(
-            [cx - 44 * s, cy - 44 * s, cx + 44 * s, cy + 44 * s],
-            outline=w_white,
-            width=max(3, int(6 * s)),
-        )
-        f_dlr = get_font(F_MONT_BLACK, int(56 * s))
-        bb = draw.textbbox((0, 0), "$", font=f_dlr)
-        draw.text(
-            (cx - (bb[2] - bb[0]) / 2 - bb[0], cy - (bb[3] - bb[1]) / 2 - bb[1]),
-            "$",
-            font=f_dlr,
-            fill=w_white,
-        )
+    elif icon_type == "crown":
+        # Royal crown (for "la cour des grands")
+        pts = [
+            (cx - 38 * s, cy + 24 * s),
+            (cx - 44 * s, cy - 18 * s),
+            (cx - 18 * s, cy + 4 * s),
+            (cx, cy - 30 * s),
+            (cx + 18 * s, cy + 4 * s),
+            (cx + 44 * s, cy - 18 * s),
+            (cx + 38 * s, cy + 24 * s),
+        ]
+        draw.polygon(pts, fill=w_white)
+        draw.rounded_rectangle([cx - 38 * s, cy + 28 * s, cx + 38 * s, cy + 36 * s], radius=int(3 * s), fill=w_white)
+        for dx_c, dy_c in [(-44, -22), (0, -34), (44, -22)]:
+            draw.ellipse([cx + (dx_c - 5) * s, cy + (dy_c - 5) * s, cx + (dx_c + 5) * s, cy + (dy_c + 5) * s], fill=w_white)
+
+    elif icon_type == "sliders":
+        # Precision control sliders (for "et le reste c'est toi qui gères")
+        for idx_s, (sy_off, kx_off) in enumerate([(-24, -14), (0, 16), (24, -6)]):
+            yy_s = cy + sy_off * s
+            draw.line([(cx - 40 * s, yy_s), (cx + 40 * s, yy_s)], fill=w_white, width=max(3, int(5 * s)))
+            kx = cx + kx_off * s
+            draw.ellipse([kx - 10 * s, yy_s - 10 * s, kx + 10 * s, yy_s + 10 * s], fill=w_white)
+            draw.ellipse([kx - 4 * s, yy_s - 4 * s, kx + 4 * s, yy_s + 4 * s], fill=navy_cut)
+
+    elif icon_type == "check":
+        # Bold circular verification badge (for "Mais gère-le correctement !")
+        draw.ellipse([cx - 42 * s, cy - 42 * s, cx + 42 * s, cy + 42 * s], outline=w_white, width=max(3, int(6 * s)))
+        draw.line([(cx - 20 * s, cy + 2 * s), (cx - 5 * s, cy + 18 * s), (cx + 22 * s, cy - 14 * s)], fill=w_white, width=max(4, int(8 * s)))
 
     elif icon_type == "house_slash":
-        # Minimalist house + crimson slash (for "pas de maison")
         roof = [(cx, cy - 40 * s), (cx - 44 * s, cy - 6 * s), (cx + 44 * s, cy - 6 * s)]
         draw.polygon(roof, fill=w_white)
         draw.rounded_rectangle([cx - 32 * s, cy - 8 * s, cx + 32 * s, cy + 36 * s], radius=int(5 * s), fill=w_white)
@@ -452,7 +442,6 @@ def draw_icon_vector(draw, icon_type, cx, cy, r):
         draw.line([(cx - 44 * s, cy + 38 * s), (cx + 44 * s, cy - 38 * s)], fill=(255, 48, 76, 255), width=max(4, int(7 * s)))
 
     elif icon_type == "car_slash":
-        # Minimalist car silhouette + crimson slash (for "pas de voiture")
         cabin = [(cx - 24 * s, cy - 22 * s), (cx + 20 * s, cy - 22 * s), (cx + 34 * s, cy - 2 * s), (cx - 34 * s, cy - 2 * s)]
         draw.polygon(cabin, fill=w_white)
         draw.rounded_rectangle([cx - 46 * s, cy - 4 * s, cx + 46 * s, cy + 20 * s], radius=int(8 * s), fill=w_white)
@@ -460,9 +449,15 @@ def draw_icon_vector(draw, icon_type, cx, cy, r):
         draw.ellipse([cx + 14 * s, cy + 10 * s, cx + 34 * s, cy + 30 * s], fill=w_white, outline=crimson_cut, width=max(2, int(3 * s)))
         draw.line([(cx - 44 * s, cy + 38 * s), (cx + 44 * s, cy - 38 * s)], fill=(255, 48, 76, 255), width=max(4, int(7 * s)))
 
+    elif icon_type == "euro_overdraft":
+        # Central icon for the France Découvert shatter sphere (used only in Cutaway #4)
+        draw.ellipse([cx - 44 * s, cy - 44 * s, cx + 44 * s, cy + 44 * s], outline=w_white, width=max(3, int(6 * s)))
+        f_eu = get_font(F_MONT_BLACK, int(54 * s))
+        bb = draw.textbbox((0, 0), "€", font=f_eu)
+        draw.text((cx - (bb[2] - bb[0]) / 2 - bb[0], cy - (bb[3] - bb[1]) / 2 - bb[1]), "€", font=f_eu, fill=w_white)
+
 
 def get_3d_badge_img(icon_type, radius=105, tint="blue"):
-    """Pre-renders a 3D glowing circular badge matching `reference 7.mp4` (`t=12.30s`, `19.20s`, `21.00s`)."""
     key = (icon_type, int(radius), tint)
     if key in _BADGE_CACHE:
         return _BADGE_CACHE[key]
@@ -508,18 +503,10 @@ def get_3d_badge_img(icon_type, radius=105, tint="blue"):
     draw = ImageDraw.Draw(im)
 
     rim_col = (255, 92, 118, 235) if tint == "crimson" else (82, 148, 255, 240)
-    draw.ellipse(
-        [cx - radius, cy - radius, cx + radius, cy + radius],
-        outline=rim_col,
-        width=max(3, int(radius * 0.032)),
-    )
+    draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], outline=rim_col, width=max(3, int(radius * 0.032)))
     inner_col = (255, 160, 180, 90) if tint == "crimson" else (140, 195, 255, 95)
     r_in_ring = int(radius * 0.93)
-    draw.ellipse(
-        [cx - r_in_ring, cy - r_in_ring, cx + r_in_ring, cy + r_in_ring],
-        outline=inner_col,
-        width=max(1, int(radius * 0.015)),
-    )
+    draw.ellipse([cx - r_in_ring, cy - r_in_ring, cx + r_in_ring, cy + r_in_ring], outline=inner_col, width=max(1, int(radius * 0.015)))
 
     ic_layer = Image.new("RGBA", (sz, sz), (0, 0, 0, 0))
     ic_draw = ImageDraw.Draw(ic_layer)
@@ -565,232 +552,301 @@ def place_badge(frame_rgb, icon_type, cx, cy, radius, t, t_appear, t_end, tint="
 
 
 # ---------------------------------------------------------------------------
-# Cutaway #1 (`7.80s - 11.95s`): 3D Dark MacBook Pro (`BanqueCanada` Credit UI)
-# Directly modeled on `t=5.20s` & `t=7.00s` of `reference 7.mp4`
+# Cutaway #1 (`7.80s - 12.60s`): 3D Perspective Credit Card (`3 000 $` -> `2 500 $`)
+# Replaces the laptop cutaway per user instruction:
+# "Remplace cette animation par une carte de crédit avec le montant 3000$ et après 2500$"
 # ---------------------------------------------------------------------------
-LAPTOP_CARDS = [
-    {
-        "appear": 7.95,
-        "name": "Banque TD",
-        "age": "1m",
-        "msg1": "Nouveau dossier — Solde compte : 0,00 $.",
-        "msg2": "Carte de crédit 3 000 $ CAD débloquée.",
-        "badge": "3 000 $ CAD",
-        "skeleton": False,
-    },
-    {
-        "appear": 8.65,
-        "name": "RBC Royal Bank",
-        "age": "2m",
-        "msg1": "Demande approuvée sans apport initial.",
-        "msg2": "Plafond actif : 3 000 $ CAD immédiat.",
-        "badge": "APPROUVÉ",
-        "skeleton": False,
-    },
-    {
-        "appear": 9.35,
-        "name": "Scotiabank",
-        "age": "5m",
-        "msg1": "Ouverture nouveau résident validée.",
-        "msg2": "Minimum garanti : 2 500 $ CAD de crédit.",
-        "badge": "2 500 $ MIN",
-        "skeleton": False,
-    },
-    {
-        "appear": 10.05,
-        "name": "BMO Canada",
-        "age": "8m",
-        "msg1": "Carte Platinum émise avec 0 $ sur compte.",
-        "msg2": "Éligible au doublement de limite (×2).",
-        "badge": "ACTIF",
-        "skeleton": False,
-    },
-    {
-        "appear": 10.75,
-        "name": "CIBC Direct",
-        "age": "12m",
-        "msg1": "",
-        "msg2": "",
-        "badge": "",
-        "skeleton": True,
-    },
-]
+def build_flat_credit_card_rgba(amount_str: str, subtitle_str: str, badge_str: str, badge_col: tuple, sheen_pos: float) -> np.ndarray:
+    """
+    Renders a photorealistic 920x580 Titanium Cobalt-Noir Credit Card texture with:
+    - Brushed dark sapphire-titanium metallic gradient + dynamic diagonal specular sheen
+    - Gold EMV smart chip with circuit contacts + contactless NFC waves
+    - Embossed card number & glowing `3 000 $` or `2 500 $` credit limit
+    """
+    cw, ch = 920, 580
+    yy, xx = np.mgrid[0:ch, 0:cw].astype(np.float32)
+    nx, ny = xx / cw, yy / ch
+
+    # Metallic dark cobalt-titanium gradient + diagonal specular sheen sweep
+    diag = nx * 0.72 + ny * 0.68
+    sheen = np.exp(-((diag - sheen_pos) / 0.14) ** 2) * 0.55
+    corner_glow = np.exp(-(((nx - 0.82) / 0.42) ** 2 + ((ny - 0.22) / 0.42) ** 2)) * 0.65
+
+    r = np.clip(10 + corner_glow * 28 + sheen * 110, 0, 255).astype(np.uint8)
+    g = np.clip(20 + corner_glow * 74 + sheen * 145, 0, 255).astype(np.uint8)
+    b = np.clip(52 + corner_glow * 185 + sheen * 200, 0, 255).astype(np.uint8)
+
+    card_im = Image.fromarray(np.dstack([r, g, b, np.full((ch, cw), 255, dtype=np.uint8)]), mode="RGBA")
+
+    # Rounded card mask (radius=44)
+    mask = Image.new("L", (cw, ch), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, cw - 1, ch - 1], radius=44, fill=255)
+    card_im.putalpha(mask)
+
+    d = ImageDraw.Draw(card_im)
+    # Specular metallic outer & inner border rings
+    d.rounded_rectangle([2, 2, cw - 3, ch - 3], radius=44, outline=(120, 175, 255, 235), width=4)
+    d.rounded_rectangle([12, 12, cw - 13, ch - 13], radius=36, outline=(255, 255, 255, 45), width=2)
+
+    # Top-left Bank Logo ("CRÉDIT" Light + "CANADA" Bold)
+    f_l = get_font(F_MONT_LIGHT, 34)
+    f_b = get_font(F_MONT_BLACK, 34)
+    d.text((58, 48), "CRÉDIT", font=f_l, fill=(210, 222, 245, 255))
+    w_cr = d.textbbox((0, 0), "CRÉDIT", font=f_l)[2]
+    d.text((58 + w_cr + 10, 48), "CANADA", font=f_b, fill=(255, 255, 255, 255))
+
+    # Top-right Status Pill ("LIMITE APPROUVÉE" or "MINIMUM GARANTI")
+    pw = 285
+    px0, py0 = cw - pw - 54, 44
+    d.rounded_rectangle([px0, py0, px0 + pw, py0 + 48], radius=24, fill=(10, 24, 38, 230), outline=(*badge_col, 240), width=2)
+    f_p = get_font(F_INTER_BOLD, 19)
+    bb_p = d.textbbox((0, 0), badge_str, font=f_p)
+    d.text((px0 + (pw - (bb_p[2] - bb_p[0])) / 2, py0 + 12), badge_str, font=f_p, fill=(*badge_col, 255))
+
+    # Realistic Gold EMV Chip (left middle) + Contactless Waves
+    cx0, cy0, cx1, cy1 = 62, 138, 174, 224
+    d.rounded_rectangle([cx0, cy0, cx1, cy1], radius=16, fill=(242, 192, 68, 255), outline=(255, 232, 155, 255), width=2)
+    # Chip circuit lines
+    d.line([(cx0 + 36, cy0), (cx0 + 36, cy1)], fill=(165, 120, 28, 220), width=2)
+    d.line([(cx1 - 36, cy0), (cx1 - 36, cy1)], fill=(165, 120, 28, 220), width=2)
+    d.line([(cx0, cy0 + 28), (cx1, cy0 + 28)], fill=(165, 120, 28, 220), width=2)
+    d.line([(cx0, cy1 - 28), (cx1, cy1 - 28)], fill=(165, 120, 28, 220), width=2)
+    # Contactless NFC arcs next to chip
+    for r_nfc in (16, 28, 40):
+        d.arc([200 - r_nfc, 181 - r_nfc, 200 + r_nfc, 181 + r_nfc], start=-42, end=42, fill=(210, 225, 250, 215), width=3)
+
+    # Center Hero Amount ("3 000 $" or "2 500 $") with soft neon bloom
+    f_sub = get_font(F_MONO, 22)
+    d.text((62, 252), subtitle_str, font=f_sub, fill=(185, 205, 240, 245))
+
+    f_amt = get_font(F_MONT_BLACK, 118)
+    glow_layer = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow_layer)
+    gd.text((58, 282), amount_str, font=f_amt, fill=(*badge_col, 175))
+    glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(radius=18))
+    card_im = Image.alpha_composite(card_im, glow_layer)
+    d = ImageDraw.Draw(card_im)
+    d.text((58, 282), amount_str, font=f_amt, fill=(255, 255, 255, 255))
+
+    # Bottom Card Number & Holder Info
+    f_num = get_font(F_MONO, 29)
+    d.text((62, 448), "4519   8824   0091   2026", font=f_num, fill=(215, 228, 250, 245))
+    f_hol = get_font(F_INTER_MED, 20)
+    d.text((62, 504), "NOUVEAU RÉSIDENT • SOLDE COMPTE : 0,00 $", font=f_hol, fill=(155, 178, 215, 235))
+
+    # Bottom-right holographic MasterCard/Visa-style overlapping orbs
+    d.ellipse([cw - 155, 468, cw - 95, 528], fill=(37, 88, 255, 215))
+    d.ellipse([cw - 118, 468, cw - 58, 528], fill=(24, 218, 142, 205))
+
+    return np.asarray(card_im)
 
 
-def render_laptop_cutaway(t, midnight_bg):
-    dur = 11.95 - 7.80
-    u = clamp((t - 7.80) / dur)
-    e_u = ease_out_cubic(u)
+def warp_card_3d(card_rgba: np.ndarray, yaw_deg: float, pitch_deg: float, scale: float, center_x: float, center_y: float) -> Image.Image:
+    """Applies a true 3D perspective projection (`cv2.warpPerspective`) to the 920x580 credit card."""
+    ch, cw = card_rgba.shape[:2]
+    hw, hh = cw / 2.0, ch / 2.0
+    pts_3d = np.array([[-hw, -hh, 0.0], [hw, -hh, 0.0], [hw, hh, 0.0], [-hw, hh, 0.0]], dtype=np.float32)
+
+    ry = math.radians(yaw_deg)
+    rx = math.radians(pitch_deg)
+    cy_r, sy_r = math.cos(ry), math.sin(ry)
+    cx_r, sx_r = math.cos(rx), math.sin(rx)
+
+    rot_y = np.array([[cy_r, 0.0, sy_r], [0.0, 1.0, 0.0], [-sy_r, 0.0, cy_r]], dtype=np.float32)
+    rot_x = np.array([[1.0, 0.0, 0.0], [0.0, cx_r, -sx_r], [0.0, sx_r, cx_r]], dtype=np.float32)
+    r_mat = rot_x @ rot_y
+
+    focal = 1450.0
+    dst_pts = []
+    for p in pts_3d:
+        pr = r_mat @ p
+        z = max(250.0, focal + pr[2])
+        px = center_x + (pr[0] * focal / z) * scale
+        py = center_y + (pr[1] * focal / z) * scale
+        dst_pts.append([px, py])
+
+    src_pts = np.array([[0, 0], [cw - 1, 0], [cw - 1, ch - 1], [0, ch - 1]], dtype=np.float32)
+    dst_pts = np.array(dst_pts, dtype=np.float32)
+    H_mat = cv2.getPerspectiveTransform(src_pts, dst_pts)
+    warped = cv2.warpPerspective(
+        card_rgba, H_mat, (W, H),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=(0, 0, 0, 0),
+    )
+    return Image.fromarray(warped, mode="RGBA")
+
+
+def render_3d_credit_card_cutaway(t: float, midnight_bg: np.ndarray) -> np.ndarray:
+    """
+    Renders Cutaway #1 (`7.80s - 12.60s`):
+    - Phase 1 (`7.80s - 10.65s`): 3D Credit Card with `3 000 $` ("ils te passent une carte de crédit de 3 000 $")
+    - Phase 2 (`10.65s - 12.60s`): Smooth 3D perspective flip to `2 500 $` ("Minimum 2 500 $ dans une carte alors que t'as pas d'argent")
+    """
+    age = t - 7.80
+    p_enter = ease_out_back(clamp(age / 0.42), s=1.25)
+
+    # Around t=10.65s .. 11.05s, perform a 180-deg 3D perspective flip from 3,000$ to 2,500$!
+    flip_u = clamp((t - 10.60) / 0.42)
+    is_phase2 = flip_u >= 0.50
+
+    if not is_phase2:
+        amt_str = "3 000 $"
+        sub_str = "LIMITE DE CRÉDIT DÉBLOQUÉE"
+        bdg_str = "APPROUVÉ • 3 000 $"
+        bdg_col = C_EMERALD
+        sheen = 0.15 + 0.70 * clamp(age / 2.8)
+    else:
+        amt_str = "2 500 $"
+        sub_str = "MINIMUM GARANTI SANS APPORT"
+        bdg_str = "MINIMUM • 2 500 $"
+        bdg_col = C_BLUE_BRIGHT
+        sheen = 0.20 + 0.65 * clamp((t - 10.80) / 1.8)
+
+    # Smooth floating 3D angles + flip impulse around t=10.60..11.02s
+    flip_yaw = math.sin(flip_u * math.pi) * 72.0 * (1.0 if flip_u < 0.5 else -1.0)
+    base_yaw = -14.0 + 10.0 * math.sin(age * 1.35) + (1.0 - p_enter) * 35.0
+    yaw = clamp(base_yaw + flip_yaw, -76.0, 76.0)
+    pitch = 11.0 - 6.0 * math.cos(age * 1.15)
+    scale = 1.02 * p_enter
 
     canvas = Image.fromarray(midnight_bg.copy()).convert("RGBA")
-    draw = ImageDraw.Draw(canvas)
 
-    cam_x = int(40 - e_u * 65)
-    cam_y = int(45 - e_u * 55)
+    # Ambient neon glow behind card
+    glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    g_col = C_EMERALD if not is_phase2 else C_BLUE
+    gd.ellipse([140, 560, W - 140, 1280], fill=(*g_col, int(85 * p_enter)))
+    glow = glow.filter(ImageFilter.GaussianBlur(radius=75))
+    canvas = Image.alpha_composite(canvas, glow)
 
-    lx0, ly0 = 165 + cam_x, 220 + cam_y
-    lx1, ly1 = 1260 + cam_x, 1525 + cam_y
+    card_tex = build_flat_credit_card_rgba(amt_str, sub_str, bdg_str, bdg_col, sheen)
 
-    glow_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glow_layer)
-    gd.ellipse([lx0 - 110, ly0 - 90, lx0 + 520, ly0 + 480], fill=(24, 72, 235, 78))
-    glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(radius=65))
-    canvas = Image.alpha_composite(canvas, glow_layer)
-    draw = ImageDraw.Draw(canvas)
+    # 3D extruded metallic edge / drop-shadow layer slightly offset in Y/Z
+    edge_im = warp_card_3d(card_tex, yaw, pitch, scale, W * 0.50 + 8, H * 0.48 + 16)
+    edge_arr = np.asarray(edge_im).copy()
+    edge_arr[:, :, :3] = (edge_arr[:, :, :3].astype(np.float32) * 0.22).astype(np.uint8)
+    canvas = Image.alpha_composite(canvas, Image.fromarray(edge_arr))
 
-    # Lid body & metallic bezel
-    draw.rounded_rectangle([lx0, ly0, lx1, ly1], radius=38, fill=(10, 12, 16, 255), outline=(44, 50, 66, 255), width=3)
-    sx0, sy0 = lx0 + 28, ly0 + 34
-    sx1, sy1 = lx1 - 28, ly1 - 36
-    draw.rounded_rectangle([sx0, sy0, sx1, sy1], radius=18, fill=(11, 13, 18, 255))
+    # Main 3D warped credit card
+    main_im = warp_card_3d(card_tex, yaw, pitch, scale, W * 0.50, H * 0.48)
+    canvas = Image.alpha_composite(canvas, main_im)
 
-    # Top header inside screen: "CréditBox" (exact match to "Chat Box" in reference 7.mp4)
-    f_light = get_font(F_MONT_LIGHT, 50)
-    f_bold = get_font(F_MONT_BOLD, 50)
-    hx, hy = sx0 + 48, sy0 + 42
-    draw.text((hx, hy), "Crédit", font=f_light, fill=(225, 230, 242, 255))
-    w_part1 = draw.textbbox((0, 0), "Crédit", font=f_light)[2]
-    draw.text((hx + w_part1 + 6, hy), "Canada", font=f_bold, fill=(255, 255, 255, 255))
-    w_part2 = draw.textbbox((0, 0), "Canada", font=f_bold)[2]
+    frame_rgb = np.asarray(canvas.convert("RGB")).copy()
 
-    # Status pill next to header
-    px0 = hx + w_part1 + w_part2 + 28
-    py0 = hy + 10
-    draw.rounded_rectangle([px0, py0, px0 + 246, py0 + 42], radius=21, fill=(14, 38, 30, 240), outline=(24, 218, 142, 220), width=2)
-    f_pill = get_font(F_INTER_BOLD, 19)
-    draw.text((px0 + 22, py0 + 9), "3 000 $ APPROUVÉ", font=f_pill, fill=(24, 218, 142, 255))
+    # Clean 2-line lockup below the 3D card matching what he says (no digits in Mr Dafoe!)
+    if not is_phase2:
+        lines = [
+            (7.85, "Carte de crédit", F_MONT_BLACK, 78, C_WHITE, None, 0, 0),
+            (8.25, "approuvée direct", F_DAFOE, 112, C_BLUE_BRIGHT, C_BLUE, 0, 72),
+        ]
+        draw_stacked_lockup(frame_rgb, t, lines, anchor_x=540, anchor_y=1340, align="center", t_end=10.65)
+    else:
+        lines = [
+            (10.75, "Minimum 2 500 $", F_MONT_BLACK, 78, C_WHITE, None, 0, 0),
+            (11.10, "sans argent", F_DAFOE, 116, C_BLUE_BRIGHT, C_BLUE, 0, 72),
+        ]
+        draw_stacked_lockup(frame_rgb, t, lines, anchor_x=540, anchor_y=1340, align="center", t_end=12.60)
 
-    # Right-hand detail pane (matching right column in t=5.2s & t=7.0s of reference 7.mp4)
-    rx0 = sx0 + 625
-    ry0 = sy0 + 125
-    rx1 = sx1 - 36
-    ry1 = sy1 - 115
-    draw.rounded_rectangle([rx0, ry0, rx1, ry1], radius=22, fill=(22, 25, 34, 255), outline=(42, 48, 64, 255), width=2)
-
-    f_stat_big = get_font(F_MONT_BLACK, 54)
-    f_stat_sub = get_font(F_INTER_MED, 21)
-    amt_str = "3 000 $" if t < 10.6 else "2 500 $"
-    draw.text((rx0 + 36, ry0 + 44), amt_str, font=f_stat_big, fill=(37, 88, 255, 255))
-    draw.text((rx0 + 36, ry0 + 118), "Carte de crédit allouée", font=f_stat_sub, fill=(190, 198, 214, 255))
-    draw.text((rx0 + 36, ry0 + 148), "avec 0 $ sur le compte", font=f_stat_sub, fill=(24, 218, 142, 255))
-
-    # Bottom right message input bar with blue circular icon (exact match to t=5.2s & t=7.0s)
-    ib_y0 = ry1 + 20
-    ib_y1 = sy1 - 24
-    draw.rounded_rectangle([rx0, ib_y0, rx1, ib_y1], radius=20, fill=(22, 25, 34, 255), outline=(42, 48, 64, 255), width=2)
-    draw.rounded_rectangle([rx0 + 16, ib_y0 + 14, rx0 + 60, ib_y0 + 58], radius=12, fill=(45, 92, 255, 255))
-    draw.ellipse([rx0 + 27, ib_y0 + 25, rx0 + 49, ib_y0 + 47], outline=(255, 255, 255, 255), width=3)
-    draw.text((rx0 + 76, ib_y0 + 24), "Demander une carte...", font=get_font(F_INTER_REG, 21), fill=(130, 138, 158, 255))
-
-    f_name = get_font(F_INTER_BOLD, 21)
-    f_age = get_font(F_INTER_REG, 19)
-    f_msg = get_font(F_INTER_REG, 19)
-    f_b = get_font(F_INTER_BOLD, 15)
-
-    cx0 = sx0 + 48
-    cx1 = sx0 + 598
-    cy_base = sy0 + 125
-    card_h = 148
-    card_gap = 20
-
-    for idx, card in enumerate(LAPTOP_CARDS):
-        if t < card["appear"]:
-            continue
-        dt = t - card["appear"]
-        p_in = ease_out_back(clamp(dt / 0.28), s=1.25)
-        alpha_c = int(clamp(dt / 0.18) * (150 if card["skeleton"] else 255))
-
-        cy0 = cy_base + idx * (card_h + card_gap) + int((1.0 - p_in) * 28)
-        cy1 = cy0 + card_h
-
-        c_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        cd = ImageDraw.Draw(c_layer)
-
-        bg_col = (22, 25, 34, alpha_c) if card["skeleton"] else (28, 32, 43, alpha_c)
-        bd_col = (44, 50, 66, alpha_c) if card["skeleton"] else (62, 70, 92, alpha_c)
-        cd.rounded_rectangle([cx0, cy0, cx1, cy1], radius=20, fill=bg_col, outline=bd_col, width=2)
-
-        avx, avy, avr = cx0 + 54, cy0 + card_h // 2, 33
-        if card["skeleton"]:
-            cd.ellipse([avx - avr, avy - avr, avx + avr, avy + avr], fill=(60, 66, 82, alpha_c))
-        else:
-            cd.ellipse([avx - avr, avy - avr, avx + avr, avy + avr], fill=(232, 236, 245, alpha_c))
-            cd.ellipse([avx - 11, avy - 18, avx + 11, avy + 4], fill=(52, 58, 74, alpha_c))
-            cd.pieslice([avx - 22, avy + 6, avx + 22, avy + 38], 180, 360, fill=(52, 58, 74, alpha_c))
-
-        tx = cx0 + 106
-        ty = cy0 + 24
-        cd.text((tx, ty), card["name"], font=f_name, fill=(255, 255, 255, alpha_c))
-        nw = cd.textbbox((0, 0), card["name"], font=f_name)[2]
-        cd.text((tx + nw + 10, ty + 1), f"•  {card['age']}", font=f_age, fill=(150, 160, 182, alpha_c))
-
-        if card["skeleton"]:
-            cd.rounded_rectangle([tx, ty + 38, tx + 210, ty + 54], radius=7, fill=(58, 64, 80, alpha_c))
-        else:
-            bx1 = cx1 - 22
-            bx0 = bx1 - 128
-            by0 = cy0 + 22
-            cd.rounded_rectangle([bx0, by0, bx1, by0 + 28], radius=14, fill=(14, 42, 32, alpha_c), outline=(24, 218, 142, alpha_c), width=1)
-            bb = cd.textbbox((0, 0), card["badge"], font=f_b)
-            cd.text((bx0 + (128 - (bb[2] - bb[0])) / 2, by0 + 5), card["badge"], font=f_b, fill=(24, 218, 142, alpha_c))
-
-            char_progress = int(clamp((dt - 0.05) / 0.48) * (len(card["msg1"]) + len(card["msg2"])))
-            m1 = card["msg1"][: min(len(card["msg1"]), char_progress)]
-            m2 = card["msg2"][: max(0, char_progress - len(card["msg1"]))]
-            cd.text((tx, ty + 36), m1, font=f_msg, fill=(215, 222, 235, alpha_c))
-            if m2:
-                cd.text((tx, ty + 64), m2, font=f_msg, fill=(182, 190, 208, alpha_c))
-
-        canvas = Image.alpha_composite(canvas, c_layer)
-
-    draw = ImageDraw.Draw(canvas)
-
-    # 3D Laptop Base / Keyboard Deck in perspective below the screen
-    ky0 = ly1 - 4
-    ky1 = ky0 + 245
-    deck_pts = [(lx0 - 10, ky0), (lx1 + 10, ky0), (lx1 + 135, ky1), (lx0 - 135, ky1)]
-    draw.polygon(deck_pts, fill=(38, 43, 54, 255))
-    draw.polygon([(lx0 + 40, ky0), (lx1 - 40, ky0), (lx1 - 30, ky0 + 18), (lx0 + 30, ky0 + 18)], fill=(14, 16, 22, 255))
-    kw_pts = [(lx0 + 30, ky0 + 28), (lx1 - 30, ky0 + 28), (lx1 + 45, ky0 + 168), (lx0 - 45, ky0 + 168)]
-    draw.polygon(kw_pts, fill=(12, 14, 19, 255), outline=(58, 64, 78, 255))
-
-    for r_idx in range(5):
-        fr0 = r_idx / 5.0
-        fr1 = (r_idx + 0.78) / 5.0
-        ry_a = (ky0 + 34) + fr0 * 128
-        ry_b = (ky0 + 34) + fr1 * 128
-        xl_a = (lx0 + 38) - fr0 * 68
-        xr_a = (lx1 - 38) + fr0 * 68
-        xl_b = (lx0 + 38) - fr1 * 68
-        xr_b = (lx1 - 38) + fr1 * 68
-        n_keys = 12
-        for k_idx in range(n_keys):
-            u0 = (k_idx + 0.08) / n_keys
-            u1 = (k_idx + 0.88) / n_keys
-            k_pts = [
-                (xl_a + u0 * (xr_a - xl_a), ry_a),
-                (xl_a + u1 * (xr_a - xl_a), ry_a),
-                (xl_b + u1 * (xr_b - xl_b), ry_b),
-                (xl_b + u0 * (xr_b - xl_b), ry_b),
-            ]
-            draw.polygon(k_pts, fill=(24, 28, 36, 255), outline=(48, 54, 68, 200))
-
-    tp_pts = [(lx0 + 310, ky0 + 178), (lx0 + 680, ky0 + 178), (lx0 + 710, ky1 - 8), (lx0 + 280, ky1 - 8)]
-    draw.polygon(tp_pts, fill=(30, 35, 45, 255), outline=(56, 62, 76, 255))
-
-    zoom = 0.95 + 0.09 * e_u
-    cw = int(W / zoom)
-    ch = int(H / zoom)
-    x_crop = (W - cw) // 2
-    y_crop = (H - ch) // 2
-    cropped = canvas.crop((x_crop, y_crop, x_crop + cw, y_crop + ch)).resize((W, H), Image.Resampling.BILINEAR)
-    return np.asarray(cropped.convert("RGB"))
+    return frame_rgb
 
 
 # ---------------------------------------------------------------------------
-# Cutaways #2 & #3: 3D Badge Shatter -> Crimson Vignette (`reference 7.mp4` t=12.2s -> 14.8s)
+# Cutaway #2 (`23.48s - 26.60s`): 3D Perspective Credit Growth (`2 500 $` -> `5 000 $`)
+# Unique animation (used ONLY once!) for "Mon crédit est passé de 2 500 à 5 000 $"
 # ---------------------------------------------------------------------------
-def generate_shatter_shards(radius=198, n_rings=5, seed=77):
+def render_3d_growth_cutaway(t: float, midnight_bg: np.ndarray) -> np.ndarray:
+    age = t - 23.48
+    p = ease_out_cubic(clamp(age / 0.40))
+    prog = ease_in_out_cubic(clamp((age - 0.15) / 1.85))
+
+    # Build a 880x680 glassmorphic growth chart texture and warp it in 3D perspective
+    cw, ch = 880, 680
+    panel = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    d = ImageDraw.Draw(panel)
+    d.rounded_rectangle([4, 4, cw - 5, ch - 5], radius=42, fill=(10, 16, 34, 242), outline=(62, 118, 255, 225), width=4)
+
+    # Live ticking counter: 2 500 $ -> 5 000 $
+    cur_val = int(round(2500 + 2500 * prog))
+    val_str = f"{cur_val:,} $".replace(",", " ")
+    d.text((64, 52), "ÉVOLUTION DU PLAFOND DE CRÉDIT", font=get_font(F_MONO, 22), fill=(170, 190, 225, 255))
+    d.text((64, 92), val_str, font=get_font(F_MONT_BLACK, 104), fill=(255, 255, 255, 255))
+
+    # "+100% (×2)" Emerald Pill
+    if prog > 0.25:
+        p_b = clamp((prog - 0.25) / 0.45)
+        d.rounded_rectangle([cw - 265, 112, cw - 64, 168], radius=28, fill=(12, 44, 34, int(240 * p_b)), outline=(24, 218, 142, int(255 * p_b)), width=2)
+        d.text((cw - 235, 126), "DOUBLÉ ×2", font=get_font(F_INTER_BOLD, 22), fill=(24, 218, 142, int(255 * p_b)))
+
+    # Rising 3D bars + glowing curve from 2 500 $ to 5 000 $
+    milestones = [
+        (0.0, "DÉPART", "2 500 $", 0.38, C_BLUE),
+        (0.45, "DOUBLÉ", "5 000 $", 0.74, C_BLUE_BRIGHT),
+        (0.85, "GESTION +", "10 000 $", 1.00, C_EMERALD),
+    ]
+    curve_pts = []
+    for idx_m, (m_delay, m_lbl, m_val, m_h, m_col) in enumerate(milestones):
+        mp = ease_out_back(clamp((age - m_delay) / 0.48), s=1.2)
+        bx0 = 95 + idx_m * 265
+        bx1 = bx0 + 165
+        by_bot = 575
+        bar_h = int(round(280 * m_h * mp))
+        by_top = by_bot - max(18, bar_h)
+        d.rounded_rectangle([bx0, by_top, bx1, by_bot], radius=22, fill=(*m_col, int(235 * mp)), outline=(255, 255, 255, int(190 * mp)), width=2)
+        d.text((bx0 + 18, by_top - 42), m_val, font=get_font(F_MONT_BLACK, 28), fill=(255, 255, 255, int(255 * mp)))
+        d.text((bx0 + 22, by_bot + 16), m_lbl, font=get_font(F_MONO, 20), fill=(180, 198, 230, int(240 * mp)))
+        curve_pts.append((bx0 + 82, by_top))
+
+    if len(curve_pts) >= 2:
+        d.line(curve_pts, fill=(255, 255, 255, 220), width=6)
+
+    warped_panel = warp_card_3d(np.asarray(panel), yaw_deg=-8.0 + 5.0 * math.sin(age * 1.2), pitch_deg=6.0, scale=0.98 * p, center_x=W * 0.50, center_y=H * 0.45)
+    canvas = Image.fromarray(midnight_bg.copy()).convert("RGBA")
+    canvas = Image.alpha_composite(canvas, warped_panel)
+    frame_rgb = np.asarray(canvas.convert("RGB")).copy()
+
+    lines = [
+        (23.55, "De 2 500 $ à 5 000 $", F_MONT_BLACK, 64, C_WHITE, None, 0, 0),
+        (24.10, "crédit doublé", F_DAFOE, 114, C_BLUE_BRIGHT, C_BLUE, 0, 72),
+    ]
+    draw_stacked_lockup(frame_rgb, t, lines, anchor_x=540, anchor_y=1365, align="center", t_end=26.60)
+    return frame_rgb
+
+
+# ---------------------------------------------------------------------------
+# Cutaway #3 (`33.80s - 37.80s`): Crimson Studio Vignette ("Repartir de zéro / même avec rien")
+# Matches `t=14.80s` of `reference 7.mp4` WITHOUT repeating the shatter animation!
+# ---------------------------------------------------------------------------
+def render_crimson_zero_cutaway(t: float, crimson_bg: np.ndarray) -> np.ndarray:
+    age = t - 33.80
+    frame = crimson_bg.copy()
+
+    # Subtle glowing "0 $ -> 100%" opportunity ring above the stacked crimson lockup
+    p_ring = ease_out_cubic(clamp(age / 1.4))
+    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay)
+    rcx, rcy, rr = W // 2, 620, 135
+    od.ellipse([rcx - rr, rcy - rr, rcx + rr, rcy + rr], fill=(24, 6, 12, 210), outline=(90, 22, 38, 180), width=6)
+    end_ang = -90 + int(360 * p_ring)
+    od.arc([rcx - rr, rcy - rr, rcx + rr, rcy + rr], start=-90, end=end_ang, fill=(255, 42, 74, 255), width=10)
+    f_z = get_font(F_MONT_BLACK, 64)
+    bb_z = od.textbbox((0, 0), "0 $", font=f_z)
+    od.text((rcx - (bb_z[2] - bb_z[0]) / 2, rcy - (bb_z[3] - bb_z[1]) / 2 - bb_z[1]), "0 $", font=f_z, fill=(255, 255, 255, 255))
+    alpha_composite_roi(frame, overlay, 0, 0)
+
+    crimson_lines = [
+        (33.90, "Repartir de zéro", F_MONT_BLACK, 84, C_WHITE, None, 0, 0),
+        (35.10, "même avec rien", F_DAFOE, 120, C_CRIMSON, C_CRIMSON, 12, 76),
+    ]
+    draw_stacked_lockup(frame, t, crimson_lines, anchor_x=195, anchor_y=920, align="left", t_end=37.80)
+    return frame
+
+
+# ---------------------------------------------------------------------------
+# Cutaway #4 (`44.80s - 49.00s`): The Single 125-Shard 3D Sphere Shatter Cutaway
+# ("S'enrichir grâce aux dettes" -> Shatters into "En France : le découvert !")
+# ---------------------------------------------------------------------------
+def generate_shatter_shards(radius=165, n_rings=5, seed=77):
     rng = np.random.default_rng(seed)
     shards = []
     ring_radii = np.linspace(0, radius, n_rings + 1)
@@ -835,21 +891,11 @@ def generate_shatter_shards(radius=198, n_rings=5, seed=77):
     return shards
 
 
-SHARDS_DATA = generate_shatter_shards(radius=198)
+SHARDS_DATA = generate_shatter_shards(radius=165)
 
 
-def render_shatter_and_crimson_cutaway(
-    t,
-    t_start,
-    t_shatter,
-    t_crimson,
-    t_end,
-    icon_type,
-    crimson_lines,
-    midnight_bg,
-    crimson_bg,
-    pre_lockup=None,
-):
+def render_shatter_decouvert_cutaway(t, midnight_bg, crimson_bg):
+    t_start, t_shatter, t_crimson, t_end = 44.80, 46.25, 46.60, 49.00
     w_crim = clamp((t - (t_crimson - 0.18)) / 0.42)
     if w_crim <= 0.001:
         frame = midnight_bg.copy()
@@ -862,16 +908,20 @@ def render_shatter_and_crimson_cutaway(
             255,
         ).astype(np.uint8)
 
-    cx, cy = W // 2, H // 2 if pre_lockup is None else int(H * 0.62)
+    cx, cy = W // 2, int(H * 0.62)
 
-    if pre_lockup is not None and t < t_crimson:
-        draw_stacked_lockup(frame, t, pre_lockup, anchor_x=210, anchor_y=640, align="left", t_end=t_crimson)
+    pre_lines = [
+        (44.85, "S'enrichir", F_MONT_BLACK, 86, C_WHITE, None, 0, 0),
+        (45.40, "grâce aux dettes", F_DAFOE, 112, C_BLUE_BRIGHT, C_BLUE, 12, 72),
+    ]
+    if t < t_crimson:
+        draw_stacked_lockup(frame, t, pre_lines, anchor_x=210, anchor_y=640, align="left", t_end=t_crimson)
 
     if t < t_shatter:
         dt = t - t_start
         p_in = ease_out_back(clamp(dt / 0.32), s=1.35)
-        rad = 198 if pre_lockup is None else 145
-        badge_im = get_3d_badge_img(icon_type, radius=rad, tint="blue")
+        rad = 155
+        badge_im = get_3d_badge_img("euro_overdraft", radius=rad, tint="blue")
         sc = max(0.1, p_in)
         if abs(sc - 1.0) > 0.015:
             nw, nh = int(badge_im.width * sc), int(badge_im.height * sc)
@@ -932,6 +982,10 @@ def render_shatter_and_crimson_cutaway(
         alpha_composite_roi(frame, overlay, 0, 0)
 
     if t >= t_crimson - 0.05:
+        crimson_lines = [
+            (46.62, "En France :", F_MONT_BLACK, 84, C_WHITE, None, 0, 0),
+            (47.12, "le découvert !", F_DAFOE, 120, C_CRIMSON, C_CRIMSON, 12, 74),
+        ]
         draw_stacked_lockup(frame, t, crimson_lines, anchor_x=215, anchor_y=820, align="left", t_end=t_end)
 
     return frame
@@ -941,10 +995,6 @@ def render_shatter_and_crimson_cutaway(
 # Multi-Scale Camera Framing & Ken Burns Schedule for Talking-Head Shots
 # ---------------------------------------------------------------------------
 def get_camera_crop(frame_rgb, t):
-    """
-    Reframes the speaker so his eyes sit at the Rule-of-Thirds upper line (cropping out
-    the empty fluorescent ceiling) and applies multi-scale camera cuts + Ken Burns drift.
-    """
     if t < 3.44:
         u = t / 3.44
         zoom = 1.16 + 0.04 * u
@@ -954,21 +1004,17 @@ def get_camera_crop(frame_rgb, t):
         zoom = 1.24 + 0.03 * clamp(u)
         cx, cy = 0.50, 0.63
     elif t < 15.80:
-        u = (t - 11.95) / (15.80 - 11.95)
+        u = (t - 12.60) / (15.80 - 12.60)
         zoom = 1.15 + 0.03 * clamp(u)
         cx, cy = 0.50, 0.61
-    elif t < 21.16:
-        u = (t - 15.80) / (21.16 - 15.80)
-        zoom = 1.26 - 0.03 * clamp(u)
+    elif t < 23.48:
+        u = (t - 15.80) / (23.48 - 15.80)
+        zoom = 1.25 - 0.03 * clamp(u)
         cx, cy = 0.50, 0.63
-    elif t < 26.60:
-        u = (t - 21.16) / (26.60 - 21.16)
-        zoom = 1.17 + 0.03 * clamp(u)
-        cx, cy = 0.50, 0.62
     elif t < 33.80:
         u = (t - 26.60) / (33.80 - 26.60)
-        zoom = 1.25 + 0.03 * clamp(u)
-        cx, cy = 0.50, 0.63
+        zoom = 1.17 + 0.04 * clamp(u)
+        cx, cy = 0.50, 0.62
     elif t < 41.40:
         u = (t - 37.80) / (41.40 - 37.80)
         zoom = 1.15 + 0.03 * clamp(u)
@@ -1004,10 +1050,8 @@ def get_camera_crop(frame_rgb, t):
 
 # ---------------------------------------------------------------------------
 # Master 2-Line Chest Lockups on Talking-Head Segments (Strictly <= 2 Lines!)
-# Placed at y=1265 over the dark hoodie, completely below chin & microphone!
 # ---------------------------------------------------------------------------
 TALKING_LOCKUPS = [
-    # 1. Opening Hook (0.00 - 1.48s): "Le plus fou / au Canada ?"
     {
         "t_start": 0.00,
         "t_end": 1.48,
@@ -1019,7 +1063,6 @@ TALKING_LOCKUPS = [
             (0.45, "au Canada ?", F_DAFOE, 118, C_BLUE_BRIGHT, C_BLUE, 14, 68),
         ],
     },
-    # 2. Credit Card Request (5.60 - 7.80s): "Une carte / de crédit"
     {
         "t_start": 5.60,
         "t_end": 7.80,
@@ -1031,19 +1074,6 @@ TALKING_LOCKUPS = [
             (6.15, "de crédit", F_DAFOE, 120, C_BLUE_BRIGHT, C_BLUE, 16, 68),
         ],
     },
-    # 3. Multiply 2,500$ (15.80 - 18.48s): "Les 2 500 $ / tu multiplies"
-    {
-        "t_start": 15.80,
-        "t_end": 18.48,
-        "anchor_x": 180,
-        "anchor_y": 1265,
-        "align": "left",
-        "lines": [
-            (15.85, "Les 2 500 $", F_MONT_BLACK, 84, C_WHITE, None, 0, 0),
-            (16.65, "tu multiplies", F_DAFOE, 116, C_BLUE_BRIGHT, C_BLUE, 14, 68),
-        ],
-    },
-    # 4. Doubled in First Days (21.16 - 23.48s): "Carte 2 500 $ / je l'ai doublée"
     {
         "t_start": 21.16,
         "t_end": 23.48,
@@ -1055,19 +1085,17 @@ TALKING_LOCKUPS = [
             (22.05, "je l'ai doublée", F_DAFOE, 116, C_BLUE_BRIGHT, C_BLUE, 14, 68),
         ],
     },
-    # 5. Cour des Grands (31.00 - 33.80s): "La cour / des grands"
     {
-        "t_start": 31.00,
-        "t_end": 33.80,
-        "anchor_x": 195,
+        "t_start": 33.80,
+        "t_end": 37.80,
+        "anchor_x": 185,
         "anchor_y": 1265,
         "align": "left",
         "lines": [
-            (31.05, "La cour", F_MONT_BLACK, 88, C_WHITE, None, 0, 0),
-            (31.85, "des grands", F_DAFOE, 120, C_BLUE_BRIGHT, C_BLUE, 18, 68),
+            (33.85, "Repartir de zéro", F_MONT_BLACK, 82, C_WHITE, None, 0, 0),
+            (35.20, "même avec rien", F_DAFOE, 118, C_CRIMSON, C_CRIMSON, 14, 68),
         ],
     },
-    # 6. Mindset Shift (39.80 - 42.40s): "T'as rien / mais t'as tout"
     {
         "t_start": 39.80,
         "t_end": 42.40,
@@ -1079,7 +1107,6 @@ TALKING_LOCKUPS = [
             (41.40, "mais t'as tout", F_DAFOE, 118, C_BLUE_BRIGHT, C_BLUE, 14, 68),
         ],
     },
-    # 7. Manage Properly (55.40 - 56.40s): "Gère-le / correctement"
     {
         "t_start": 55.40,
         "t_end": 56.40,
@@ -1091,7 +1118,6 @@ TALKING_LOCKUPS = [
             (55.72, "correctement", F_DAFOE, 114, C_BLUE_BRIGHT, C_BLUE, 12, 68),
         ],
     },
-    # 8. Final Signature CTA Lockup (62.20 - 64.02s): "La famille / 'Abonnez-vous'"
     {
         "t_start": 62.20,
         "t_end": 64.02,
@@ -1105,29 +1131,12 @@ TALKING_LOCKUPS = [
     },
 ]
 
-# Cutaway #2 Crimson Reveal (35.40 - 37.80s): "Repartir de zéro / même avec rien" (<= 2 lines)
-CRIMSON_LINES_CUT2 = [
-    (35.45, "Repartir de zéro", F_MONT_BLACK, 82, C_WHITE, None, 0, 0),
-    (36.35, "même avec rien", F_DAFOE, 118, C_CRIMSON, C_CRIMSON, 12, 74),
-]
-
-# Cutaway #3 Pre-Lockup (44.80 - 46.50s) & Crimson Lockup (46.50 - 49.00s) (<= 2 lines)
-PRE_LINES_CUT3 = [
-    (44.85, "S'enrichir", F_MONT_BLACK, 86, C_WHITE, None, 0, 0),
-    (45.40, "grâce aux dettes", F_DAFOE, 112, C_BLUE_BRIGHT, C_BLUE, 12, 72),
-]
-
-CRIMSON_LINES_CUT3 = [
-    (46.55, "En France :", F_MONT_BLACK, 84, C_WHITE, None, 0, 0),
-    (47.10, "le découvert !", F_DAFOE, 120, C_CRIMSON, C_CRIMSON, 12, 74),
-]
-
 BLUE_GLOW_WORDS = {
     "canada", "banque", "crédit", "3000$", "2500$", "argent",
     "carte", "intelligent", "multiplies", "premiers", "doublée",
     "5000$", "gères", "augmentent", "risque", "grands",
     "opportunité", "zéro", "mentalité", "système", "dette",
-    "s'enrichissent", "dettes", "crédit",
+    "s'enrichissent", "dettes",
 }
 CRIMSON_GLOW_WORDS = {"rond", "rien", "découvert", "baisse", "maison", "voiture", "ruiné"}
 
@@ -1223,15 +1232,15 @@ def add_at(mix, clip, t_sec):
 def build_studio_audio():
     ff = imageio_ffmpeg.get_ffmpeg_exe()
     clean_vox_wav = "/tmp/ref7_inspect/clean_vox_afftdn.wav"
-    # Use FFmpeg's broadcast FFT spectral denoiser (afftdn) + studio EQ + gentle optical-style compressor
-    subprocess.run(
-        [
-            ff, "-y", "-v", "error", "-i", SPEED_MP4, "-vn",
-            "-af", "highpass=f=85,afftdn=nf=-24,equalizer=f=180:width_type=o:width=1.2:g=1.5,equalizer=f=3400:width_type=o:width=1.4:g=2.0,acompressor=threshold=-18dB:ratio=2.0:attack=15:release=200:makeup=2dB",
-            "-ac", "2", "-ar", str(SR), clean_vox_wav,
-        ],
-        check=True,
-    )
+    if not os.path.exists(clean_vox_wav):
+        subprocess.run(
+            [
+                ff, "-y", "-v", "error", "-i", SPEED_MP4, "-vn",
+                "-af", "highpass=f=85,afftdn=nf=-24,equalizer=f=180:width_type=o:width=1.2:g=1.5,equalizer=f=3400:width_type=o:width=1.4:g=2.0,acompressor=threshold=-18dB:ratio=2.0:attack=15:release=200:makeup=2dB",
+                "-ac", "2", "-ar", str(SR), clean_vox_wav,
+            ],
+            check=True,
+        )
     _, data = wavfile.read(clean_vox_wav)
     voice = data.astype(np.float32) / 32768.0
     if voice.ndim == 1:
@@ -1240,12 +1249,10 @@ def build_studio_audio():
     n_total = len(voice)
     t_arr = np.arange(n_total, dtype=np.float32) / SR
 
-    # Warm, deep-filtered 120 BPM dark-ambient sub-bass & soft studio pulse (-20 dB under voice)
     beat_phase = (t_arr % BEAT_SEC) / BEAT_SEC
     sub_f = 55.0 + 48.0 * np.exp(-beat_phase * 24.0)
     sub_kick = np.sin(2 * np.pi * sub_f * (t_arr % BEAT_SEC)) * np.exp(-beat_phase * 7.5) * 0.042
 
-    # Warm low-passed minor chord pad (Am -> Fmaj7 -> C -> G, filtered below 380 Hz so it never clashes with speech)
     bar_idx = ((t_arr / (BEAT_SEC * 4.0)).astype(np.int32)) % 4
     roots = np.choose(bar_idx, [110.0, 87.31, 130.81, 98.00])
     thirds = np.choose(bar_idx, [130.81, 110.0, 164.81, 123.47])
@@ -1258,27 +1265,24 @@ def build_studio_audio():
     mix[:, 0] += sub_kick + pad_l
     mix[:, 1] += sub_kick + pad_r
 
-    # Studio SFX synced to every cutaway, 3D badge pop, and shatter
     whoosh_in = make_whoosh(0.36, 150, 1900, vol=0.095)
     whoosh_out = make_whoosh(0.32, 180, 1500, vol=0.080)
-    for t_in in [0.02, 5.58, 7.75, 15.78, 21.14, 30.98, 33.75, 39.78, 44.75, 55.38, 62.18]:
+    for t_in in [0.02, 5.58, 7.75, 10.62, 21.14, 23.44, 33.75, 39.78, 44.75, 55.38, 62.18]:
         add_at(mix, whoosh_in, t_in)
-    for t_out in [11.88, 37.72, 48.92]:
+    for t_out in [12.55, 26.55, 37.72, 48.92]:
         add_at(mix, whoosh_out, t_out)
 
-    # Laptop UI Card Pops (7.80 - 11.95s)
-    for i, t_card in enumerate([7.95, 8.65, 9.35, 10.05]):
-        add_at(mix, make_ui_pop(0.085, 480 + i * 45, 920 + i * 55, vol=0.075), t_card)
+    # 3D Card & Growth Milestone Pops
+    for i, t_card in enumerate([7.85, 10.75, 23.55, 24.30]):
+        add_at(mix, make_ui_pop(0.09, 500 + i * 50, 940 + i * 55, vol=0.08), t_card)
 
-    # 3D Circular Chest Badge Pops
-    badge_times = [3.48, 4.50, 12.10, 13.50, 23.60, 26.50, 51.05, 53.00, 59.10, 60.15]
+    # 3D Circular Chest Badge Pops (5 unique pairs)
+    badge_times = [3.48, 4.50, 15.85, 16.85, 29.45, 31.20, 51.05, 53.00, 59.10, 60.15]
     for i, tb in enumerate(badge_times):
         add_at(mix, make_ui_pop(0.095, 420 + (i % 2) * 110, 860 + (i % 2) * 140, vol=0.080), tb)
 
-    # 3D Circle Shatter in Cutaway #2 (34.75s) & Cutaway #3 (46.50s)
-    add_at(mix, make_shatter(0.88, vol=0.125), 34.74)
-    add_at(mix, make_whoosh(0.42, 110, 1200, vol=0.09), 35.42)
-    add_at(mix, make_shatter(0.75, vol=0.105), 46.48)
+    # Single 3D Circle Shatter in Cutaway #4 (46.25s: "alors qu'en France, c'est le découvert !")
+    add_at(mix, make_shatter(0.85, vol=0.125), 46.24)
     add_at(mix, make_soft_riser(1.1, vol=0.065), 62.00)
 
     peak = np.max(np.abs(mix))
@@ -1291,42 +1295,20 @@ def build_studio_audio():
 
 
 # ---------------------------------------------------------------------------
-# Master Frame Router (Cutaways vs. Talking Head + 3D Chest Badges)
+# Master Frame Router (4 Unique Cutaways + 5 Unique Chest Orb Pairs)
 # ---------------------------------------------------------------------------
 def compose_frame_rgb(raw_rgb, t, words, grade_overlay, midnight_bg, crimson_bg):
-    # Cutaway #1 (7.80 - 11.95s): 3D Dark MacBook Pro (`Crédit Canada` 3,000$ / 2,500$ UI)
-    if 7.80 <= t < 11.95:
-        return render_laptop_cutaway(t, midnight_bg)
+    # Cutaway #1 (7.80 - 12.60s): 3D Perspective Credit Card (`3 000 $` -> flips to `2 500 $`)
+    if 7.80 <= t < 12.60:
+        return render_3d_credit_card_cutaway(t, midnight_bg)
 
-    # Cutaway #2 (33.80 - 37.80s): 3D Handshake Badge Shatter -> Crimson Vignette ("Repartir de zéro / même avec rien")
-    if 33.80 <= t < 37.80:
-        return render_shatter_and_crimson_cutaway(
-            t=t,
-            t_start=33.80,
-            t_shatter=34.75,
-            t_crimson=35.45,
-            t_end=37.80,
-            icon_type="handshake",
-            crimson_lines=CRIMSON_LINES_CUT2,
-            midnight_bg=midnight_bg,
-            crimson_bg=crimson_bg,
-            pre_lockup=None,
-        )
+    # Cutaway #2 (23.48 - 26.60s): 3D Perspective Credit Growth (`2 500 $` -> `5 000 $`)
+    if 23.48 <= t < 26.60:
+        return render_3d_growth_cutaway(t, midnight_bg)
 
-    # Cutaway #3 (44.80 - 49.00s): "S'enrichir grâce aux dettes" + 3D $ Badge Shatter -> Crimson "En France : le découvert !"
+    # Cutaway #3 (44.80 - 49.00s): 125-Shard 3D Sphere Shatter ("S'enrichir grâce aux dettes" -> "En France : le découvert !")
     if 44.80 <= t < 49.00:
-        return render_shatter_and_crimson_cutaway(
-            t=t,
-            t_start=44.80,
-            t_shatter=46.15,
-            t_crimson=46.50,
-            t_end=49.00,
-            icon_type="coin",
-            crimson_lines=CRIMSON_LINES_CUT3,
-            midnight_bg=midnight_bg,
-            crimson_bg=crimson_bg,
-            pre_lockup=PRE_LINES_CUT3,
-        )
+        return render_shatter_decouvert_cutaway(t, midnight_bg, crimson_bg)
 
     # Talking Head with Multi-Scale Camera Framing + Clean Lower-Chest Vignette Grade
     frame = get_camera_crop(raw_rgb, t)
@@ -1377,8 +1359,8 @@ def compose_frame_rgb(raw_rgb, t, words, grade_overlay, midnight_bg, crimson_bg)
             wx = int(W / 2 - w_im.width / 2)
             alpha_composite_roi(frame, w_im, wx, wy)
 
-    # 3. Dual 3D Glowing Circular Chest Badges below the words (`reference 7.mp4` t=19.2s & t=21.0s)
-    # Sequence A (3.44 - 5.58s): "Tu vas à la banque..." -> Bank Orb + Credit Card Orb
+    # 3. Five 100% Unique Chest Orb Pairs (Zero repeated icons!)
+    # Pair 1 (3.44 - 5.58s): "Tu vas à la banque..." -> `bank` + `key`
     if 3.44 <= t < 5.58:
         if t < 4.50:
             place_badge(frame, "bank", cx=540, cy=1505, radius=105, t=t, t_appear=3.48, t_end=5.56)
@@ -1386,39 +1368,39 @@ def compose_frame_rgb(raw_rgb, t, words, grade_overlay, midnight_bg, crimson_bg)
             slide_p = ease_out_cubic(clamp((t - 4.50) / 0.28))
             lx = int(540 - slide_p * 138)
             place_badge(frame, "bank", cx=lx, cy=1505, radius=105, t=t, t_appear=3.48, t_end=5.56)
-            place_badge(frame, "card", cx=678, cy=1505, radius=105, t=t, t_appear=4.50, t_end=5.56)
+            place_badge(frame, "key", cx=678, cy=1505, radius=105, t=t, t_appear=4.50, t_end=5.56)
 
-    # Sequence B (12.00 - 15.75s): "Minimum 2 500 $ dans une carte..." -> Coin ($) Orb + Card Orb
-    if 12.00 <= t < 15.75:
-        if t < 13.50:
-            place_badge(frame, "coin", cx=540, cy=1505, radius=105, t=t, t_appear=12.10, t_end=15.72)
+    # Pair 2 (15.80 - 18.48s): "Si t'es intelligent, les 2 500 $ tu les multiplies" -> `bulb` + `multiply`
+    if 15.80 <= t < 18.48:
+        if t < 16.85:
+            place_badge(frame, "bulb", cx=540, cy=1505, radius=105, t=t, t_appear=15.85, t_end=18.45)
         else:
-            slide_p = ease_out_cubic(clamp((t - 13.50) / 0.28))
+            slide_p = ease_out_cubic(clamp((t - 16.85) / 0.28))
             lx = int(540 - slide_p * 138)
-            place_badge(frame, "coin", cx=lx, cy=1505, radius=105, t=t, t_appear=12.10, t_end=15.72)
-            place_badge(frame, "card", cx=678, cy=1505, radius=105, t=t, t_appear=13.50, t_end=15.72)
+            place_badge(frame, "bulb", cx=lx, cy=1505, radius=105, t=t, t_appear=15.85, t_end=18.45)
+            place_badge(frame, "multiply", cx=678, cy=1505, radius=105, t=t, t_appear=16.85, t_end=18.45)
 
-    # Sequence C (23.50 - 29.35s): "Mon crédit est passé de 2 500 $ à 5 000 $... plus ils l'augmentent" -> Card Orb + Handshake Orb
-    if 23.50 <= t < 29.35:
-        if t < 26.50:
-            place_badge(frame, "card", cx=540, cy=1505, radius=105, t=t, t_appear=23.60, t_end=29.32)
+    # Pair 3 (29.40 - 33.75s): "plus la banque prend le risque, plus tu rentres dans la cour des grands" -> `shield` + `crown`
+    if 29.40 <= t < 33.75:
+        if t < 31.20:
+            place_badge(frame, "shield", cx=540, cy=1505, radius=105, t=t, t_appear=29.45, t_end=33.72)
         else:
-            slide_p = ease_out_cubic(clamp((t - 26.50) / 0.28))
+            slide_p = ease_out_cubic(clamp((t - 31.20) / 0.28))
             lx = int(540 - slide_p * 138)
-            place_badge(frame, "card", cx=lx, cy=1505, radius=105, t=t, t_appear=23.60, t_end=29.32)
-            place_badge(frame, "handshake", cx=678, cy=1505, radius=105, t=t, t_appear=26.50, t_end=29.32)
+            place_badge(frame, "shield", cx=lx, cy=1505, radius=105, t=t, t_appear=29.45, t_end=33.72)
+            place_badge(frame, "crown", cx=678, cy=1505, radius=105, t=t, t_appear=31.20, t_end=33.72)
 
-    # Sequence D (51.00 - 55.35s): "va à la banque, demande une carte... ils vont te donner un crédit" -> Bank Orb + Handshake Orb
+    # Pair 4 (51.00 - 55.35s): "ils te donnent un crédit et le reste c'est toi qui gères" -> `sliders` + `check`
     if 51.00 <= t < 55.35:
         if t < 53.00:
-            place_badge(frame, "bank", cx=540, cy=1505, radius=105, t=t, t_appear=51.05, t_end=55.32)
+            place_badge(frame, "sliders", cx=540, cy=1505, radius=105, t=t, t_appear=51.05, t_end=55.32)
         else:
             slide_p = ease_out_cubic(clamp((t - 53.00) / 0.28))
             lx = int(540 - slide_p * 138)
-            place_badge(frame, "bank", cx=lx, cy=1505, radius=105, t=t, t_appear=51.05, t_end=55.32)
-            place_badge(frame, "handshake", cx=678, cy=1505, radius=105, t=t, t_appear=53.00, t_end=55.32)
+            place_badge(frame, "sliders", cx=lx, cy=1505, radius=105, t=t, t_appear=51.05, t_end=55.32)
+            place_badge(frame, "check", cx=678, cy=1505, radius=105, t=t, t_appear=53.00, t_end=55.32)
 
-    # Sequence E (59.05 - 62.15s): "pas de maison, pas de voiture, t'as tout ruiné" -> Crimson House-Slash Orb + Crimson Car-Slash Orb
+    # Pair 5 (59.05 - 62.15s): "pas de maison, pas de voiture, t'as tout ruiné" -> `house_slash` + `car_slash`
     if 59.05 <= t < 62.15:
         if t < 60.15:
             place_badge(frame, "house_slash", cx=540, cy=1505, radius=105, t=t, t_appear=59.10, t_end=62.12, tint="crimson")
@@ -1438,7 +1420,7 @@ def generate_preview(preview_path: str):
     crimson_bg = build_crimson_vignette_bg()
 
     cap = cv2.VideoCapture(SPEED_MP4)
-    sample_times = [0.9, 3.8, 4.9, 6.5, 9.2, 11.0, 14.2, 17.2, 22.4, 27.5, 32.2, 35.1, 36.8, 45.6, 47.6, 60.8]
+    sample_times = [0.9, 4.9, 9.2, 11.6, 17.5, 22.4, 25.2, 30.2, 32.2, 35.8, 41.8, 45.6, 46.5, 47.6, 54.0, 60.8]
     thumbs = []
     for ts in sample_times:
         cap.set(cv2.CAP_PROP_POS_FRAMES, int(round(ts * FPS)))
