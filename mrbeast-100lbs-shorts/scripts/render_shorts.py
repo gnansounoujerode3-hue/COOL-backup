@@ -303,6 +303,70 @@ SHORTS_SPEC = [
             (49.40, 55.00, "178 JOURS D'EFFORT", "ET UNE VICTOIRE HISTORIQUE !", "gold"),
         ],
     },
+    {
+        "slug": "short-07-premiere-taille-perdue-2xl-9x16.mp4",
+        "start": 435.0,
+        "end": 485.0,
+        "subs": [
+            (0.00, 4.92, "Alors, qu'est-ce que tu en penses :", "est-ce que ce t-shirt te va ?", "gold"),
+            (4.92, 10.24, "Oui ! Prochaine étape : XL,", "puis Large, puis Medium !", "green"),
+            (10.24, 15.80, "Tu es sur la bonne voie,", "ne lâche absolument rien !", "cyan"),
+            (15.80, 21.52, "Dans 10 jours aura lieu", "la pesée et le défi des pompes.", "gold"),
+            (21.52, 27.48, "N'en gagne pas trop non plus,", "tu vas prendre tout mon cash !", "crimson"),
+            (27.48, 31.72, "Majd est déjà bien parti", "pour gagner 20 000 $ de plus.", "green"),
+            (31.72, 36.72, "Félicitations pour ce t-shirt", "en taille 2XL !", "gold"),
+            (36.72, 41.92, "Perdre une taille entière", "donne une confiance énorme.", "cyan"),
+            (41.92, 45.32, "Tu as fière allure :", "c'est une immense étape !", "green"),
+            (45.32, 50.00, "Mais les prochains jours", "allaient tout compliquer...", "crimson"),
+        ],
+    },
+    {
+        "slug": "short-08-visite-famille-message-coach-9x16.mp4",
+        "start": 765.0,
+        "end": 818.0,
+        "subs": [
+            (0.00, 10.00, "La visite surprise de sa famille", "lui redonne toute son énergie.", "gold"),
+            (10.00, 16.12, "Mais le moment des adieux", "arrive déjà dans la salle.", "cyan"),
+            (16.12, 20.84, "Pendant que je tournais", "à l'autre bout du monde,", "gold"),
+            (20.84, 25.92, "le lien entre le Coach Wall", "et Majd devenait indestructible.", "green"),
+            (25.92, 31.48, "« Mon frère, on traverse cette aventure", "ensemble : tu assures ! »", "gold"),
+            (31.48, 37.00, "« Tu es quelqu'un de profondément", "humain, bienveillant et généreux. »", "cyan"),
+            (37.00, 42.00, "« Tu vas inspirer positivement", "des millions de personnes ! »", "green"),
+            (42.00, 46.44, "Et pour fêter leurs progrès :", "plongeon dans le coffre de billets !", "gold"),
+            (46.44, 53.00, "Un moment de joie pure", "entre le coach et son élève.", "green"),
+        ],
+    },
+    {
+        "slug": "short-09-entrainement-course-1-mile-9x16.mp4",
+        "start": 1175.0,
+        "end": 1225.0,
+        "subs": [
+            (0.00, 6.48, "Majd commence immédiatement :", "il faut mesurer son temps sur 1 mile.", "gold"),
+            (6.48, 14.10, "Le défi est de 8 minutes 30 :", "on vise d'abord 10 ou 11 minutes.", "cyan"),
+            (14.10, 23.76, "Chaque foulée sur le tapis", "demande un effort mental intense.", "crimson"),
+            (23.76, 29.90, "Premier mile bouclé en 12 min 50 :", "il faut gagner plus de 4 minutes !", "gold"),
+            (29.90, 37.24, "C'est du pur cardio intensif,", "le défi le plus dur jusqu'ici.", "crimson"),
+            (37.24, 42.72, "En le voyant souffrir autant,", "j'ai voulu lui envoyer du soutien.", "cyan"),
+            (42.72, 50.00, "Une surprise spéciale arrive", "pour relancer sa motivation !", "green"),
+        ],
+    },
+    {
+        "slug": "short-10-suspendu-dans-le-vide-50k-9x16.mp4",
+        "start": 1725.0,
+        "end": 1782.0,
+        "subs": [
+            (0.00, 5.72, "Suspendu dans le vide", "avec un gilet lesté :", "crimson"),
+            (5.72, 10.40, "Le chronomètre est lancé :", "4 secondes, 5 secondes...", "gold"),
+            (10.40, 15.80, "Regarde tout en bas :", "est-ce que le vide te fait peur ?", "cyan"),
+            (15.80, 21.40, "15 secondes écoulées : tu viens", "déjà de gagner 20 000 dollars !", "green"),
+            (21.40, 26.68, "N'abandonne surtout pas,", "tu y es presque mon frère !", "gold"),
+            (26.68, 34.64, "Chaque seconde suspendu", "le rapproche de l'exploit.", "cyan"),
+            (34.64, 38.32, "30 secondes ! Concentre-toi", "sur ta respiration, tiens bon !", "green"),
+            (38.32, 43.56, "Ses mains commencent à glisser,", "son visage devient tout rouge...", "crimson"),
+            (43.56, 50.76, "40 secondes... Continue,", "ne lâche surtout pas la barre !", "gold"),
+            (50.76, 57.00, "50 SECONDES DANS LE VIDE :", "UN MENTAL D'ACIER !", "green"),
+        ],
+    },
 ]
 
 
@@ -427,7 +491,7 @@ def main():
     if len(thumbs) == 6:
         grid = np.vstack([np.hstack(thumbs[:3]), np.hstack(thumbs[3:])])
         cv2.imwrite("/tmp/vp_inspect/shorts_preview_6.jpg", grid, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
-    print(f"All 6 Shorts rendered in {time.time() - t0:.1f}s!")
+    print(f"All {len(SHORTS)} Shorts rendered in {time.time() - t0:.1f}s!")
 
 
 if __name__ == "__main__":
