@@ -493,6 +493,18 @@ HTML_PAGE = r"""<!DOCTYPE html>
           html += '<div style="margin-bottom:6px;font-weight:700;color:#fff;">Vidéos sauvegardées de façon permanente :</div>' +
             data.files.map(f => `<span class="file-pill">✅ ${f.name} (${f.size_mb} Mo)</span>`).join('');
         }
+        if (data.shorts && data.shorts.length > 0) {
+          html += `<div style="margin-top:20px;margin-bottom:12px;font-size:16px;font-weight:800;color:#4ADE80;">🎬 10 Shorts 9:16 générés depuis Stop_This_Train__Win_a_Lamborghini.mp4 :</div>`;
+          html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;">` +
+            data.shorts.map((s, idx) => `
+              <div style="background:rgba(15,15,24,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;">
+                <div style="font-size:12px;font-weight:800;color:#FBBF24;">SHORT #${String(idx+1).padStart(2,'0')} (${s.size_mb} Mo)</div>
+                <video src="shorts/${s.name}" controls preload="metadata" style="width:100%;aspect-ratio:9/16;border-radius:10px;background:#000;"></video>
+                <div style="font-size:11px;color:#A1A1AA;word-break:break-all;">${s.name}</div>
+                <a href="shorts/${s.name}?download=1" download="${s.name}" style="text-align:center;padding:8px 10px;border-radius:8px;background:linear-gradient(135deg,#FF3E9D,#EC4899);color:#fff;text-decoration:none;font-size:12px;font-weight:700;">⬇️ Télécharger MP4</a>
+              </div>
+            `).join('') + `</div>`;
+        }
         container.innerHTML = html;
       } catch (e) {}
     }
@@ -595,6 +607,27 @@ class ImporterHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if "/shorts/" in parsed.path:
+            fn = os.path.basename(parsed.path)
+            shorts_dir = os.path.join(REPO_ROOT, "mrbeast-train-lambo-shorts/shorts")
+            fp = os.path.join(shorts_dir, fn)
+            if os.path.isfile(fp) and fn.endswith(".mp4"):
+                sz = os.path.getsize(fp)
+                self.send_response(200)
+                self.send_header("Content-Type", "video/mp4")
+                self.send_header("Content-Length", str(sz))
+                if "download=1" in parsed.query:
+                    self.send_header("Content-Disposition", f'attachment; filename="{fn}"')
+                self._send_cors_headers()
+                self.end_headers()
+                with open(fp, "rb") as vf:
+                    while True:
+                        chunk = vf.read(256 * 1024)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                return
+
         if parsed.path.endswith("/api/status"):
             restore_persisted_videos_if_needed()
             files = []
@@ -605,8 +638,19 @@ class ImporterHandler(BaseHTTPRequestHandler):
                         "name": fn,
                         "size_mb": round(os.path.getsize(fp) / (1024 * 1024), 2),
                     })
+            shorts_list = []
+            shorts_dir = os.path.join(REPO_ROOT, "mrbeast-train-lambo-shorts/shorts")
+            if os.path.isdir(shorts_dir):
+                for fn in sorted(os.listdir(shorts_dir)):
+                    fp = os.path.join(shorts_dir, fn)
+                    if os.path.isfile(fp) and fn.endswith(".mp4"):
+                        shorts_list.append({
+                            "name": fn,
+                            "size_mb": round(os.path.getsize(fp) / (1024 * 1024), 2),
+                        })
             state = load_job_state()
             state["files"] = files
+            state["shorts"] = shorts_list
             body = json.dumps(state, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
