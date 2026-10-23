@@ -248,13 +248,20 @@ CREATED_VIDEOS_MANIFEST = [
         "aspect": "9/16",
         "default_mb": 11.52,
     },
-    # === GROUP 4: 13 Films Motion Design 3D ===
+    # === GROUP 4: 14 Films Motion Design 3D ===
     {
         "group": "motion_films",
-        "title": "Devis Designer v2 — Vidéo Motion Design Studio 3D + Voix-Off FR (devis-designer-app.jerode.workers.dev)",
+        "title": "Devis Designer v3 (Style Pub Officielle 9:16 + Voix-Off FR + SFX)",
         "path": "devis-designer-motion/film/devis-designer-motion-design-9x16.mp4",
         "aspect": "9/16",
-        "default_mb": 13.78,
+        "default_mb": 8.80,
+    },
+    {
+        "group": "motion_films",
+        "title": "Devis Designer v3 (Style Pub Officielle 9:16 — Audio Original Sans Voix)",
+        "path": "devis-designer-motion/film/devis-designer-pub-style-original-9x16.mp4",
+        "aspect": "9/16",
+        "default_mb": 8.70,
     },
     {
         "group": "motion_films",
