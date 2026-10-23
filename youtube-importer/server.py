@@ -248,7 +248,14 @@ CREATED_VIDEOS_MANIFEST = [
         "aspect": "9/16",
         "default_mb": 11.52,
     },
-    # === GROUP 4: 12 Films Motion Design 3D ===
+    # === GROUP 4: 13 Films Motion Design 3D ===
+    {
+        "group": "motion_films",
+        "title": "Devis Designer — Vidéo Motion Design SaaS 3D (devis-designer-app.jerode.workers.dev)",
+        "path": "devis-designer-motion/film/devis-designer-motion-design-9x16.mp4",
+        "aspect": "9/16",
+        "default_mb": 13.23,
+    },
     {
         "group": "motion_films",
         "title": "Canada Crédit (Style Réf. 7 — Carte 3D 3000$ → 2500$)",
