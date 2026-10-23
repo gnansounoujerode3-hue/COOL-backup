@@ -251,10 +251,10 @@ CREATED_VIDEOS_MANIFEST = [
     # === GROUP 4: 13 Films Motion Design 3D ===
     {
         "group": "motion_films",
-        "title": "Devis Designer — Vidéo Motion Design SaaS 3D (devis-designer-app.jerode.workers.dev)",
+        "title": "Devis Designer v2 — Vidéo Motion Design Studio 3D + Voix-Off FR (devis-designer-app.jerode.workers.dev)",
         "path": "devis-designer-motion/film/devis-designer-motion-design-9x16.mp4",
         "aspect": "9/16",
-        "default_mb": 13.23,
+        "default_mb": 13.78,
     },
     {
         "group": "motion_films",

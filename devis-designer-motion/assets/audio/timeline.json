@@ -1,0 +1,53 @@
+{
+  "total_duration": 56.45,
+  "segments": [
+    {
+      "index": 1,
+      "id": "seg-01-hook",
+      "file": "/home/user/COOL-backup/devis-designer-motion/assets/audio/seg-01-hook.wav",
+      "start": 0.25,
+      "duration": 8.28,
+      "end": 8.53
+    },
+    {
+      "index": 2,
+      "id": "seg-02-editor",
+      "file": "/home/user/COOL-backup/devis-designer-motion/assets/audio/seg-02-editor.wav",
+      "start": 8.95,
+      "duration": 8.64,
+      "end": 17.59
+    },
+    {
+      "index": 3,
+      "id": "seg-03-templates",
+      "file": "/home/user/COOL-backup/devis-designer-motion/assets/audio/seg-03-templates.wav",
+      "start": 18.01,
+      "duration": 10.08,
+      "end": 28.09
+    },
+    {
+      "index": 4,
+      "id": "seg-04-signature",
+      "file": "/home/user/COOL-backup/devis-designer-motion/assets/audio/seg-04-signature.wav",
+      "start": 28.51,
+      "duration": 8.17,
+      "end": 36.68
+    },
+    {
+      "index": 5,
+      "id": "seg-05-pricing",
+      "file": "/home/user/COOL-backup/devis-designer-motion/assets/audio/seg-05-pricing.wav",
+      "start": 37.1,
+      "duration": 10.12,
+      "end": 47.22
+    },
+    {
+      "index": 6,
+      "id": "seg-06-outro",
+      "file": "/home/user/COOL-backup/devis-designer-motion/assets/audio/seg-06-outro.wav",
+      "start": 47.64,
+      "duration": 7.84,
+      "end": 55.48
+    }
+  ]
+}
