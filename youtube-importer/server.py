@@ -248,7 +248,14 @@ CREATED_VIDEOS_MANIFEST = [
         "aspect": "9/16",
         "default_mb": 11.52,
     },
-    # === GROUP 4: 16 Films Motion Design 3D ===
+    # === GROUP 4: 17 Films Motion Design 3D ===
+    {
+        "group": "motion_films",
+        "title": "Léger Akodjenou — Funnel Builder v3 (Marketing 9:16 + Voix-Off FR, identité du site)",
+        "path": "leger-funnel-portfolio/film/leger-akodjenou-funnel-builder-v3-voix-off-9x16.mp4",
+        "aspect": "9/16",
+        "default_mb": 33.80,
+    },
     {
         "group": "motion_films",
         "title": "Léger Akodjenou — Funnel Builder v2 (Motion 9:16 · identité du site · SANS VOIX OFF)",

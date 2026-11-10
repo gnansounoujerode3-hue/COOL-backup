@@ -124,3 +124,49 @@ python3 scripts/build_leger_film_v2.py --preview /tmp/preview.jpg   # 8 vignette
 python3 scripts/build_leger_film_v2.py --audio-only                 # juste le mix
 python3 scripts/build_leger_film_v2.py                              # rendu complet
 ```
+
+---
+
+# v3 — « voix off + identité du site » (version finale)
+
+`film/leger-akodjenou-funnel-builder-v3-voix-off-9x16.mp4`
+`1080 × 1920` · `30 fps` · **`52,10 s`** · voix off FR (`voice-02`) + score + impacts
+
+C'est la v1 (avec voix off) **refaite dans l'identité du portfolio** — mêmes tokens,
+mêmes polices, même grammaire visuelle que la v2, mais au rythme d'un film narré.
+
+## Calage voix / image
+
+Les 8 clips ont été nettoyés de leurs silences (`silenceremove`) puis ajustés
+individuellement (×1,01 à ×1,16, imperceptible) pour tenir dans leur scène :
+
+| Scène | Intervalle | Tempo | Sujet |
+|---|---|---|---|
+| 1 | `0,00 – 5,00 s` | ×1,012 | Le problème : trafic oui, clients non |
+| 2 | `5,00 – 9,32 s` | ×1,000 | « Une belle page qui ne vend pas… » |
+| 3 | `9,32 – 17,43 s` | ×1,048 | Qui je suis, +20 %, outils, citation |
+| 4 | `17,43 – 24,30 s` | ×1,106 | NOIR·SON, +18 % de panier moyen |
+| 5 | `24,30 – 30,15 s` | ×1,163 | ASCENSION, 412 inscrits |
+| 6 | `30,15 – 36,27 s` | ×1,095 | HORIZON, 23 % / 61 % |
+| 7 | `36,27 – 42,79 s` | ×1,092 | Les 6 étapes + délais |
+| 8 | `42,79 – 52,10 s` | ×1,044 | Appel découverte + contacts |
+
+## Différences par rapport à la v1
+
+- Fonds `#0a0a0b` (au lieu du violet), accent unique `#ff4d00`, frise `LÉGER©`.
+- Space Grotesk / Instrument Serif / Inter partout ; plus de titres JetBrains/Poppins.
+- Dot-grid, grain animé, filets 1 px, numérotation `(01) … (07)` du site.
+- Titres alternés plein / contour, citations en Instrument Serif italique.
+- Chapitres du site en filigrane à droite, barre de progression ember.
+- Ducking de la musique à −62 % sous la voix ; crête `−0,3 dBFS`, moyenne `−14,3 dB`.
+
+## Correctif
+
+Le glyphe `→` n'existe pas dans Instrument Serif : la citation « 9 % → 23 % »
+affichait un carré vide. Remplacé par « 9 % à 23 % » partout où la serif est utilisée.
+
+```bash
+python3 scripts/build_leger_film_v3.py --preview /tmp/preview.jpg
+python3 scripts/build_leger_film_v3.py --audio-only
+python3 scripts/build_leger_film_v3.py
+```
