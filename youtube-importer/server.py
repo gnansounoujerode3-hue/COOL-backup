@@ -248,7 +248,14 @@ CREATED_VIDEOS_MANIFEST = [
         "aspect": "9/16",
         "default_mb": 11.52,
     },
-    # === GROUP 4: 14 Films Motion Design 3D ===
+    # === GROUP 4: 15 Films Motion Design 3D ===
+    {
+        "group": "motion_films",
+        "title": "Léger Akodjenou — Funnel Builder (Marketing 9:16 + Voix-Off FR + Score)",
+        "path": "leger-funnel-portfolio/film/leger-akodjenou-funnel-builder-9x16.mp4",
+        "aspect": "9/16",
+        "default_mb": 11.10,
+    },
     {
         "group": "motion_films",
         "title": "Devis Designer v3 (Style Pub Officielle 9:16 + Voix-Off FR + SFX)",
