@@ -248,7 +248,14 @@ CREATED_VIDEOS_MANIFEST = [
         "aspect": "9/16",
         "default_mb": 11.52,
     },
-    # === GROUP 4: 17 Films Motion Design 3D ===
+    # === GROUP 4: 18 Films Motion Design 3D ===
+    {
+        "group": "motion_films",
+        "title": "Digitaward — Pack 1 500 modèles PowerPoint (Pub Facebook 9:16 · Voix-Off FR · prévente 24 h)",
+        "path": "digitaward-ppt-pack/film/digitaward-pack-1500-powerpoint-fb-9x16.mp4",
+        "aspect": "9/16",
+        "default_mb": 6.78,
+    },
     {
         "group": "motion_films",
         "title": "Léger Akodjenou — Funnel Builder v3 (Marketing 9:16 + Voix-Off FR, identité du site)",
