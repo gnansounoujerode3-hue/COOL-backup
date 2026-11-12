@@ -4,7 +4,7 @@ Studio Import YouTube & Centre de Téléchargement GitHub (v4)
 Listening on http://0.0.0.0:8080
 
 Features:
-1. Complete catalog, preview player (HTTP 206 Range), and 1-click download for all 40 created
+1. Complete catalog, preview player (HTTP 206 Range), and 1-click download for all 49 created
    videos across the repository (`gnansounoujerode3-hue/COOL-backup`, branch `arena/edaf5d9a-cool-backup`):
    - 10 Shorts 9:16: "Stop This Train, Win a Lamborghini" (`mrbeast-train-lambo-shorts/shorts/`)
    - 10 Shorts 9:16: "Lose 100 Lbs, Win $250,000!" (`mrbeast-100lbs-shorts/shorts/`)
@@ -46,7 +46,7 @@ GH_TREE_URL = f"https://github.com/{GH_REPO}/tree/{GH_BRANCH}"
 os.makedirs(IMPORTS_DIR, exist_ok=True)
 os.makedirs(PERSIST_DIR, exist_ok=True)
 
-# Built-in manifest of all 40 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
+# Built-in manifest of all 49 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
 # so the Studio displays all videos immediately even while background git sync is running.
 CREATED_VIDEOS_MANIFEST = [
     # === GROUP 1: 10 Shorts - Stop This Train, Win a Lamborghini ===
@@ -251,6 +251,13 @@ CREATED_VIDEOS_MANIFEST = [
     # === GROUP 4: 20 Films Motion Design 3D ===
     {
         "group": "motion_films",
+        "title": "Digitaward — Pack 1 500 modèles PowerPoint v4 (Pub Facebook 9:16 · plateau photo · parallaxe)",
+        "path": "digitaward-ppt-pack/film/digitaward-pack-1500-powerpoint-fb-9x16-v4.mp4",
+        "aspect": "9/16",
+        "default_mb": 22.80,
+    },
+    {
+        "group": "motion_films",
         "title": "Digitaward — Pack 1 500 modèles PowerPoint v3 (Pub Facebook 9:16 · plan bénéfice · rythme 122 BPM)",
         "path": "digitaward-ppt-pack/film/digitaward-pack-1500-powerpoint-fb-9x16-v3.mp4",
         "aspect": "9/16",
@@ -394,7 +401,7 @@ CREATED_VIDEOS_MANIFEST = [
 SYNC_STATE = {
     "syncing": False,
     "last_sync": "",
-    "message": "Toutes les 40 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
+    "message": "Toutes les 49 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
 }
 
 
@@ -778,18 +785,18 @@ HTML_PAGE = """<!DOCTYPE html>
     </div>
 
     <div class="sync-banner" id="syncBanner">
-      <span id="syncText">✅ Les 40 vidéos créées (Shorts & Films Motion Design) sont sauvegardées sur ton GitHub et prêtes au téléchargement !</span>
+      <span id="syncText">✅ Les 49 vidéos créées (Shorts & Films Motion Design) sont sauvegardées sur ton GitHub et prêtes au téléchargement !</span>
       <span style="font-size:12px;color:#A7F3D0;">Téléchargement direct MP4, Pack ZIP ou GitHub CDN</span>
     </div>
 
-    <!-- SECTION 1: CATALOG OF ALL 40 CREATED VIDEOS -->
+    <!-- SECTION 1: CATALOG OF ALL 49 CREATED VIDEOS -->
     <div class="card">
       <div class="tabs-bar">
         <button class="tab-btn active" onclick="selectGroup('lambo_shorts', this)">🏎️ Stop This Train, Lamborghini (10 Shorts)</button>
         <button class="tab-btn" onclick="selectGroup('100lbs_shorts', this)">💪 Lose 100 Lbs, Win $250K (10 Shorts)</button>
         <button class="tab-btn" onclick="selectGroup('etre_intelligente', this)">🌸 Être Intelligente 2026 (2 Films + 6 Shorts)</button>
         <button class="tab-btn" onclick="selectGroup('motion_films', this)">🎬 Films Motion Design 3D (12 Vidéos)</button>
-        <button class="tab-btn" onclick="selectGroup('all', this)">🌐 Tout Voir (40 Vidéos)</button>
+        <button class="tab-btn" onclick="selectGroup('all', this)">🌐 Tout Voir (49 Vidéos)</button>
       </div>
 
       <div class="group-toolbar">
@@ -870,7 +877,7 @@ HTML_PAGE = """<!DOCTYPE html>
         ghUrl: 'https://github.com/gnansounoujerode3-hue/COOL-backup/tree/arena/edaf5d9a-cool-backup'
       },
       all: {
-        title: '🌐 Toutes les Vidéos Créées sur ton GitHub (40 Vidéos)',
+        title: '🌐 Toutes les Vidéos Créées sur ton GitHub (49 Vidéos)',
         sub: 'Catalogue complet de tous tes Shorts et Films Motion Design sur gnansounoujerode3-hue/COOL-backup',
         ghUrl: 'https://github.com/gnansounoujerode3-hue/COOL-backup/tree/arena/edaf5d9a-cool-backup'
       }
@@ -1058,7 +1065,7 @@ HTML_PAGE = """<!DOCTYPE html>
       const syncText = document.getElementById('syncText');
       btn.disabled = true;
       btn.innerHTML = '⏳ Synchronisation GitHub en cours...';
-      syncText.textContent = '⏳ Vérification et synchronisation des 40 vidéos avec gnansounoujerode3-hue/COOL-backup...';
+      syncText.textContent = '⏳ Vérification et synchronisation des 49 vidéos avec gnansounoujerode3-hue/COOL-backup...';
       try {
         const res = await fetch('api/github-sync', { method: 'POST' });
         const data = await res.json();
@@ -1331,7 +1338,7 @@ def auto_sync_with_github(push_changes: bool = False) -> str:
 
         SYNC_STATE["last_sync"] = time.strftime("%H:%M:%S")
         SYNC_STATE["message"] = (
-            f"✅ Les 40 vidéos créées sont synchronisées sur ton GitHub ({GH_REPO} • {GH_BRANCH}) "
+            f"✅ Les 49 vidéos créées sont synchronisées sur ton GitHub ({GH_REPO} • {GH_BRANCH}) "
             f"[{SYNC_STATE['last_sync']}]"
         )
         return SYNC_STATE["message"]

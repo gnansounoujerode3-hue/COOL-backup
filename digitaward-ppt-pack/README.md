@@ -189,3 +189,68 @@ Le mouvement mesuré (1,78) reste sous la bande des films humains (médiane 6,8)
 structurelle : la moitié du film est composée de plans produit sur fond tenu. Pour franchir ce
 seuil il faut du **B-roll réel** (mains sur clavier, écran filmé, salle, téléphone) — pas plus
 d'effets. C'est le prochain ingrédient, pas un correctif de code.
+
+
+---
+
+# v4 — le décor, pas le montage
+
+`film/digitaward-pack-1500-powerpoint-fb-9x16-v4.mp4` — 1080×1920 · 30 fps · **45,2 s** ·
+22,8 Mo · intégré **−14,0 LUFS**, crête **−2,0 dBFS**, LRA 2,6 LU · 21 coupes ·
+plan moyen 2,05 s · mouvement **1,8 / 255**.
+
+La v3 avait corrigé le rythme. Restait le vrai aveu : le **fond**. Un dégradé parfait, une
+poussière régulière, un faisceau en polygone — c'est ça qu'on reconnaît comme « fait par IA »,
+pas le montage. La v4 garde le découpage et les compositions de la v3, et remplace le décor
+par un **plateau photographique** (`assets/img/plate_studio.jpg`) : vrai faisceau volumétrique,
+vraie brume, vraie ligne de sol, liseré chaud.
+
+| | v3 | v4 |
+|---|---|---|
+| plans | 28 | **28 (identiques)** |
+| décor | dégradé calculé + poussière | **photo de studio étalonnée** |
+| parallaxe | — | **sujet ≈ 3× plus mobile que le fond** |
+| profondeur de champ | — | **flou de fond qui respire (0,18 → 0,40)** |
+| caméra | zoom calculé | **tremblement main 3,2 px + dérive** |
+| mouvement mesuré | 1,78 | **1,8** |
+| G0 / G2 / G3 | pass | **pass** |
+
+## Ce qui est mesuré, sans se flatter
+
+Le mouvement est **stable** (1,78 → 1,8) : le décor ne fabrique pas de mouvement, il fabrique de
+la crédibilité. On ne gagne donc pas au chiffre, on gagne au rendu. Le seuil
+« humain » (médiane 6,8) ne bougera qu'avec du **B-roll réel** — mains sur clavier, écran filmé,
+salle — et il n'y en a pas dans ce dépôt pour Digitaward.
+
+## Détail du pipeline
+
+- `_load_plate()` recadre la photo pour poser la ligne de sol vers **74 %** de la hauteur,
+  désature à 55 %, recompose la teinte avec le dégradé de marque (`#001070` → `#0030B0`),
+  utilise le faisceau photo comme source lumineuse (mode écran), puis corrige en S.
+- Le reflet rectangulaire du caisson sur le plateau est **fondu localement** (flou masqué)
+  et le liseré spéculaire est réinjecté net — sinon il se lit comme un rectangle collé.
+- `stage_frame()` fait glisser le fond moins vite que le sujet, fait respirer le flou de
+  profondeur de champ et laisse dériver le faisceau (`sin(t*0,21)`).
+- `camera()` ajoute deux sinus désaccordés (`1,63` / `3,71 Hz`) : la caméra n'est jamais
+  parfaitement stable, comme à l'épaule.
+- Le grain, le vignettage et l'étalonnage restent dans `finish()` (v2), appliqués en dernier.
+
+## Régénérer
+
+```bash
+python3 digitaward-ppt-pack/scripts/build_film_v4.py --preview /tmp/preview-v4.jpg
+python3 digitaward-ppt-pack/scripts/build_film_v4.py --audio-only
+python3 digitaward-ppt-pack/scripts/build_film_v4.py   # rendu + livraison CRF 21
+```
+
+`F()` (dans `build_film.py`) **échoue maintenant explicitement** si Poppins/Manrope manquent :
+un repli silencieux vers la bitmap 10 px avait produit un rendu entier avec une typo cassée,
+invisible dans les logs et évidente seulement à l'image.
+
+## Contrôle
+
+```bash
+PATH=/tmp/bin:$PATH python3 .claude/skills/motionmaxxing/scripts/look.py \
+  digitaward-ppt-pack/film/digitaward-pack-1500-powerpoint-fb-9x16-v4.mp4 \
+  --out /tmp/look_v4 --expect 45.2 --expect-audio --strict
+```

@@ -81,10 +81,16 @@ def F(kind, size):
     size = max(8, int(round(size)))
     k = (kind, size)
     if k not in _F:
-        try:
-            _F[k] = ImageFont.truetype(FONTS[kind], size)
-        except Exception:
-            _F[k] = ImageFont.load_default()
+        # Pas de repli silencieux vers la bitmap 10 px : un rendu sans Poppins
+        # ressemble à une vidéo cassée, et le défaut se voit à l'image seulement.
+        if not os.path.exists(FONTS[kind]):
+            raise FileNotFoundError(
+                f"Police absente : {FONTS[kind]}\n"
+                "Installe les paquets :\n"
+                "  mkdir -p /tmp/work_cache/fonts && cd /tmp/work_cache/fonts\n"
+                "  npm i @expo-google-fonts/poppins @expo-google-fonts/manrope"
+            )
+        _F[k] = ImageFont.truetype(FONTS[kind], size)
     return _F[k]
 
 

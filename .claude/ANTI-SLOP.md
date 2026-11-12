@@ -70,3 +70,37 @@ Sortie attendue : `G0 PASS`, `G2 PASS`, `G3 PASS`, aucune plage figée, crête s
 > Elle le paraît parce qu'elle **tient** au lieu de **bouger**, et parce qu'elle
 > décore au lieu de raconter. Corriger ça, c'est couper plus court, éclairer un
 > monde, et faire arriver les choses par le mouvement.
+
+## Ce que la v4 a appris : le décor est le vrai aveu
+
+La v3 passait tous les gates (mouvement 1,78 ; aucune plage figée ; coupes calées) et pourtant
+elle « sentait » encore la machine. Le montage n'était pas en cause : **le fond l'était**.
+Un dégradé parfait, une poussière régulière et un faisceau en polygone ne se rencontrent pas
+dans une vraie prise de vue — l'œil les reconnaît avant de savoir pourquoi.
+
+Correction appliquée (`build_film_v4.py`) :
+
+1. **Plateau photographique** plutôt que calculé : le fond vient d'une image de studio
+   (faisceau, brume, ligne de sol, liseré), étalonnée aux bleus de marque.
+2. **Parallaxe** : le fond glisse à ~1/3 de la vitesse du sujet ; les objets ne sont plus
+   « collés » à un décor immobile.
+3. **Profondeur de champ** : le fond respire entre net et flou (0,18 → 0,40) au lieu d'être
+   uniformément net, ce qui est la signature d'un plan tourné.
+4. **Caméra à l'épaule** : deux sinus désaccordés (1,63 / 3,71 Hz) plutôt qu'un zoom linéaire.
+5. **Nettoyage du plate** : le reflet rectangulaire du caisson (bords rectilignes) est fondu
+   localement, puis le liseré spéculaire est réinjecté net. Sans ça, le rectangle se lit comme
+   un calque collé — exactement le défaut qu'on veut éliminer.
+
+Résultat mesuré : `motion 1,8/255` (contre 1,78 en v3), `−14,0 LUFS`, `−2,0 dBTP`,
+21 coupes, plan moyen 2,05 s, **aucune plage figée**, G0/G2/G3 PASS.
+
+**Le chiffre ne monte pas, et c'est normal.** Un décor photographique lisse produit moins de
+changement de luma qu'un champ de bulles. Le gain est au rendu, pas à la métrique. Le seuil
+« humain » (médiane 6,8) ne s'atteindra qu'avec du **B-roll réel**.
+
+## Piège outillage : le repli de police silencieux
+
+Après un reset de sandbox, `/tmp/work_cache/fonts` disparaît. `F()` retombait alors sur
+`ImageFont.load_default()` (bitmap 10 px) : le film entier se rendait avec une typo cassée,
+sans une ligne d'erreur. `F()` **lève maintenant `FileNotFoundError`** avec la commande
+d'installation. Vérifier les polices avant tout rendu long.
