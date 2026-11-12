@@ -1,0 +1,9 @@
+# Artefacts d'exécution du Studio (import YouTube, uploads) : reconstruits au démarrage
+imports/*.mp4
+imports/*.mov
+imports/*.webm
+imports/*.mkv
+
+# Python
+__pycache__/
+*.py[cod]
