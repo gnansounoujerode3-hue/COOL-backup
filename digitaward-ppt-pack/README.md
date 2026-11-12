@@ -133,3 +133,59 @@ PATH=/tmp/bin:$PATH python3 .claude/skills/motionmaxxing/scripts/look.py \
 ```
 
 Détail des skills installés et de la méthode : `.claude/ANTI-SLOP.md`.
+
+
+---
+
+# v3 — le plan qui manquait
+
+`film/digitaward-pack-1500-powerpoint-fb-9x16-v3.mp4` — 1080×1920 · 30 fps · **45,20 s** ·
+22,8 Mo · intégré **−14,0 LUFS**, crête **−2,0 dBFS**, LRA 2,6 LU · 21 coupes · plan moyen 2,05 s.
+
+La v2 racontait l'offre mais **laissait la phrase clé sans images** : « Moins de temps à
+concevoir. Plus de temps pour convaincre. » était dite en voix off par-dessus des captures de
+diapositives. C'est le genre de raccord qu'on « sent » sans savoir le nommer — la promesse la plus
+forte du film n'avait rien à regarder.
+
+## Ce que la v3 change
+
+| | v2 | v3 |
+|---|---|---|
+| plans | 29 (dont 2 redondants) | **28**, deux plans morts supprimés |
+| plan « bénéfice » | absent | **présent (30,8 → 33,9 s)**, mot à mot |
+| mouvement (Δ luma) | 1,39 | **1,78** |
+| plage quasi-figée la plus longue | 0,80 s | **0,30 s** |
+| images noires | 0 | **0** |
+| G0 / G2 / G3 | pass | **pass** |
+| loudness | −14,1 LUFS | **−14,0 LUFS** |
+
+Le plan bénéfice est en typographie cinétique : les quatre groupes arrivent sur les temps de la
+voix (122 BPM ≈ 0,49 s), montent de 56 px sous un masque, puis un trait jaune se dessine et le
+pack se pose en bas — la phrase se termine par le produit.
+
+Ajouts techniques : respiration de lumière sur chaque temps, nappe lumineuse qui balaie le cadre
+sur quatre temps, et flou directionnel de 7 images sur les sept coupes structurantes (le cadre est
+encore en mouvement quand la coupe tombe).
+
+## Régénérer
+
+```bash
+python3 digitaward-ppt-pack/scripts/build_film_v3.py --preview /tmp/preview-v3.jpg
+python3 digitaward-ppt-pack/scripts/build_film_v3.py --audio-only
+python3 digitaward-ppt-pack/scripts/build_film_v3.py   # rendu + livraison CRF 21
+```
+
+## Contrôle
+
+```bash
+PATH=/tmp/bin:$PATH python3 .claude/skills/motionmaxxing/scripts/look.py \
+  digitaward-ppt-pack/film/digitaward-pack-1500-powerpoint-fb-9x16-v3.mp4 \
+  --out /tmp/look_v3 --expect 45.2 --expect-audio --strict
+```
+
+## Limite assumée
+
+Le mouvement mesuré (1,78) reste sous la bande des films humains (médiane 6,8). La raison est
+structurelle : la moitié du film est composée de plans produit sur fond tenu. Pour franchir ce
+seuil il faut du **B-roll réel** (mains sur clavier, écran filmé, salle, téléphone) — pas plus
+d'effets. C'est le prochain ingrédient, pas un correctif de code.
