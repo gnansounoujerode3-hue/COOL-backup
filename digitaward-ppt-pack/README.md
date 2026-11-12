@@ -69,3 +69,67 @@ Prérequis : `poppins` + `manrope` dans `/tmp/work_cache/fonts/node_modules/@exp
 - `assets/img/slide_*.png` — vraies diapositives recadrées depuis la maquette fournie (inclinées, assumées).
 - `assets/img/logo_raw.png` — logo ; **toujours posé sur une carte blanche** (le wordmark est blanc).
 - `assets/audio/vo1…vo7.mp3` — 7 prises de voix off FR, coupées puis remises au tempo.
+
+
+---
+
+# v2 — version anti-slop (pilotée par les skills)
+
+`film/digitaward-pack-1500-powerpoint-fb-9x16-v2.mp4` — 1080×1920 · 30 fps · **45,20 s** ·
+18,9 Mo · intégré **−14,1 LUFS**, crête **−2,1 dBFS**, LRA 2,6 LU.
+
+La v1 est conservée intacte. La v2 raconte la même offre avec une mise en scène différente.
+
+## Mesure avant / après
+
+Le contrôle est fait par `.claude/skills/motionmaxxing/scripts/look.py` (gates calculés sur le
+rendu, pas sur le code) :
+
+| | v1 | v2 |
+|---|---|---|
+| coupes détectées | 6 | **22** |
+| durée moyenne d'un plan | 6,46 s | **1,97 s** |
+| plages figées ≥ 0,6 s | **12** (jusqu'à 5,13 s) | **0** |
+| mouvement (Δ luma / image) | 0,33 | **1,39** |
+| crête audio | −0,2 dBFS (rouge) | **−2,1 dBFS** |
+| coupes synchronisées au son | 4/6 | **15/22** |
+| G0 / G2 / G3 | pass / pass / pass | pass / pass / pass |
+
+`G0` décodage + durée + piste son · `G2` aucune image vide · `G3` tenue de fin ≤ 1,4 s.
+
+## Ce qui a changé
+
+1. **Un plateau, pas un fond.** Sol avec ligne d'horizon, flaque de lumière, faisceau
+   volumétrique, brume qui dérive, poussière en trois profondeurs, grain animé.
+2. **29 plans au lieu de 8.** 1,56 s en moyenne : macro de diapo → ordinateur dans la pénombre →
+   time-lapse d'horloge → sélecteur de couleur → image posée de travers → tas de brouillons →
+   allumage du pack → macro → pack héro → **les diapos sortent de derrière le pack** →
+   travelling → 4 usages → 4 extraits → minuterie qui rembobine → pack qui se referme sur les
+   diapos → projection murale → tampon **LIVRAISON 24 H** → macro des preuves → CTA pressé →
+   burst → marque → fin.
+3. **Aucun chrome.** Plus de logo en coin, plus de barre de progression, plus de sur-titre en
+   capitales espacées, plus de mur de chiffres (gate G5).
+4. **Arrivées par mouvement.** Masque + échelle + déplacement ; les fondus ne servent plus
+   qu'à des objets isolés.
+5. **Audio recolé aux nouvelles coupes** : impacts sur 16 coupes structurantes, whooshs courts,
+   clic du curseur, tampon, bouton pressé ; voix off et promesses inchangées.
+
+## Régénérer
+
+```bash
+python3 digitaward-ppt-pack/scripts/build_film_v2.py --preview /tmp/preview-v2.jpg
+python3 digitaward-ppt-pack/scripts/build_film_v2.py --audio-only
+python3 digitaward-ppt-pack/scripts/build_film_v2.py
+```
+
+Le rendu direct pèse 37 Mo ; la livraison est réencodée en CRF 21 + limiteur (18,9 Mo).
+
+## Contrôle
+
+```bash
+PATH=/tmp/bin:$PATH python3 .claude/skills/motionmaxxing/scripts/look.py \
+  digitaward-ppt-pack/film/digitaward-pack-1500-powerpoint-fb-9x16-v2.mp4 \
+  --out /tmp/look --expect 45.2 --expect-audio --strict
+```
+
+Détail des skills installés et de la méthode : `.claude/ANTI-SLOP.md`.

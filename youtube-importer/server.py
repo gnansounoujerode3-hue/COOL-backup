@@ -248,7 +248,14 @@ CREATED_VIDEOS_MANIFEST = [
         "aspect": "9/16",
         "default_mb": 11.52,
     },
-    # === GROUP 4: 18 Films Motion Design 3D ===
+    # === GROUP 4: 19 Films Motion Design 3D ===
+    {
+        "group": "motion_films",
+        "title": "Digitaward — Pack 1 500 modèles PowerPoint v2 (Pub Facebook 9:16 · 29 plans · anti-slop)",
+        "path": "digitaward-ppt-pack/film/digitaward-pack-1500-powerpoint-fb-9x16-v2.mp4",
+        "aspect": "9/16",
+        "default_mb": 18.89,
+    },
     {
         "group": "motion_films",
         "title": "Digitaward — Pack 1 500 modèles PowerPoint (Pub Facebook 9:16 · Voix-Off FR · prévente 24 h)",
