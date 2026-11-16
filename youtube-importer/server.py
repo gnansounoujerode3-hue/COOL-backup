@@ -46,7 +46,7 @@ GH_TREE_URL = f"https://github.com/{GH_REPO}/tree/{GH_BRANCH}"
 os.makedirs(IMPORTS_DIR, exist_ok=True)
 os.makedirs(PERSIST_DIR, exist_ok=True)
 
-# Built-in manifest of all 49 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
+# Built-in manifest of all 58 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
 # so the Studio displays all videos immediately even while background git sync is running.
 CREATED_VIDEOS_MANIFEST = [
     # === GROUP 1: 10 Shorts - Stop This Train, Win a Lamborghini ===
@@ -396,12 +396,76 @@ CREATED_VIDEOS_MANIFEST = [
         "aspect": "9/16",
         "default_mb": 10.39,
     },
+    # === GROUP 5: Infographic Blue & Light — source coupée en 9 × 30 s, taille d'origine ===
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — Partie 01/09 (00:00 → 00:30 · 852×480 d'origine)",
+        "path": "infographic-blue-cuts/Infographic_Blue__Light_1_part-00.mp4",
+        "aspect": "16/9",
+        "default_mb": 1.6,
+    },
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — Partie 02/09 (00:30 → 01:00 · 852×480 d'origine)",
+        "path": "infographic-blue-cuts/Infographic_Blue__Light_1_part-01.mp4",
+        "aspect": "16/9",
+        "default_mb": 1.22,
+    },
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — Partie 03/09 (01:00 → 01:30 · 852×480 d'origine)",
+        "path": "infographic-blue-cuts/Infographic_Blue__Light_1_part-02.mp4",
+        "aspect": "16/9",
+        "default_mb": 1.04,
+    },
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — Partie 04/09 (01:30 → 02:00 · 852×480 d'origine)",
+        "path": "infographic-blue-cuts/Infographic_Blue__Light_1_part-03.mp4",
+        "aspect": "16/9",
+        "default_mb": 1.13,
+    },
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — Partie 05/09 (02:00 → 02:30 · 852×480 d'origine)",
+        "path": "infographic-blue-cuts/Infographic_Blue__Light_1_part-04.mp4",
+        "aspect": "16/9",
+        "default_mb": 1.12,
+    },
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — Partie 06/09 (02:30 → 03:00 · 852×480 d'origine)",
+        "path": "infographic-blue-cuts/Infographic_Blue__Light_1_part-05.mp4",
+        "aspect": "16/9",
+        "default_mb": 1.17,
+    },
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — Partie 07/09 (03:00 → 03:30 · 852×480 d'origine)",
+        "path": "infographic-blue-cuts/Infographic_Blue__Light_1_part-06.mp4",
+        "aspect": "16/9",
+        "default_mb": 1.38,
+    },
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — Partie 08/09 (03:30 → 04:00 · 852×480 d'origine)",
+        "path": "infographic-blue-cuts/Infographic_Blue__Light_1_part-07.mp4",
+        "aspect": "16/9",
+        "default_mb": 1.31,
+    },
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — Partie 09/09 (04:00 → 04:25 · 852×480 d'origine)",
+        "path": "infographic-blue-cuts/Infographic_Blue__Light_1_part-08.mp4",
+        "aspect": "16/9",
+        "default_mb": 0.89,
+    },
 ]
 
 SYNC_STATE = {
     "syncing": False,
     "last_sync": "",
-    "message": "Toutes les 49 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
+    "message": "Toutes les 58 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
 }
 
 
@@ -785,18 +849,19 @@ HTML_PAGE = """<!DOCTYPE html>
     </div>
 
     <div class="sync-banner" id="syncBanner">
-      <span id="syncText">✅ Les 49 vidéos créées (Shorts & Films Motion Design) sont sauvegardées sur ton GitHub et prêtes au téléchargement !</span>
+      <span id="syncText">✅ Les 58 vidéos créées (Shorts & Films Motion Design) sont sauvegardées sur ton GitHub et prêtes au téléchargement !</span>
       <span style="font-size:12px;color:#A7F3D0;">Téléchargement direct MP4, Pack ZIP ou GitHub CDN</span>
     </div>
 
-    <!-- SECTION 1: CATALOG OF ALL 49 CREATED VIDEOS -->
+    <!-- SECTION 1: CATALOG OF ALL 58 CREATED VIDEOS -->
     <div class="card">
       <div class="tabs-bar">
         <button class="tab-btn active" onclick="selectGroup('lambo_shorts', this)">🏎️ Stop This Train, Lamborghini (10 Shorts)</button>
         <button class="tab-btn" onclick="selectGroup('100lbs_shorts', this)">💪 Lose 100 Lbs, Win $250K (10 Shorts)</button>
         <button class="tab-btn" onclick="selectGroup('etre_intelligente', this)">🌸 Être Intelligente 2026 (2 Films + 6 Shorts)</button>
         <button class="tab-btn" onclick="selectGroup('motion_films', this)">🎬 Films Motion Design 3D (12 Vidéos)</button>
-        <button class="tab-btn" onclick="selectGroup('all', this)">🌐 Tout Voir (49 Vidéos)</button>
+        <button class="tab-btn" onclick="selectGroup('infographic_cuts', this)">🧩 Infographic Blue (9 × 30 s, taille d'origine)</button>
+        <button class="tab-btn" onclick="selectGroup('all', this)">🌐 Tout Voir (58 Vidéos)</button>
       </div>
 
       <div class="group-toolbar">
@@ -876,8 +941,13 @@ HTML_PAGE = """<!DOCTYPE html>
         sub: 'Montages 3D complets avec B-Rolls, SFX, voix isolée et animations sur mesure',
         ghUrl: 'https://github.com/gnansounoujerode3-hue/COOL-backup/tree/arena/edaf5d9a-cool-backup'
       },
+      infographic_cuts: {
+        title: '🧩 Infographic Blue & Light — 9 parties de 30 s (découpe brute, format d\'origine)',
+        sub: 'Aucun recadrage, aucun sous-titre, aucun habillage : 852×480 @ 30,3 fps, coupé toutes les 30 s • Dossier GitHub : infographic-blue-cuts/',
+        ghUrl: 'https://github.com/gnansounoujerode3-hue/COOL-backup/tree/arena/edaf5d9a-cool-backup/infographic-blue-cuts'
+      },
       all: {
-        title: '🌐 Toutes les Vidéos Créées sur ton GitHub (49 Vidéos)',
+        title: '🌐 Toutes les Vidéos Créées sur ton GitHub (58 Vidéos)',
         sub: 'Catalogue complet de tous tes Shorts et Films Motion Design sur gnansounoujerode3-hue/COOL-backup',
         ghUrl: 'https://github.com/gnansounoujerode3-hue/COOL-backup/tree/arena/edaf5d9a-cool-backup'
       }
@@ -1065,7 +1135,7 @@ HTML_PAGE = """<!DOCTYPE html>
       const syncText = document.getElementById('syncText');
       btn.disabled = true;
       btn.innerHTML = '⏳ Synchronisation GitHub en cours...';
-      syncText.textContent = '⏳ Vérification et synchronisation des 49 vidéos avec gnansounoujerode3-hue/COOL-backup...';
+      syncText.textContent = '⏳ Vérification et synchronisation des 58 vidéos avec gnansounoujerode3-hue/COOL-backup...';
       try {
         const res = await fetch('api/github-sync', { method: 'POST' });
         const data = await res.json();
@@ -1338,7 +1408,7 @@ def auto_sync_with_github(push_changes: bool = False) -> str:
 
         SYNC_STATE["last_sync"] = time.strftime("%H:%M:%S")
         SYNC_STATE["message"] = (
-            f"✅ Les 49 vidéos créées sont synchronisées sur ton GitHub ({GH_REPO} • {GH_BRANCH}) "
+            f"✅ Les 58 vidéos créées sont synchronisées sur ton GitHub ({GH_REPO} • {GH_BRANCH}) "
             f"[{SYNC_STATE['last_sync']}]"
         )
         return SYNC_STATE["message"]
