@@ -103,3 +103,59 @@ Le numéro, le lien ou le canal de commande n'était pas précisé : la voix dit
 **« envoie simplement le mot PACK en message privé »**. Si tu vends plutôt par WhatsApp,
 par un lien de paiement ou par un commentaire, dis-le et je réenregistre la phrase finale
 (une seule prise) — aucune autre ligne ne change.
+
+---
+
+# PUB 60 s — la version dynamique
+
+`pub-60s-infographic-1500-pwp.mp4` — **60,00 s exactement** · 852 × 480 (taille d'origine) ·
+30 fps · 6,6 Mo · stéréo 48 kHz.
+
+**Huit extraits** de la vidéo source, remontés en 14 plans de 4,3 s. Aucun plan ne
+montre un template immobile : chacun a reçu un recadrage calculé sur le graphique
+(masque couleur/luminance, pas un cadrage au hasard), un zoom continu qui change de
+sens d'un plan à l'autre, un coup de zoom de 4 images sur la coupe, une plaque-titre
+diagonale et un léger gain de saturation.
+
+| | source | pub 60 s |
+| --- | --- | --- |
+| durée | 265,98 s | **60,00 s** |
+| résolution | 852 × 480 | **852 × 480 (identique)** |
+| cadence | 30,30 fps | 30 fps |
+| mouvement (Δ luma / image) | 2,6 (médiane du film source) | **8,85 / 255** |
+| plage figée la plus longue | 3 s (écrans blancs du template) | **0,30 s** |
+| bande « humaine » de référence | médiane 6,8 | **au-dessus** |
+
+## Audio
+
+- **Voix off** : 8 prises réécrites pour 60 s (96 mots), calées sur les plans ;
+  passe-haut 90 Hz, passe-bas 15 kHz, boost de présence 1,8–5 kHz, compression douce.
+- **Musique** générée (132 BPM) : kick, clap, hats 1/16, basse, pad, arpèges ;
+  largeur stéréo Haas 9 ms, mais **voix au centre**.
+- **Ducking** : la musique descend de ~9 dB sous chaque phrase (mesuré : voix
+  **−12,9 à −14,3 dBFS**, musique seule **−20,9 à −24,2 dBFS** → la voix est 7 à 11 dB
+  au-dessus du fond, elle ressort sans lutter).
+- **SFX** : whoosh sur chaque coupe, impact sur les plans forts, cloche sur l'offre et
+  sur le CTA final.
+- Master : **−14,3 LUFS**, LRA **3,1 LU**, crête **−1,4 dBTP** (mesuré en 2 passes).
+
+## Texte de la voix off (60 s)
+
+1. 0:00 — « 1 500 modèles PowerPoint. Déjà animés. Déjà structurés. »
+2. 0:06 — « Ce n'est pas une vidéo : c'est une vraie diapositive PowerPoint, modifiable comme n'importe quelle forme. »
+3. 0:14 — « Alors pourquoi passer trois heures sur une seule présentation ? »
+4. 0:18 — « Choisis un modèle. Remplace le texte. Tu présentes. C'est tout. »
+5. 0:23 — « Exposé, soutenance, réunion, formation, offre commerciale, bilan : chaque idée a déjà sa forme. »
+6. 0:32 — « Tu n'es pas graphiste ? Pas besoin. Double-clic sur le texte, deux clics sur les couleurs de ton entreprise. »
+7. 0:41 — « 1 500 modèles animés, 100 % modifiables. **7 000 FCFA**. Livraison sous 24 heures. »
+8. 0:53 — « Ton prochain exposé sera celle qu'on regarde jusqu'à la dernière image. À toi de jouer. »
+
+CTA affiché en fin : **« Commande : envoie le mot PACK en message privé »**.
+
+## Régénérer
+
+```bash
+python3 infographic-blue-cuts/voix-off/build_pub60.py --preview   # planche des 14 plans
+python3 infographic-blue-cuts/voix-off/build_pub60.py             # rendu complet (~1 min 45)
+python3 infographic-blue-cuts/voix-off/build_pub60.py --audio-only # remix audio sans re-rendre l'image
+```

@@ -46,7 +46,7 @@ GH_TREE_URL = f"https://github.com/{GH_REPO}/tree/{GH_BRANCH}"
 os.makedirs(IMPORTS_DIR, exist_ok=True)
 os.makedirs(PERSIST_DIR, exist_ok=True)
 
-# Built-in manifest of all 59 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
+# Built-in manifest of all 60 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
 # so the Studio displays all videos immediately even while background git sync is running.
 CREATED_VIDEOS_MANIFEST = [
     # === GROUP 1: 10 Shorts - Stop This Train, Win a Lamborghini ===
@@ -467,12 +467,19 @@ CREATED_VIDEOS_MANIFEST = [
         "aspect": "16/9",
         "default_mb": 30.10,
     },
+    {
+        "group": "infographic_cuts",
+        "title": "Infographic Blue & Light — PUB 60 s (voix off + musique · 7000 FCFA)",
+        "path": "infographic-blue-cuts/pub-60s-infographic-1500-pwp.mp4",
+        "aspect": "16/9",
+        "default_mb": 6.59,
+    },
 ]
 
 SYNC_STATE = {
     "syncing": False,
     "last_sync": "",
-    "message": "Toutes les 59 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
+    "message": "Toutes les 60 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
 }
 
 
@@ -856,11 +863,11 @@ HTML_PAGE = """<!DOCTYPE html>
     </div>
 
     <div class="sync-banner" id="syncBanner">
-      <span id="syncText">✅ Les 59 vidéos créées (Shorts & Films Motion Design) sont sauvegardées sur ton GitHub et prêtes au téléchargement !</span>
+      <span id="syncText">✅ Les 60 vidéos créées (Shorts & Films Motion Design) sont sauvegardées sur ton GitHub et prêtes au téléchargement !</span>
       <span style="font-size:12px;color:#A7F3D0;">Téléchargement direct MP4, Pack ZIP ou GitHub CDN</span>
     </div>
 
-    <!-- SECTION 1: CATALOG OF ALL 59 CREATED VIDEOS -->
+    <!-- SECTION 1: CATALOG OF ALL 60 CREATED VIDEOS -->
     <div class="card">
       <div class="tabs-bar">
         <button class="tab-btn active" onclick="selectGroup('lambo_shorts', this)">🏎️ Stop This Train, Lamborghini (10 Shorts)</button>
@@ -868,7 +875,7 @@ HTML_PAGE = """<!DOCTYPE html>
         <button class="tab-btn" onclick="selectGroup('etre_intelligente', this)">🌸 Être Intelligente 2026 (2 Films + 6 Shorts)</button>
         <button class="tab-btn" onclick="selectGroup('motion_films', this)">🎬 Films Motion Design 3D (12 Vidéos)</button>
         <button class="tab-btn" onclick="selectGroup('infographic_cuts', this)">🧩 Infographic Blue (9 × 30 s + version voix off)</button>
-        <button class="tab-btn" onclick="selectGroup('all', this)">🌐 Tout Voir (59 Vidéos)</button>
+        <button class="tab-btn" onclick="selectGroup('all', this)">🌐 Tout Voir (60 Vidéos)</button>
       </div>
 
       <div class="group-toolbar">
@@ -954,7 +961,7 @@ HTML_PAGE = """<!DOCTYPE html>
         ghUrl: 'https://github.com/gnansounoujerode3-hue/COOL-backup/tree/arena/edaf5d9a-cool-backup/infographic-blue-cuts'
       },
       all: {
-        title: '🌐 Toutes les Vidéos Créées sur ton GitHub (59 Vidéos)',
+        title: '🌐 Toutes les Vidéos Créées sur ton GitHub (60 Vidéos)',
         sub: 'Catalogue complet de tous tes Shorts et Films Motion Design sur gnansounoujerode3-hue/COOL-backup',
         ghUrl: 'https://github.com/gnansounoujerode3-hue/COOL-backup/tree/arena/edaf5d9a-cool-backup'
       }
@@ -1142,7 +1149,7 @@ HTML_PAGE = """<!DOCTYPE html>
       const syncText = document.getElementById('syncText');
       btn.disabled = true;
       btn.innerHTML = '⏳ Synchronisation GitHub en cours...';
-      syncText.textContent = '⏳ Vérification et synchronisation des 59 vidéos avec gnansounoujerode3-hue/COOL-backup...';
+      syncText.textContent = '⏳ Vérification et synchronisation des 60 vidéos avec gnansounoujerode3-hue/COOL-backup...';
       try {
         const res = await fetch('api/github-sync', { method: 'POST' });
         const data = await res.json();
@@ -1415,7 +1422,7 @@ def auto_sync_with_github(push_changes: bool = False) -> str:
 
         SYNC_STATE["last_sync"] = time.strftime("%H:%M:%S")
         SYNC_STATE["message"] = (
-            f"✅ Les 59 vidéos créées sont synchronisées sur ton GitHub ({GH_REPO} • {GH_BRANCH}) "
+            f"✅ Les 60 vidéos créées sont synchronisées sur ton GitHub ({GH_REPO} • {GH_BRANCH}) "
             f"[{SYNC_STATE['last_sync']}]"
         )
         return SYNC_STATE["message"]
