@@ -7,9 +7,10 @@ La vidéo d'origine fait 4 min 26. Ici on n'en garde que **8 extraits**, remont�
   - un recadrage serré sur le graphique (le template respire au lieu de flotter
     dans du blanc), un zoom qui ne s'arrête jamais et change de sens à chaque plan ;
   - une accélération de 1,25× : on traverse le mouvement au lieu de le subir ;
-  - une plaque-titre diagonale (navy / jaune) qui entre en 9 images, du côté
-    opposé au graphique ;
   - un flash de 2 images sur les coupes fortes.
+
+Aucun texte n'est ajouté à l'image : pas de plaque, pas de sous-titre, pas de CTA
+incrusté. Le message passe uniquement par la voix off.
 
 Audio : voix off réécrite pour 60 s, musique instrumentale générée à 132 BPM,
 ducking de −8 dB sous la voix, whooshs sur chaque coupe, impacts sur les cartes
@@ -26,7 +27,7 @@ import sys
 import wave as wavemod
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 from scipy.signal import butter, sosfilt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -85,8 +86,7 @@ SHOTS = [
     (234.6, "", "R", 1),
 ]
 
-NAVY, ROYAL = (10, 32, 92), (0, 84, 224)
-YELLOW, ICE = (255, 194, 26), (232, 240, 255)
+NAVY = (10, 32, 92)
 
 
 def _font(size):
@@ -188,75 +188,6 @@ def punch(img, k):
     return crop_zoom(img, z, 0.5, 0.5)
 
 
-def card(label, side, t_in):
-    """Plaque diagonale : entrée en glissé, ligne jaune sous le dernier mot."""
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    lines = label.split("\n")
-    size = 40 if max(len(l) for l in lines) <= 16 else 34
-    f = _font(size)
-    tw = max(d.textlength(l, font=f) for l in lines)
-    lh = size * 1.12
-    bw, bh = int(tw + 56), int(lh * len(lines) + 56)
-    x = 22 if side == "R" else W - bw - 22
-    y = 22 if side == "R" else H - bh - 22
-    e = min(1.0, t_in / (9 / FPS))
-    e = 1 - (1 - e) ** 3
-    x += int((1 - e) * (-34 if side == "R" else 34))
-    skew = 14
-    poly = [(x + skew, y), (x + bw, y), (x + bw - skew, y + bh), (x, y + bh)]
-    plate = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    pd = ImageDraw.Draw(plate)
-    pd.polygon(poly, fill=NAVY + (240,))
-    pd.line(poly + [poly[0]], fill=ROYAL + (255,), width=3)
-    img.alpha_composite(plate.filter(ImageFilter.GaussianBlur(14)), (0, 10))
-    img.alpha_composite(plate)
-    for i, ln in enumerate(lines):
-        fill = YELLOW if (i == len(lines) - 1 and len(lines) > 1) else ICE
-        d.text((x + 30, y + 18 + i * lh), ln, font=f, fill=fill + (255,))
-    # trait jaune qui se dessine
-    q = min(1.0, max(0.0, (t_in - 0.18) / 0.3))
-    if q > 0:
-        yy = y + bh - 20
-        d.line([(x + 30, yy), (x + 30 + int((bw - 70) * q), yy)],
-               fill=YELLOW + (255,), width=4)
-    return img
-
-
-def end_card(alpha):
-    """CTA de fin : l'offre et le mot à envoyer."""
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    f1, f2 = _font(34), _font(21)
-    t1 = "1 500 modèles · 7 000 FCFA"
-    t2 = "Commande : envoie le mot PACK en message privé"
-    w = int(max(d.textlength(t1, font=f1), d.textlength(t2, font=f2)) + 64)
-    h = 104
-    x, y = (W - w) // 2, H - h - 24
-    d.rounded_rectangle([x, y, x + w, y + h], 16, fill=NAVY + (232,))
-    d.rectangle([x, y, x + 6, y + h], fill=YELLOW + (255,))
-    d.text((x + 30, y + 16), t1, font=f1, fill=YELLOW + (255,))
-    d.text((x + 30, y + 62), t2, font=f2, fill=ICE + (255,))
-    if alpha < 1:
-        img.putalpha(img.getchannel("A").point(lambda v: int(v * alpha)))
-    return img
-
-
-def pill(alpha):
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    f = _font(22)
-    txt = "1 500 MODÈLES POWERPOINT  ·  7 000 FCFA"
-    tw = d.textlength(txt, font=f)
-    w = int(tw + 40)
-    x, y = (W - w) // 2, 16
-    d.rounded_rectangle([x, y, x + w, y + 40], 20, fill=NAVY + (230,))
-    d.text((x + 20, y + 9), txt, font=f, fill=ICE + (255,))
-    if alpha < 1:
-        img.putalpha(img.getchannel("A").point(lambda v: int(v * alpha)))
-    return img
-
-
 def style(frame, i, j, block_t, focus):
     """Zoom continu sur le graphique + punch de coupe + vignette + saturation."""
     cx, cy, z0 = focus
@@ -311,10 +242,6 @@ def render_all(cuts, dur):
             if frame is None:
                 break
             img = style(frame, n_out, j, b, focus)
-            if label:
-                img.alpha_composite(card(label, side, j / FPS))
-            if b == len(SHOTS) - 1:
-                img.alpha_composite(end_card(min(1.0, max(0.0, (j - 12) / 12))))
             if j < 2 and force == 2:
                 img.alpha_composite(Image.new("RGBA", (W, H), (255, 255, 255, 80 if j == 0 else 38)))
             p.stdin.write(img.convert("RGB").tobytes())
@@ -503,10 +430,6 @@ def main():
             fx = subject_box(t_in - 0.1, 0.6)
             img = crop_zoom(img, fx[2], fx[0], fx[1])
             img = img.convert("RGBA")
-            if SHOTS[b][1]:
-                img.alpha_composite(card(SHOTS[b][1], SHOTS[b][2], 1.0))
-            if b == len(SHOTS) - 1:
-                img.alpha_composite(end_card(1.0))
             im = img.convert("RGB").resize((284, 160), Image.LANCZOS)
             x, y = 10 + (b % 4) * 294, 10 + (b // 4) * 190
             sheet.paste(im, (x, y))

@@ -114,8 +114,12 @@ par un lien de paiement ou par un commentaire, dis-le et je réenregistre la phr
 **Huit extraits** de la vidéo source, remontés en 14 plans de 4,3 s. Aucun plan ne
 montre un template immobile : chacun a reçu un recadrage calculé sur le graphique
 (masque couleur/luminance, pas un cadrage au hasard), un zoom continu qui change de
-sens d'un plan à l'autre, un coup de zoom de 4 images sur la coupe, une plaque-titre
-diagonale et un léger gain de saturation.
+sens d'un plan à l'autre, un coup de zoom de 4 images sur la coupe et un léger gain
+de saturation.
+
+**Aucun texte n'est ajouté à l'image** : pas de plaque-titre, pas de sous-titre, pas de
+CTA incrusté. Le message passe uniquement par la voix off (le seul texte visible est
+celui que contient déjà le template d'origine).
 
 | | source | pub 60 s |
 | --- | --- | --- |
@@ -150,7 +154,8 @@ diagonale et un léger gain de saturation.
 7. 0:41 — « 1 500 modèles animés, 100 % modifiables. **7 000 FCFA**. Livraison sous 24 heures. »
 8. 0:53 — « Ton prochain exposé sera celle qu'on regarde jusqu'à la dernière image. À toi de jouer. »
 
-CTA affiché en fin : **« Commande : envoie le mot PACK en message privé »**.
+Le CTA est **dit** en voix off à 0:41 (« livraison sous 24 heures ») et rappelé par
+la phrase finale — plus rien n'est écrit à l'écran.
 
 ## Régénérer
 
