@@ -7,3 +7,6 @@ imports/*.mkv
 # Python
 __pycache__/
 *.py[cod]
+
+# Mix de travail de la voix off (regénérable par build_vo.py)
+infographic-blue-cuts/voix-off/mix_*.wav
