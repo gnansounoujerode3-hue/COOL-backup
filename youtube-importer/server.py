@@ -21,6 +21,7 @@ Features:
 """
 
 import glob
+import hashlib
 import io
 import json
 import os
@@ -36,6 +37,8 @@ REPO_ROOT = "/home/user/COOL-backup"
 IMPORTS_DIR = os.path.join(REPO_ROOT, "imports")
 PERSIST_DIR = os.path.join(IMPORTS_DIR, "persisted")
 JOB_JSON = os.path.join(IMPORTS_DIR, "current_job.json")
+POSTER_DIR = os.path.join(IMPORTS_DIR, "posters")
+FFMPEG = "/tmp/bin/ffmpeg" if os.path.exists("/tmp/bin/ffmpeg") else "ffmpeg"
 
 GH_REPO = "gnansounoujerode3-hue/COOL-backup"
 GH_BRANCH = "arena/edaf5d9a-cool-backup"
@@ -497,6 +500,18 @@ SYNC_STATE = {
 }
 
 
+_CAT_CACHE = {"at": 0.0, "data": []}
+
+
+def _catalog_cached():
+    """Le catalogue est identique pour tout le monde : on le garde 30 s en RAM."""
+    if time.time() - _CAT_CACHE["at"] < 30 and _CAT_CACHE["data"]:
+        return _CAT_CACHE["data"]
+    _CAT_CACHE["data"] = build_catalog()
+    _CAT_CACHE["at"] = time.time()
+    return _CAT_CACHE["data"]
+
+
 def build_catalog():
     items = []
     for entry in CREATED_VIDEOS_MANIFEST:
@@ -514,6 +529,7 @@ def build_catalog():
             "local_ready": exists_local,
             "github_raw_url": f"{GH_RAW_BASE}/{quote(rel_path)}",
             "github_blob_url": f"{GH_BLOB_BASE}/{quote(rel_path)}",
+            "poster_url": f"/api/poster?path={quote(rel_path)}",
         })
     return items
 
@@ -741,12 +757,64 @@ HTML_PAGE = """<!DOCTYPE html>
       line-height: 1.35;
       min-height: 35px;
     }
-    .vc-player {
+    .vc-thumb {
+      position: relative;
       width: 100%;
       border-radius: 10px;
-      background: #000;
-      max-height: 340px;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      overflow: hidden;
+      background: #05060a center/cover no-repeat;
+      display: grid;
+      place-items: center;
+    }
+    .vc-thumb img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
+      opacity: 0.82;
+    }
+    .vc-play {
+      position: relative;
+      width: 54px; height: 54px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 20px; padding-left: 3px;
+      color: #0a0a0b; background: var(--gold);
+      box-shadow: 0 6px 24px rgba(0,0,0,.55);
+    }
+    .vc-thumb:hover .vc-play { background: #fff; }
+    #playerModal {
+      position: fixed; inset: 0; z-index: 999;
+      background: rgba(3,3,6,.92);
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 18px;
+    }
+    #playerModal.open { display: flex; }
+    #playerModal .pm-box {
+      width: min(560px, 96vw);
+      max-height: 94vh;
+      background: #0d0e16;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 18px;
+      padding: 14px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    #playerModal video {
+      width: 100%;
+      max-height: 76vh;
+      border-radius: 12px;
+      background: #000;
+    }
+    #playerModal .pm-title { font-size: 13px; font-weight: 700; color: #F8FAFC; }
+    #playerModal .pm-close {
+      align-self: flex-end;
+      background: none; border: 1px solid rgba(255,255,255,.2);
+      color: #F8FAFC; border-radius: 8px; padding: 4px 10px; cursor: pointer;
     }
     .vc-filename {
       font-size: 10.5px;
@@ -876,6 +944,16 @@ HTML_PAGE = """<!DOCTYPE html>
       </div>
     </div>
 
+    <div id="studioError" style="display:none;margin:0 0 14px;padding:12px 16px;border-radius:12px;
+      background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.45);color:#FECACA;
+      font-size:13px;font-weight:700;"></div>
+    <div id="playerModal" onclick="if (event.target === this) closePlayer()">
+      <div class="pm-box">
+        <button class="pm-close" onclick="closePlayer()">Fermer ✕</button>
+        <div class="pm-title" id="pmTitle"></div>
+        <video id="pmVideo" controls playsinline preload="metadata"></video>
+      </div>
+    </div>
     <div class="sync-banner" id="syncBanner">
       <span id="syncText">✅ Les 60 vidéos créées (Shorts & Films Motion Design) sont sauvegardées sur ton GitHub et prêtes au téléchargement !</span>
       <span style="font-size:12px;color:#A7F3D0;">Téléchargement direct MP4, Pack ZIP ou GitHub CDN</span>
@@ -1005,9 +1083,6 @@ HTML_PAGE = """<!DOCTYPE html>
         return;
       }
       grid.innerHTML = list.map((v, idx) => {
-        const streamSrc = v.local_ready
-          ? ('api/video?path=' + encodeURIComponent(v.path))
-          : v.github_raw_url;
         const safePath = v.path.replace(/'/g, "\\'");
         const safeName = v.name.replace(/'/g, "\\'");
         return `
@@ -1017,7 +1092,10 @@ HTML_PAGE = """<!DOCTYPE html>
               <span class="vc-size">${v.size_mb} Mo</span>
             </div>
             <div class="vc-title">${v.title}</div>
-            <video class="vc-player" style="aspect-ratio:${v.aspect};" src="${streamSrc}" controls preload="metadata"></video>
+            <button class="vc-thumb" style="aspect-ratio:${v.aspect};" onclick="openPlayer('${safePath}', '${safeName}', '${v.aspect}')" title="Lire la vidéo">
+              <img loading="lazy" src="${v.poster_url || ''}" alt="" onerror="this.style.display='none'">
+              <span class="vc-play">▶</span>
+            </button>
             <div class="vc-filename">${v.path}</div>
             <div class="vc-btns">
               <button class="btn btn-sm" onclick="downloadVideoFile('${safePath}', '${safeName}', '${v.github_raw_url}', this)">
@@ -1036,6 +1114,29 @@ HTML_PAGE = """<!DOCTYPE html>
         `;
       }).join('');
     }
+
+    function openPlayer(relPath, fileName, aspect) {
+      const modal = document.getElementById('playerModal');
+      const vid = document.getElementById('pmVideo');
+      document.getElementById('pmTitle').textContent = fileName;
+      vid.style.aspectRatio = aspect || '9/16';
+      vid.src = 'api/video?path=' + encodeURIComponent(relPath);
+      modal.classList.add('open');
+      vid.play().catch(() => {});
+    }
+
+    function closePlayer() {
+      const modal = document.getElementById('playerModal');
+      const vid = document.getElementById('pmVideo');
+      modal.classList.remove('open');
+      vid.pause();
+      vid.removeAttribute('src');
+      vid.load();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePlayer();
+    });
 
     async function downloadVideoFile(relPath, fileName, ghRawUrl, btnEl) {
       const origLabel = btnEl ? btnEl.innerHTML : '';
@@ -1163,7 +1264,7 @@ HTML_PAGE = """<!DOCTYPE html>
       const syncText = document.getElementById('syncText');
       btn.disabled = true;
       btn.innerHTML = '⏳ Synchronisation GitHub en cours...';
-      syncText.textContent = '⏳ Vérification et synchronisation des 60 vidéos avec gnansounoujerode3-hue/COOL-backup...';
+      syncText.textContent = '⏳ Vérification et synchronisation des 62 vidéos avec gnansounoujerode3-hue/COOL-backup...';
       try {
         const res = await fetch('api/github-sync', { method: 'POST' });
         const data = await res.json();
@@ -1321,7 +1422,12 @@ HTML_PAGE = """<!DOCTYPE html>
             data.files.map(f => `<span class="file-pill">✅ ${f.name} (${f.size_mb} Mo)</span>`).join('');
         }
         container.innerHTML = html;
-      } catch (e) {}
+        document.getElementById('studioError').style.display = 'none';
+      } catch (e) {
+        const err = document.getElementById('studioError');
+        err.style.display = 'block';
+        err.textContent = '⚠️ Studio injoignable (' + e.message + ') — recharge la page dans 5 secondes.';
+      }
     }
 
     refreshState();
@@ -1436,7 +1542,7 @@ def auto_sync_with_github(push_changes: bool = False) -> str:
 
         SYNC_STATE["last_sync"] = time.strftime("%H:%M:%S")
         SYNC_STATE["message"] = (
-            f"✅ Les 60 vidéos créées sont synchronisées sur ton GitHub ({GH_REPO} • {GH_BRANCH}) "
+            f"✅ Les 62 vidéos créées sont synchronisées sur ton GitHub ({GH_REPO} • {GH_BRANCH}) "
             f"[{SYNC_STATE['last_sync']}]"
         )
         return SYNC_STATE["message"]
@@ -1462,6 +1568,45 @@ class ImporterHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self._send_cors_headers()
         self.end_headers()
+
+    def _send_bytes(self, code: int, body: bytes, ctype: str, extra=None):
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        for k, v in (extra or {}).items():
+            self.send_header(k, v)
+        self._send_cors_headers()
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def _serve_poster(self, rel_path: str):
+        """Vignette JPEG extraite une fois par vidéo (ffmpeg), mise en cache."""
+        norm_rel = os.path.normpath(rel_path).lstrip("/")
+        abs_path = os.path.realpath(os.path.join(REPO_ROOT, norm_rel))
+        if not abs_path.startswith(os.path.realpath(REPO_ROOT)) or not os.path.isfile(abs_path):
+            self._send_bytes(404, b"no video", "text/plain")
+            return
+        os.makedirs(POSTER_DIR, exist_ok=True)
+        key = hashlib.md5(norm_rel.encode("utf-8")).hexdigest()[:16]
+        out = os.path.join(POSTER_DIR, key + ".jpg")
+        if not os.path.isfile(out):
+            tmp = out + ".tmp.jpg"
+            cmd = [FFMPEG, "-y", "-loglevel", "error", "-ss", "1.0", "-i", abs_path,
+                   "-frames:v", "1", "-vf", "scale=360:-2", "-q:v", "4", tmp]
+            try:
+                subprocess.run(cmd, check=True, timeout=45)
+                os.replace(tmp, out)
+            except Exception:
+                if os.path.isfile(tmp):
+                    os.remove(tmp)
+                self._send_bytes(404, b"no poster", "text/plain")
+                return
+        with open(out, "rb") as f:
+            self._send_bytes(200, f.read(), "image/jpeg",
+                             {"Cache-Control": "public, max-age=86400"})
 
     def _serve_video_file(self, rel_path: str, is_download: bool, head_only: bool = False):
         # Security: ensure path stays within REPO_ROOT
@@ -1545,6 +1690,10 @@ class ImporterHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         qs = parse_qs(parsed.query)
 
+        if parsed.path.endswith("/api/poster"):
+            self._serve_poster(unquote(qs.get("path", [""])[0]))
+            return
+
         if parsed.path.endswith("/api/video"):
             rel_path = unquote(qs.get("path", [""])[0])
             is_dl = "download" in qs
@@ -1592,7 +1741,7 @@ class ImporterHandler(BaseHTTPRequestHandler):
                     })
             state = load_job_state()
             state["files"] = files
-            state["catalog"] = build_catalog()
+            state["catalog"] = _catalog_cached()
             state["sync"] = SYNC_STATE
             body = json.dumps(state, ensure_ascii=False).encode("utf-8")
             self.send_response(200)

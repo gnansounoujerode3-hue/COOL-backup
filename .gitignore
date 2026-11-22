@@ -11,3 +11,6 @@ __pycache__/
 # Mix de travail de la voix off (regénérable par build_vo.py)
 infographic-blue-cuts/voix-off/mix_*.wav
 infographic-blue-cuts/voix-off/pub60/pub60_mix.wav
+
+# Vignettes générées par le Studio (cache, régénérables)
+imports/posters/
