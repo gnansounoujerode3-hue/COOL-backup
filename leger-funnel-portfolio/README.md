@@ -170,3 +170,40 @@ python3 scripts/build_leger_film_v3.py --preview /tmp/preview.jpg
 python3 scripts/build_leger_film_v3.py --audio-only
 python3 scripts/build_leger_film_v3.py
 ```
+
+---
+
+# v4 — « vos clics deviennent des clients » (film de la landing page)
+
+`film/leger-akodjenou-vos-clics-deviennent-des-clients-9x16.mp4`
+`1080 × 1920` · `30 fps` · **`58,94 s`** · voix off FR (`voice-03`) + score + impacts
+
+Film écrit pour la page **`https://legerakodjenou.systeme.io/8c1af526`** : chaque
+chiffre, prix et promesse vient de la page, rien n'est inventé. Les chiffres du
+tableau de bord (12 422 · 4 196 · 311 · 6,8 % · ROAS 4,2× · A/B +38 %) sont
+affichés sous le label **« EXEMPLE DE TABLEAU DE BORD »**, comme sur le site.
+
+## Les 8 plans
+
+| # | Intervalle | Sujet |
+|---|---|---|
+| 1 | `0,00 – 4,55 s` | Hook : « Vos clics deviennent des clients. » + audit offert |
+| 2 | `4,55 – 12,10 s` | Diagnostic : 4 fuites, coût `−0 %` |
+| 3 | `12,10 – 21,95 s` | Ce que je construis : 5 prestations |
+| 4 | `21,95 – 30,40 s` | Le tunnel en 5 étapes + preuves `6,8 % / 4,2× / +38 %` |
+| 5 | `30,40 – 37,90 s` | La méthode : J+0 · J+2 · J+7 · J+14 (+ 30 j) |
+| 6 | `37,90 – 44,90 s` | Un spécialiste, pas une agence : 1 an · 24 h · FR·BE·CH |
+| 7 | `44,90 – 53,10 s` | Tarifs : 240 € · 540 € · sur devis + garantie 30 j |
+| 8 | `53,10 – 58,94 s` | Réservation : 3 étapes, e-mail, WhatsApp |
+
+## Audio
+
+Voix off calée à `0,45 / 4,95 / 12,50 / 22,35 / 30,80 / 38,30 / 45,30 / 53,50 s`,
+ducking du score `1 − 0,62 · clip(env × 2,5)`, impacts sur les 7 coupes,
+normalisation `volume` mesurée en boucle + `alimiter` → **−14,2 LUFS / −3,4 dBTP**.
+
+```bash
+python3 scripts/build_leger_film_v4.py --preview /tmp/preview.jpg
+python3 scripts/build_leger_film_v4.py --audio-only
+python3 scripts/build_leger_film_v4.py
+```
