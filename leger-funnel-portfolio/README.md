@@ -207,3 +207,58 @@ python3 scripts/build_leger_film_v4.py --preview /tmp/preview.jpg
 python3 scripts/build_leger_film_v4.py --audio-only
 python3 scripts/build_leger_film_v4.py
 ```
+
+---
+
+# v5 — refonte « identité de la landing »
+
+`film/leger-akodjenou-vos-clics-deviennent-des-clients-v5-9x16.mp4`
+`1080 × 1920` · `30 fps` · **`66,10 s`** · voix off FR (`voice-03`) + score ducké
+
+Reprise de la v4 demandée par le client : **« inspire-toi exactement de
+l'identité visuelle du lien »** et **« évite les voix qui se chevauchent »**.
+
+## Ce qui change par rapport à la v4
+
+| | v4 | v5 |
+|---|---|---|
+| composition | intertitres en gros blocs | **chaque plan reprend une section réelle du site** |
+| titres | « mot / mot » sur 2 lignes | mot plein + **mot en Instrument Serif italique ember** dans la même ligne |
+| sections | 8 plans libres | 8 plans = badge → diagnostic → offre → méthode → solo → tarifs → CTA → carton |
+| marquee métiers | absent | les 11 métiers du site défilent, **coupés dans la colonne** |
+| chevauchements voix | oui (s2/s3, s3/s4, s4/s5, s6/s7, s7/s8) | **non** : 8 prises, 8 plans, garde-fou bloquant |
+| durée | 58,94 s | 66,10 s |
+
+## Anti-chevauchement (garanti par le code)
+
+`retime_vo()` mesure la durée utile de chaque mp3 après nettoyage des silences,
+refuse de rendre si une prise démarre avant la fin de la précédente + `0,30 s`,
+et `build_score()` lève une `SystemExit` en cas de collision. Sortie du contrôle :
+
+```
+v4-s1  0,42 →  4,34   (plan 1 : hero)
+v4-s2  5,15 → 12,17   (plan 2 : diagnostic)
+v4-s3 12,62 → 22,64   (plan 3 : offre)
+v4-s4 23,09 → 32,17   (plan 4 : méthode)
+v4-s5 32,62 → 40,61   (plan 5 : solo)
+v4-s6 41,06 → 48,79   (plan 6 : tarifs)
+v4-s7 49,24 → 59,46   (plan 7 : CTA)
+v4-s8 59,90 → 65,13   (plan 8 : carton final)
+```
+
+Écarts : `0,81 / 0,45 / 0,45 / 0,45 / 0,45 / 0,45 / 0,44 s` — aucun mot à cheval.
+Le lit musical descend de 11 dB sous la voix (`ducking 1 − 0,72 · env`).
+
+## Faits affichés (tous issus de la page)
+
+`12 434` visiteurs · `4 200` inscrits · `311` clients · `6,8 %` · `ROAS 4,2×` ·
+`+224 %` · `+38 %` (sous « EXEMPLE DE TABLEAU DE BORD ») — `240 €` (2 × 120) ·
+`540 €` (3 × 180) · `Sur devis` · garantie conversion `30 jours` ·
+`legerakodjenou6@gmail.com` · `+229 52 09 94 23`.
+
+```bash
+python3 scripts/build_leger_film_v5.py --retime        # contrôle des départs de voix
+python3 scripts/build_leger_film_v5.py --preview /tmp/p.jpg
+python3 scripts/build_leger_film_v5.py --audio-only
+python3 scripts/build_leger_film_v5.py
+```

@@ -68,6 +68,7 @@ CHAPTER = {
 }
 
 # (fichier, début) — chaque prise est posée dans son plan, respiration incluse
+AUDIO_GAP = 0.35          # respiration minimale entre deux prises
 VO = [
     ("v4-s1.mp3", 0.45),
     ("v4-s2.mp3", 4.95),
@@ -625,13 +626,24 @@ def build_score(out_path):
     from scipy.signal import butter, sosfilt
     n = int(TOTAL * SR)
     voice = np.zeros(n, np.float32)
+
+    # --- garde-fou : deux prises ne doivent JAMAIS se superposer ---------
+    placed, end_prev = [], 0.0
     for name, at in VO:
         a = decode_vo(os.path.join(AUDIO_DIR, name))
+        if at < end_prev + AUDIO_GAP:
+            raise SystemExit(
+                f"voix {name} @ {at:.2f}s chevauche la prise précédente "
+                f"(fin {end_prev:.2f}s) — recalage de la timeline nécessaire")
         a = a / max(float(np.abs(a).max()), 1e-6) * 0.70
-        s = int(at * SR)
+        s = int(round(at * SR))
         e = min(n, s + len(a))
         voice[s:e] += a[: e - s]
+        end_prev = (s + len(a)) / SR
+        placed.append((name, at, end_prev))
         print(f"  voix {name} @ {at:5.2f}s  {len(a) / SR:5.2f} s", flush=True)
+    for (n1, a1, e1), (n2, a2, _) in zip(placed, placed[1:]):  # noqa: E501
+        print(f"  silence {n1} -> {n2} : {a2 - e1:5.2f} s", flush=True)
 
     # --- musique : 108 BPM, accordée aux coupes (2 mesures par plan)
     beat, bar = 60 / 108, 60 / 108 * 4
@@ -683,7 +695,7 @@ def build_score(out_path):
         mus[s:e_] += (sosfilt(sos, (v * env).astype(np.float32)) * 0.055).astype(np.float32)
 
     mus /= max(float(np.abs(mus).max()), 1e-6)
-    mus *= 0.24
+    mus *= 0.20                       # lit musical discret, jamais au-dessus de la voix
 
     # ducking sous la voix
     env = np.abs(voice).astype(np.float32)
