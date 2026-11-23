@@ -49,7 +49,7 @@ GH_TREE_URL = f"https://github.com/{GH_REPO}/tree/{GH_BRANCH}"
 os.makedirs(IMPORTS_DIR, exist_ok=True)
 os.makedirs(PERSIST_DIR, exist_ok=True)
 
-# Built-in manifest of all 62 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
+# Built-in manifest of all 63 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
 # so the Studio displays all videos immediately even while background git sync is running.
 CREATED_VIDEOS_MANIFEST = [
     # === GROUP 1: 10 Shorts - Stop This Train, Win a Lamborghini ===
@@ -303,6 +303,13 @@ CREATED_VIDEOS_MANIFEST = [
     },
     {
         "group": "motion_films",
+        "title": "Discipline — La discipline bat la motivation (9:16 · photos & GIF du web + motion design · Voix-Off FR)",
+        "path": "discipline-entrepreneur/film/discipline-bat-la-motivation-9x16.mp4",
+        "aspect": "9/16",
+        "default_mb": 45.40,
+    },
+    {
+        "group": "motion_films",
         "title": "Léger Akodjenou — Funnel Builder v2 (Motion 9:16 · identité du site · SANS VOIX OFF)",
         "path": "leger-funnel-portfolio/film/leger-akodjenou-funnel-builder-v2-motion-9x16.mp4",
         "aspect": "9/16",
@@ -496,7 +503,7 @@ CREATED_VIDEOS_MANIFEST = [
 SYNC_STATE = {
     "syncing": False,
     "last_sync": "",
-    "message": "Toutes les 62 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
+    "message": "Toutes les 63 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
 }
 
 
@@ -1264,7 +1271,7 @@ HTML_PAGE = """<!DOCTYPE html>
       const syncText = document.getElementById('syncText');
       btn.disabled = true;
       btn.innerHTML = '⏳ Synchronisation GitHub en cours...';
-      syncText.textContent = '⏳ Vérification et synchronisation des 62 vidéos avec gnansounoujerode3-hue/COOL-backup...';
+      syncText.textContent = '⏳ Vérification et synchronisation des 63 vidéos avec gnansounoujerode3-hue/COOL-backup...';
       try {
         const res = await fetch('api/github-sync', { method: 'POST' });
         const data = await res.json();
