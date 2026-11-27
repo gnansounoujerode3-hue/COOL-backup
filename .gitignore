@@ -17,3 +17,6 @@ imports/posters/
 
 # Grain/temp du film Discipline
 discipline-entrepreneur/assets/audio/mix_discipline.wav
+
+# Sorties de travail du Clipping Studio (les clips livrés restent versionnés)
+clipping-studio/clips/_preview*.mp4

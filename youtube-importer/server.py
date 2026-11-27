@@ -49,7 +49,7 @@ GH_TREE_URL = f"https://github.com/{GH_REPO}/tree/{GH_BRANCH}"
 os.makedirs(IMPORTS_DIR, exist_ok=True)
 os.makedirs(PERSIST_DIR, exist_ok=True)
 
-# Built-in manifest of all 63 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
+# Built-in manifest of all 66 created videos committed on GitHub (`arena/edaf5d9a-cool-backup`)
 # so the Studio displays all videos immediately even while background git sync is running.
 CREATED_VIDEOS_MANIFEST = [
     # === GROUP 1: 10 Shorts - Stop This Train, Win a Lamborghini ===
@@ -310,6 +310,27 @@ CREATED_VIDEOS_MANIFEST = [
     },
     {
         "group": "motion_films",
+        "title": "Clipping — Être intelligente en 2026 · extrait 01 (9:16 · sous-titres mot à mot)",
+        "path": "clipping-studio/clips/clip-01-9s-9x16.mp4",
+        "aspect": "9/16",
+        "default_mb": 5.27,
+    },
+    {
+        "group": "motion_films",
+        "title": "Clipping — Être intelligente en 2026 · extrait 04 (9:16 · sous-titres mot à mot)",
+        "path": "clipping-studio/clips/clip-04-173s-9x16.mp4",
+        "aspect": "9/16",
+        "default_mb": 7.16,
+    },
+    {
+        "group": "motion_films",
+        "title": "Clipping — Être intelligente en 2026 · extrait 06 (9:16 · sous-titres mot à mot)",
+        "path": "clipping-studio/clips/clip-06-265s-9x16.mp4",
+        "aspect": "9/16",
+        "default_mb": 4.73,
+    },
+    {
+        "group": "motion_films",
         "title": "Léger Akodjenou — Funnel Builder v2 (Motion 9:16 · identité du site · SANS VOIX OFF)",
         "path": "leger-funnel-portfolio/film/leger-akodjenou-funnel-builder-v2-motion-9x16.mp4",
         "aspect": "9/16",
@@ -503,7 +524,7 @@ CREATED_VIDEOS_MANIFEST = [
 SYNC_STATE = {
     "syncing": False,
     "last_sync": "",
-    "message": "Toutes les 63 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
+    "message": "Toutes les 66 vidéos sont synchronisées sur GitHub (branche arena/edaf5d9a-cool-backup).",
 }
 
 
@@ -1271,7 +1292,7 @@ HTML_PAGE = """<!DOCTYPE html>
       const syncText = document.getElementById('syncText');
       btn.disabled = true;
       btn.innerHTML = '⏳ Synchronisation GitHub en cours...';
-      syncText.textContent = '⏳ Vérification et synchronisation des 63 vidéos avec gnansounoujerode3-hue/COOL-backup...';
+      syncText.textContent = '⏳ Vérification et synchronisation des 66 vidéos avec gnansounoujerode3-hue/COOL-backup...';
       try {
         const res = await fetch('api/github-sync', { method: 'POST' });
         const data = await res.json();
